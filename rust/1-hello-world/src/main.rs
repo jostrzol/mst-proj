@@ -7,7 +7,7 @@ use std::time::Duration;
 use rppal::gpio::Gpio;
 use rppal::system::DeviceInfo;
 
-const GPIO_LED: u8 = 4;
+const GPIO_LED: u8 = 14;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Blinking an LED on a {}.", DeviceInfo::new()?.model());
