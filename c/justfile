@@ -1,0 +1,16 @@
+arch := "arm-unknown-linux-gnueabihf"
+artifacts_dir := "../artifacts/"
+
+build-all: helloworld-build
+watch-all:
+  just helloworld-watch
+
+helloworld-build: (_build "1" "hello-world")
+
+helloworld-watch:
+  watchexec --postpone --wrap-process session --verbose -e rs -w ./1-hello-world/src -- just helloworld-build
+
+_build NUM PACKAGE:
+  cross build --package {{PACKAGE}} --release --target={{arch}} \
+  && cp ./target/{{arch}}/release/{{PACKAGE}} ../artifacts/{{NUM}}-{{PACKAGE}}-rust
+
