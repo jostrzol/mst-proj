@@ -8,15 +8,23 @@ const rpiTargetQuery = std.Target.Query{
 };
 
 pub fn build(b: *std.Build) void {
-    const isRpi = b.option(bool, "rpi", "Target Raspberry Pi Zero") orelse false;
+    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSafe });
 
+    const isRpi = b.option(bool, "rpi", "Target Raspberry Pi Zero") orelse false;
     const target = if (isRpi) b.resolveTargetQuery(rpiTargetQuery) else b.host;
+
+    const gpio = b.dependency("gpio", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "1-hello-world-zig",
         .root_source_file = b.path("./main.zig"),
         .target = target,
+        .optimize = optimize,
     });
+    exe.root_module.addImport("gpio", gpio.module("gpio"));
 
     b.installArtifact(exe);
 }
