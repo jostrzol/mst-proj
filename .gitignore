@@ -1,4 +1,9 @@
+/c/build
+/c/.cache
+
 /rust/target/
+
 .zig-cache
 zig-out
+
 /artifacts/

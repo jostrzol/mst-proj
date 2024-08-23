@@ -1,5 +1,3 @@
-arch := "arm-linux-gnueabihf"
-gcc := arch + "-gcc"
 artifacts_dir := "../artifacts/"
 
 build-all: helloworld-build
@@ -16,5 +14,6 @@ _watch PROJECT:
   -- just _build \"{{PROJECT}}\"
 
 _build PROJECT:
-  {{gcc}} ./{{PROJECT}}/*.c -O3 -o ../artifacts/{{PROJECT}}-c
+  mkdir -p build && cd build && cmake .. && make {{PROJECT}}-c \
+  && cp ./bin/{{PROJECT}}-c ../{{artifacts_dir}}/{{PROJECT}}-c
 
