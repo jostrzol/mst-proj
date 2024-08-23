@@ -10,7 +10,9 @@ helloworld-build: (_build "1" "hello-world")
 helloworld-watch: (_watch "1" "hello-world")
 
 _watch NUM PACKAGE:
-  watchexec --postpone --wrap-process session --verbose -e rs -w ./1-hello-world/src -- just _build \"{{NUM}}\" \"{{PACKAGE}}\"
+  watchexec --postpone --wrap-process session --verbose \
+  -e rs -w ./1-hello-world/src --on-busy-update=restart \
+  -- just _build \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build NUM PACKAGE:
   cross build --package {{PACKAGE}} --release --target={{arch}} \

@@ -9,7 +9,9 @@ helloworld-build: (_build "1-hello-world")
 helloworld-watch: (_watch "1-hello-world")
 
 _watch PROJECT:
-  watchexec --postpone --wrap-process session --verbose -e zig -w ./{{PROJECT}} -- just _build \"{{PROJECT}}\"
+  watchexec --postpone --wrap-process session --verbose \
+  -e zig -w ./{{PROJECT}} --on-busy-update=restart \
+  -- just _build \"{{PROJECT}}\"
 
 _build PROJECT:
   cd {{PROJECT}} \

@@ -1,4 +1,4 @@
-arch := "arm-none-linux-gnueabihf"
+arch := "arm-linux-gnueabihf"
 gcc := arch + "-gcc"
 artifacts_dir := "../artifacts/"
 
@@ -11,7 +11,9 @@ helloworld-build: (_build "1-hello-world")
 helloworld-watch: (_watch "1-hello-world")
 
 _watch PROJECT:
-  watchexec --postpone --wrap-process session --verbose -e c,h -w ./{{PROJECT}} -- just _build \"{{PROJECT}}\"
+  watchexec --postpone --wrap-process session --verbose \
+  -e c,h -w ./{{PROJECT}} --on-busy-update=restart \
+  -- just _build \"{{PROJECT}}\"
 
 _build PROJECT:
   {{gcc}} ./{{PROJECT}}/*.c -O3 -o ../artifacts/{{PROJECT}}-c
