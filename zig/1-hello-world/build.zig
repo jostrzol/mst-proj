@@ -25,6 +25,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     exe.root_module.addImport("gpio", gpio.module("gpio"));
+    exe.linkLibC();
 
     b.installArtifact(exe);
 }
