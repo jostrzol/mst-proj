@@ -3,18 +3,18 @@
 include(ExternalProject)
 
 set(LIBGPIOD_PREFIX "${CMAKE_BINARY_DIR}/_deps/libgpiod")
-set(LIBGPIOD_LIBRARY "${LIBGPIOD_PREFIX}/lib/libgpiod.a")
+set(LIBGPIOD_LIBRARY "${LIBGPIOD_PREFIX}/lib/libgpiod.so.2")
 set(LIBGPIOD_INCLUDE_DIR "${LIBGPIOD_PREFIX}/include")
 set(LIBGPIOD_HEADER "${LIBGPIOD_INCLUDE_DIR}/gpiod.h")
 
 # ===== FETCH, CONFIGURE, BUILD, INSTALL ======================================
+
 ExternalProject_Add(
   libgpiod_git
   PREFIX "${LIBGPIOD_PREFIX}"
   GIT_REPOSITORY "https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git"
-  GIT_TAG v2.0.1
-  UPDATE_DISCONNECTED ON
-  CONFIGURE_COMMAND <SOURCE_DIR>/autogen.sh --host=${CMAKE_SYSTEM_PROCESSOR}
+  GIT_TAG v1.6.5
+  CONFIGURE_COMMAND <SOURCE_DIR>/autogen.sh --host=${TARGET_TRIPLET}
                     --prefix=<INSTALL_DIR>
   BUILD_COMMAND make
   INSTALL_COMMAND make install INSTALL_BYPRODUCTS "${LIBGPIOD_LIBRARY}"
