@@ -14,6 +14,6 @@ _watch PROJECT:
   -- just _build \"{{PROJECT}}\"
 
 _build PROJECT:
-  mkdir -p build && cd build && cmake .. && make {{PROJECT}} \
+  mkdir -p build && cd build && cmake -Werror=dev --warn-uninitialized .. && make {{PROJECT}} \
   && cp ./bin/{{PROJECT}} ../{{artifacts_dir}}/{{PROJECT}}-c
 
