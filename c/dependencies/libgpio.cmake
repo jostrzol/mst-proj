@@ -14,6 +14,7 @@ ExternalProject_Add(
   PREFIX "${LIBGPIOD_PREFIX}"
   GIT_REPOSITORY "https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git"
   GIT_TAG v1.6.5
+  UPDATE_DISCONNECTED ON
   CONFIGURE_COMMAND <SOURCE_DIR>/autogen.sh --host=${TARGET_TRIPLET}
                     --prefix=<INSTALL_DIR>
   BUILD_COMMAND make
