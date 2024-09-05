@@ -1,54 +1,77 @@
+#include <bits/types/siginfo_t.h>
 #include <gpiod.h>
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 
-#define	CONSUMER	"Consumer"
+const char consumer[] = "Consumer";
+const char chipname[] = "gpiochip0";
+const int32_t line_number = 14;
 
-int main(int, char **)
-{
-	char *chipname = "gpiochip0";
-	unsigned int line_num = 14;	// GPIO Pin #14
-	unsigned int val;
-	struct gpiod_chip *chip;
-	struct gpiod_line *line;
-	int i, ret;
+const int64_t period_ms = 1000;
+const int64_t sleep_time_ns = period_ms * 1000 / 2;
 
-	chip = gpiod_chip_open_by_name(chipname);
-	if (!chip) {
-		perror("Open chip failed\n");
-		goto end;
-	}
+bool do_continue = true;
 
-	line = gpiod_chip_get_line(chip, line_num);
-	if (!line) {
-		perror("Get line failed\n");
-		goto close_chip;
-	}
+void interrupt_handler(int) {
+  printf("\nGracefully stopping\n");
+  do_continue = false;
+}
+const struct sigaction interrupt_sigaction = {
+    .sa_handler = &interrupt_handler,
+};
 
-	ret = gpiod_line_request_output(line, CONSUMER, 0);
-	if (ret < 0) {
-		perror("Request line as output failed\n");
-		goto release_line;
-	}
+int main(int, char **) {
+  int ret;
 
-	/* Blink 20 times */
-	val = 0;
-	for (i = 20; i > 0; i--) {
-		ret = gpiod_line_set_value(line, val);
-		if (ret < 0) {
-			perror("Set line output failed\n");
-			goto release_line;
-		}
-		printf("Output %u on line #%u\n", val, line_num);
-		sleep(1);
-		val = !val;
-	}
+  ret = sigaction(SIGINT, &interrupt_sigaction, NULL);
+  if (ret < 0) {
+    perror("Setting sigaction failed\n");
+    goto end;
+  }
+
+  struct gpiod_chip *chip = gpiod_chip_open_by_name(chipname);
+  if (!chip) {
+    perror("Open chip failed\n");
+    goto end;
+  }
+
+  struct gpiod_line *line = gpiod_chip_get_line(chip, line_number);
+  if (!line) {
+    perror("Get line failed\n");
+    goto close_chip;
+  }
+
+  ret = gpiod_line_request_output(line, consumer, 0);
+  if (ret < 0) {
+    perror("Request line as output failed\n");
+    goto release_line;
+  }
+
+  printf("Blinking LED from C\n");
+
+  uint8_t line_value = 0;
+  while (do_continue) {
+    ret = gpiod_line_set_value(line, line_value);
+    if (ret < 0) {
+      perror("Set line output failed\n");
+      goto release_line;
+    }
+    usleep(sleep_time_ns);
+    line_value = !line_value;
+  }
+
+  ret = gpiod_line_set_value(line, 0);
+  if (ret < 0) {
+    perror("Set line output failed\n");
+  }
 
 release_line:
-	gpiod_line_release(line);
+  gpiod_line_release(line);
 close_chip:
-	gpiod_chip_close(chip);
+  gpiod_chip_close(chip);
 end:
   return EXIT_SUCCESS;
 }
