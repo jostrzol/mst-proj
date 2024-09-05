@@ -2,7 +2,8 @@ const std = @import("std");
 const gpio = @import("gpio");
 const signal = @cImport(@cInclude("signal.h"));
 
-const sleep_time_ns = std.time.ns_per_s / 2;
+const period_ms = 1000;
+const sleep_time_ns = period_ms * std.time.ns_per_ms / 2;
 
 var do_continue = true;
 pub fn interrupt_handler(_: c_int) callconv(.C) void {
