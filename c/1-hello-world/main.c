@@ -50,7 +50,7 @@ int main(int, char **) {
     goto release_line;
   }
 
-  printf("Blinking LED from C\n");
+  printf("Blinking an LED from C\n");
 
   uint8_t line_value = 0;
   while (do_continue) {
