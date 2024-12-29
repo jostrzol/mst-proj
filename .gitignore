@@ -1,9 +1,14 @@
+# Language unspecific 
+/artifacts/
+/.nlsp-settings/
+
+# C
 /c/build
 /c/.cache
 
+# Rust
 /rust/target/
 
+# Zig
 .zig-cache
 zig-out
-
-/artifacts/
