@@ -22,13 +22,22 @@ watch:
 artifacts-server:
   python3 -m http.server -d ./artifacts/
 
-analyze: _venv_init
-  . ./.venv/bin/activate \
-  && { \
-    lizard ./{c,rust,zig} \
-      --exclude "./c/build/*" --exclude "./zig/*/.zig-cache/*" --exclude "./zig/*/build.zig" \
-    || true; \
-  }
+analyze: _analyze_c _analyze_rust _analyze_zig
+
+_analyze_c:
+  @printf "\n##### ANALYZING C CODE ##################################################\n"
+  - . ./.venv/bin/activate \
+  && lizard ./c/ --exclude "./c/build/*"
+
+_analyze_rust:
+  @printf "\n##### ANALYZING RUST CODE ###############################################\n"
+  - . ./.venv/bin/activate \
+  && lizard ./rust/
+
+_analyze_zig:
+  @printf "\n##### ANALYZING ZIG CODE ################################################\n"
+  - . ./.venv/bin/activate \
+  && lizard ./zig/ --exclude "./zig/*/.zig-cache/*" --exclude "./zig/*/build.zig"
 
 
 # Private
