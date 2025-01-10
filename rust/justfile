@@ -1,17 +1,21 @@
 arch := "arm-unknown-linux-gnueabihf"
 artifacts_dir := "../artifacts/"
 
-build-all: helloworld-build
+build-all: helloworld-build motorcontroller-build
 watch-all:
-  just helloworld-watch
+  just helloworld-watch \
+  & just motorcontroller-watch \
+  & wait
 
 helloworld-build: (_build "1" "hello-world")
-
 helloworld-watch: (_watch "1" "hello-world")
+
+motorcontroller-build: (_build "2" "motor-controller")
+motorcontroller-watch: (_watch "2" "motor-controller")
 
 _watch NUM PACKAGE:
   watchexec --postpone --wrap-process session --verbose \
-  -e rs -w ./1-hello-world/src --on-busy-update=restart \
+  -e rs -w ./{{NUM}}-{{PACKAGE}}/src --on-busy-update=restart \
   -- just _build \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build NUM PACKAGE:
