@@ -5,6 +5,8 @@ watch-all:
   just helloworld-watch
 
 helloworld-build: (_build "1-hello-world")
+clean:
+  rm -rf ./build
 
 helloworld-watch: (_watch "1-hello-world")
 

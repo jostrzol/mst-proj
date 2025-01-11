@@ -1,11 +1,14 @@
 artifacts_dir := "../artifacts/"
 
 build-all: helloworld-build
+
 watch-all:
   just helloworld-watch
 
-helloworld-build: (_build "1-hello-world")
+clean:
+  rm -rf ./*/{.zig-cache,zig-out}
 
+helloworld-build: (_build "1-hello-world")
 helloworld-watch: (_watch "1-hello-world")
 
 _watch PROJECT:

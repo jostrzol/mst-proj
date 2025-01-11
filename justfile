@@ -8,6 +8,12 @@ build:
   & just --unstable zig::build-all \
   & wait
 
+clean:
+  just --unstable rust::clean \
+  && just --unstable c::clean \
+  && just --unstable zig::clean
+  
+
 watch-and-serve:
   just --unstable artifacts-server \
   & just --unstable watch \
