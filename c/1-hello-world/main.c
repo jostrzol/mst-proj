@@ -6,12 +6,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-const char consumer[] = "Consumer";
-const char chipname[] = "gpiochip0";
-const int32_t line_number = 14;
+const char CONSUMER[] = "Consumer";
+const char CHIPNAME[] = "gpiochip0";
+const int32_t LINE_NUMBER = 14;
 
-const int64_t period_ms = 1000;
-const int64_t sleep_time_ns = period_ms * 1000 / 2;
+const int64_t PERIOD_MS = 1000;
+const int64_t SLEEP_DURATION_NS = PERIOD_MS * 1000 / 2;
 
 bool do_continue = true;
 
@@ -32,19 +32,19 @@ int main(int, char **) {
     goto end;
   }
 
-  struct gpiod_chip *chip = gpiod_chip_open_by_name(chipname);
+  struct gpiod_chip *chip = gpiod_chip_open_by_name(CHIPNAME);
   if (!chip) {
     perror("Open chip failed\n");
     goto end;
   }
 
-  struct gpiod_line *line = gpiod_chip_get_line(chip, line_number);
+  struct gpiod_line *line = gpiod_chip_get_line(chip, LINE_NUMBER);
   if (!line) {
     perror("Get line failed\n");
     goto close_chip;
   }
 
-  ret = gpiod_line_request_output(line, consumer, 0);
+  ret = gpiod_line_request_output(line, CONSUMER, 0);
   if (ret < 0) {
     perror("Request line as output failed\n");
     goto release_line;
@@ -59,7 +59,7 @@ int main(int, char **) {
       perror("Set line output failed\n");
       goto release_line;
     }
-    usleep(sleep_time_ns);
+    usleep(SLEEP_DURATION_NS);
     line_value = !line_value;
   }
 
