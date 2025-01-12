@@ -7,14 +7,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-const uint64_t DUTY_CYCLE_MAX = 1000000;
-
 const uint32_t LINE_NUMBER = 13;
 
 const uint64_t PERIOD_MS = 5000;
 const uint64_t PWM_CHANGES = 50;
-const uint64_t PWM_MIN = 0.2 * DUTY_CYCLE_MAX;
-const uint64_t PWM_MAX = 0.7 * DUTY_CYCLE_MAX;
+const uint64_t PWM_MIN = 0.2 * PI_HW_PWM_RANGE;
+const uint64_t PWM_MAX = 1.0 * PI_HW_PWM_RANGE;
 const uint64_t PWM_FREQUENCY = 1000;
 const uint64_t SLEEP_DURATION_NS = PERIOD_MS * 1000 / PWM_CHANGES;
 
