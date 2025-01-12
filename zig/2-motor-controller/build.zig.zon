@@ -1,0 +1,12 @@
+.{
+    .name = "2-motor-controller",
+    .version = "0.0.1",
+    .paths = .{""},
+
+    .dependencies = .{
+        .gpio = .{
+            .url = "https://github.com/jostrzol/zig-gpio/archive/refs/tags/v0.0.3.tar.gz",
+            .hash = "1220d5cf30bf719ac852712159eba07a873293501afafbff6350c172c6f42598ccd3",
+        },
+    },
+}
