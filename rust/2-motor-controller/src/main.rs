@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Controlling motor from Rust.");
 
     let pwm = Pwm::new(PWM_CHANNEL)?;
+    pwm.set_frequency(PWM_FREQUENCY, 0.)?;
     pwm.enable()?;
 
     let more_work = Arc::new(AtomicBool::new(true));
