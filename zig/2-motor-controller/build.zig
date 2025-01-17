@@ -28,4 +28,7 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
 
     b.installArtifact(exe);
+
+    const check_step = b.step("check", "Check the application");
+    check_step.dependOn(&exe.step);
 }
