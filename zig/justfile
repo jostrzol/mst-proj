@@ -23,6 +23,6 @@ _watch PROJECT:
 
 _build PROJECT:
   cd {{PROJECT}} \
-  && zig build -Drpi --release \
+  && zig build -Drpi -Drelease=false \
   && cp ./zig-out/bin/* ../../artifacts/
 

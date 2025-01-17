@@ -2,6 +2,8 @@ const std = @import("std");
 const gpio = @import("gpio");
 const signal = @cImport(@cInclude("signal.h"));
 
+const pwm = @import("pwm.zig");
+
 const period_ms = 1000;
 const sleep_time_ns = period_ms * std.time.ns_per_ms / 2;
 
@@ -19,19 +21,21 @@ pub fn main() !void {
         return error.SigactionNotSet;
     }
 
-    var chip = try gpio.getChip("/dev/gpiochip0");
-    defer chip.close();
-    std.debug.print("Blinking an LED from Zig.\n", .{});
+    var chip = try pwm.Chip.init(0);
+    defer chip.deinit();
 
-    var line = try chip.requestLine(14, .{ .output = true });
-    defer line.close();
+    std.debug.print("Controlling motor from Zig.\n", .{});
+
+    var channel = try chip.channel(1);
+
+    try channel.setFrequency(1000);
+    try channel.setDutyCycleRatio(0);
+    try channel.setEnable(true);
 
     while (do_continue) {
-        try line.setHigh();
+        channel.setDutyCycleRatio(1.0) catch std.debug.print("cannot set duty cycle", .{});
         std.time.sleep(sleep_time_ns);
-        try line.setLow();
+        channel.setDutyCycleRatio(0.5) catch std.debug.print("cannot set duty cycle", .{});
         std.time.sleep(sleep_time_ns);
     }
-
-    try line.setLow();
 }
