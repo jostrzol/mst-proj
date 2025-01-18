@@ -38,8 +38,8 @@ pub fn main() !void {
         std.time.sleep(sleep_time_ns);
 
         std.log.debug(
-            "period [ns]: {}, duty_cycle [ns]: {}",
-            .{ try channel.getPeriodNs(), try channel.getDutyCycleNs() },
+            "on?: {}, period [ns]: {}, duty_cycle [ns]: {}",
+            .{ try channel.isEnabled(), try channel.getPeriodNs(), try channel.getDutyCycleNs() },
         );
 
         channel.setParameters(
@@ -48,8 +48,8 @@ pub fn main() !void {
         std.time.sleep(sleep_time_ns);
 
         std.log.debug(
-            "period [ns]: {}, duty_cycle [ns]: {}",
-            .{ try channel.getPeriodNs(), try channel.getDutyCycleNs() },
+            "on?: {}, period [ns]: {}, duty_cycle [ns]: {}",
+            .{ try channel.isEnabled(), try channel.getPeriodNs(), try channel.getDutyCycleNs() },
         );
     }
 }
