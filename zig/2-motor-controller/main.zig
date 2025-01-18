@@ -27,6 +27,7 @@ pub fn main() !void {
     std.debug.print("Controlling motor from Zig.\n", .{});
 
     var channel = try chip.channel(1);
+    defer channel.deinit();
 
     try channel.setParameters(.{ .frequency = 1000, .duty_cycle_ratio = 0.0 });
     try channel.enable();
