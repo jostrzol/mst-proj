@@ -28,14 +28,28 @@ pub fn main() !void {
 
     var channel = try chip.channel(1);
 
-    try channel.setFrequency(1000);
-    try channel.setDutyCycleRatio(0);
-    try channel.setEnable(true);
+    try channel.setParameters(.{ .frequency = 1000, .duty_cycle_ratio = 0.0 });
+    try channel.enable();
 
     while (do_continue) {
-        channel.setDutyCycleRatio(1.0) catch std.debug.print("cannot set duty cycle", .{});
+        channel.setParameters(
+            .{ .frequency = 1000, .duty_cycle_ratio = 1.0 },
+        ) catch std.debug.print("cannot set duty cycle", .{});
         std.time.sleep(sleep_time_ns);
-        channel.setDutyCycleRatio(0.5) catch std.debug.print("cannot set duty cycle", .{});
+
+        std.log.debug(
+            "period [ns]: {}, duty_cycle [ns]: {}",
+            .{ try channel.getPeriodNs(), try channel.getDutyCycleNs() },
+        );
+
+        channel.setParameters(
+            .{ .frequency = 1000, .duty_cycle_ratio = 0.3 },
+        ) catch std.debug.print("cannot set duty cycle", .{});
         std.time.sleep(sleep_time_ns);
+
+        std.log.debug(
+            "period [ns]: {}, duty_cycle [ns]: {}",
+            .{ try channel.getPeriodNs(), try channel.getDutyCycleNs() },
+        );
     }
 }

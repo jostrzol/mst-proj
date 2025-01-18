@@ -13,9 +13,17 @@ fn pathMakeZ(comptime fmt: []const u8, args: anytype) std.fmt.BufPrintError!Path
 }
 
 pub const Chip = struct {
+    const Files = struct {
+        export_: ?std.fs.File = null,
+        unexport: ?std.fs.File = null,
+        // npwn doesn't need to be kept open
+    };
+
     number: u8,
     channels: [MAX_CHANNELS]?Channel,
     npwm_cached: ?u8 = null,
+
+    files: Files = .{},
 
     pub fn init(chip_nr: u8) !Chip {
         return .{
@@ -29,12 +37,19 @@ pub const Chip = struct {
             var chan = maybe_chan orelse continue;
             chan.deinit();
         }
+        inline for (std.meta.fields(Files)) |f| {
+            const maybe_file = @field(self.files, f.name);
+            if (maybe_file) |file_| file_.close();
+        }
     }
 
     pub fn npwm(self: *Chip) !u8 {
         if (self.npwm_cached) |value| return value;
-        const npwm_path = try self.path("/npwm", .{});
-        const value = try readUnsigned(u8, &npwm_path, 8, 10);
+        const path_ = try self.path("/npwm", .{});
+        const file_ = try std.fs.openFileAbsoluteZ(&path_, .{ .mode = .read_only });
+        defer file_.close();
+
+        const value = try readInt(u8, 8, file_, 10);
         self.npwm_cached = value;
         return value;
     }
@@ -48,6 +63,30 @@ pub const Chip = struct {
         return &self.channels[channel_nr].?;
     }
 
+    fn export_(self: *Chip, channel_nr: u8) !void {
+        const file_ = try self.file(.export_, .{ .mode = .write_only });
+        try file_.writer().print("{}", .{channel_nr});
+    }
+
+    fn unexport(self: *Chip, channel_nr: u8) !void {
+        const file_ = try self.file(.unexport, .{ .mode = .write_only });
+        try file_.writer().print("{}", .{channel_nr});
+    }
+
+    fn file(
+        self: *Chip,
+        comptime location: std.meta.FieldEnum(Files),
+        flags: std.fs.File.OpenFlags,
+    ) !std.fs.File {
+        const name = @tagName(location);
+        if (@field(self.files, name)) |file_| return file_;
+
+        const path_ = try self.path("/" ++ stripUnderscore(name), .{});
+        const file_ = try std.fs.openFileAbsoluteZ(&path_, flags);
+        @field(self.files, name) = file_;
+        return file_;
+    }
+
     fn path(
         self: *const Chip,
         comptime fmt: []const u8,
@@ -58,9 +97,17 @@ pub const Chip = struct {
 };
 
 pub const Channel = struct {
+    const Files = struct {
+        period: ?std.fs.File = null,
+        duty_cycle: ?std.fs.File = null,
+        enable: ?std.fs.File = null,
+    };
+
     chip: *Chip,
     number: u8,
+
     period_ns_cached: ?u64 = null,
+    files: Files = .{},
 
     fn init(chip: *Chip, channel_nr: u8) !Channel {
         var channel = Channel{ .chip = chip, .number = channel_nr };
@@ -75,48 +122,82 @@ pub const Channel = struct {
 
     fn export_(self: *Channel) !void {
         if (try self.isExported()) return;
-        const export_path = try self.chip.path("/export", .{});
-        try writeValue(&export_path, self.number);
+        try self.chip.export_(self.number);
     }
 
     fn deinit(self: *Channel) void {
-        self.chip.channels[self.number] = null;
         self.unexport() catch std.log.err("couldn't unexport PWM channel\n", .{});
+        inline for (std.meta.fields(Files)) |f| {
+            const maybe_file = @field(self.files, f.name);
+            if (maybe_file) |file_| file_.close();
+        }
     }
 
     fn unexport(self: *Channel) !void {
         if (!try self.isExported()) return;
-        const unexport_path = try self.chip.path("/unexport", .{});
-        try writeValue(&unexport_path, self.number);
+        try self.chip.unexport(self.number);
     }
 
-    pub fn setFrequency(self: *Channel, frequency: u64) !void {
-        const period_ns = std.time.ns_per_s / frequency;
+    pub fn setParameters(self: *Channel, parameters: struct {
+        frequency: u64,
+        duty_cycle_ratio: f32,
+    }) !void {
+        const period_ns = std.time.ns_per_s / parameters.frequency;
+        const duty_cycle_ns = @as(f32, @floatFromInt(period_ns)) * parameters.duty_cycle_ratio;
         try self.setPeriodNs(period_ns);
+        try self.setDutyCycleNs(@intFromFloat(duty_cycle_ns));
     }
 
     pub fn setPeriodNs(self: *Channel, period_ns: u64) !void {
-        const period_path = try self.path("/period", .{});
-        std.log.debug("period: {}\n", .{period_ns});
-        try writeValue(&period_path, period_ns);
+        if (period_ns == self.period_ns_cached) return;
+
+        const file_ = try self.file(.period, .{ .mode = .read_write });
+        try file_.writer().print("{}", .{period_ns});
         self.period_ns_cached = period_ns;
     }
 
-    pub fn setDutyCycleRatio(self: *Channel, duty_cycle_ratio: f32) !void {
-        const period = self.period_ns_cached orelse return error.PeriodNotSet;
-        const duty_cycle_ns = @as(f32, @floatFromInt(period)) * duty_cycle_ratio;
-        try self.setDutyCycle(@intFromFloat(duty_cycle_ns));
+    pub fn getPeriodNs(self: *Channel) !u64 {
+        const file_ = try self.file(.period, .{ .mode = .read_write });
+        return try readInt(u64, 16, file_, 10);
     }
 
-    pub fn setDutyCycle(self: *Channel, duty_cycle_ns: u64) !void {
-        const duty_cycle_path = try self.path("/duty_cycle", .{});
-        std.log.debug("duty cycle: {}\n", .{duty_cycle_ns});
-        try writeValue(&duty_cycle_path, duty_cycle_ns);
+    pub fn setDutyCycleNs(self: *Channel, duty_cycle_ns: u64) !void {
+        const file_ = try self.file(.duty_cycle, .{ .mode = .read_write });
+        try file_.writer().print("{}", .{duty_cycle_ns});
     }
 
-    pub fn setEnable(self: *Channel, enable: bool) !void {
-        const enable_path = try self.path("/enable", .{});
-        try writeValue(&enable_path, @intFromBool(enable));
+    pub fn getDutyCycleNs(self: *Channel) !u64 {
+        const file_ = try self.file(.duty_cycle, .{ .mode = .read_write });
+        return try readInt(u64, 16, file_, 10);
+    }
+
+    pub fn enable(self: *Channel) !void {
+        const file_ = try self.file(.enable, .{ .mode = .read_write });
+        _ = try file_.writer().writeAll("1");
+    }
+
+    pub fn disable(self: *Channel) !void {
+        const file_ = try self.file(.enable, .{ .mode = .read_write });
+        _ = try file_.writer().writeAll("0");
+    }
+
+    pub fn isEnabled(self: *Channel) !bool {
+        const file_ = try self.file(.enable, .{ .mode = .read_write });
+        return try readInt(u1, 1, file_, 10) == 1;
+    }
+
+    fn file(
+        self: *Channel,
+        comptime location: std.meta.FieldEnum(Files),
+        flags: std.fs.File.OpenFlags,
+    ) !std.fs.File {
+        const name = @tagName(location);
+        if (@field(self.files, name)) |file_| return file_;
+
+        const path_ = try self.path("/" ++ name, .{});
+        const file_ = try std.fs.openFileAbsoluteZ(&path_, flags);
+        @field(self.files, name) = file_;
+        return file_;
     }
 
     fn path(
@@ -128,17 +209,14 @@ pub const Channel = struct {
     }
 };
 
-fn readUnsigned(comptime T: type, file_path: [*:0]const u8, comptime bufsize: u8, base: u8) !T {
-    const line = try readAll(file_path, bufsize);
-    var tokens = std.mem.tokenizeAny(u8, &line, WHITESPACE);
+fn readInt(comptime T: type, comptime bufsize: u8, file: std.fs.File, base: u8) !T {
+    const buffer = try readToBuffer(file, bufsize);
+    var tokens = std.mem.tokenizeAny(u8, &buffer, WHITESPACE);
     const first_token = tokens.next() orelse return error.Empty;
-    return try std.fmt.parseUnsigned(T, first_token, base);
+    return try std.fmt.parseInt(T, first_token, base);
 }
 
-fn readAll(file_path: [*:0]const u8, comptime bufsize: u8) ![bufsize:0]u8 {
-    const file = try std.fs.openFileAbsoluteZ(file_path, .{});
-    defer file.close();
-
+fn readToBuffer(file: std.fs.File, comptime bufsize: u8) ![bufsize:0]u8 {
     var buffer: [bufsize:0]u8 = undefined;
     const bytes_read = try file.readAll(&buffer);
     if (bytes_read == bufsize) return error.BufferTooSmall;
@@ -146,16 +224,9 @@ fn readAll(file_path: [*:0]const u8, comptime bufsize: u8) ![bufsize:0]u8 {
     return buffer;
 }
 
-fn writeValue(file_path: [*:0]const u8, value: anytype) !void {
-    try print(file_path, "{}", .{value});
-}
-
-fn print(file_path: [*:0]const u8, comptime format: []const u8, args: anytype) !void {
-    const file = try std.fs.openFileAbsoluteZ(file_path, .{ .mode = .write_only });
-    defer file.close();
-
-    const writer = std.fs.File.writer(file);
-    try writer.print(format, args);
+fn stripUnderscore(str: []const u8) []const u8 {
+    if (!std.mem.endsWith(u8, str, "_")) return str;
+    return str[0 .. str.len - 1];
 }
 
 fn doesPathExist(path: [*:0]const u8) bool {
