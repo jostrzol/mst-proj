@@ -202,6 +202,9 @@ pub const Channel = struct {
         /// `/sys/class/pwm/pwmchip{chip.number}/pwm{number}/duty_cycle`.
         duty_cycle: ?std.fs.File = null,
         /// Handle to file
+        /// `/sys/class/pwm/pwmchip{chip.number}/pwm{number}/polarity`.
+        polarity: ?std.fs.File = null,
+        /// Handle to file
         /// `/sys/class/pwm/pwmchip{chip.number}/pwm{number}/enable`.
         enable: ?std.fs.File = null,
     };
@@ -307,6 +310,32 @@ pub const Channel = struct {
         return try readInt(u64, 16, file_, 10);
     }
 
+    /// Sets the channel's polarity.
+    ///
+    /// ---
+    ///
+    /// **Note:** can only be changed if the chip is not enabled
+    pub fn setPolarity(self: *Channel, value: Polarity) !void {
+        if (try self.isEnabled()) return error.Enabled;
+
+        const file_ = try self.file(.polarity, .{ .mode = .read_write });
+        try file_.writer().writeAll(value.serialize());
+    }
+
+    /// Gets the channel's polarity.
+    pub fn getPolarity(self: *Channel) !Polarity {
+        const file_ = try self.file(.polarity, .{ .mode = .read_write });
+        try file_.seekTo(0);
+
+        var buffer: [16]u8 = undefined;
+        const bytes_read = try file_.readAll(&buffer);
+        if (bytes_read == buffer.len) return error.BufferTooSmall;
+
+        var tokens = std.mem.tokenizeAny(u8, buffer[0..bytes_read], &WHITESPACE);
+        const first_token = tokens.next() orelse return error.Empty;
+        return try Polarity.parse(first_token);
+    }
+
     // Enables the channel.
     pub fn enable(self: *Channel) !void {
         try self.setEnable(true);
@@ -346,7 +375,6 @@ pub const Channel = struct {
 
         var buffer: PathPwmBuffer = undefined;
         const path_ = try self.path(&buffer, "/" ++ name, .{});
-        std.debug.print("Channel.file: {s}; {}\n", .{ path_, flags });
         const file_ = try std.fs.openFileAbsolute(path_, flags);
         @field(self.files_opened, name) = file_;
         return file_;
@@ -366,6 +394,25 @@ pub const Channel = struct {
             "/pwm{}" ++ fmt,
             .{self.number} ++ args,
         );
+    }
+};
+
+/// Channel's polarity.
+pub const Polarity = enum {
+    normal,
+    inversed,
+
+    fn serialize(self: Polarity) []const u8 {
+        return switch (self) {
+            .normal => "normal",
+            .inversed => "inversed",
+        };
+    }
+
+    fn parse(token: []const u8) !Polarity {
+        if (std.mem.eql(u8, token, "normal")) return .normal;
+        if (std.mem.eql(u8, token, "inversed")) return .inversed;
+        return error.InvalidToken;
     }
 };
 

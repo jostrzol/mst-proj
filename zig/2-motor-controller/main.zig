@@ -29,6 +29,13 @@ pub fn main() !void {
     var channel = try chip.channel(1);
     defer channel.deinit();
 
+    try channel.disable();
+    try channel.setPolarity(pwm.Polarity.normal);
+    std.log.debug("polarity: {}", .{try channel.getPolarity()});
+    try channel.setPolarity(pwm.Polarity.inversed);
+    std.log.debug("polarity: {}", .{try channel.getPolarity()});
+    try channel.setPolarity(pwm.Polarity.normal);
+
     try channel.setParameters(.{ .frequency = 1000, .duty_cycle_ratio = 0.0 });
     try channel.enable();
 
