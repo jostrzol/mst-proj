@@ -28,7 +28,6 @@ const PathPwmBuffer = [MAX_PWM_PATH_BYTES]u8;
 /// The chip's root file is located under `/sys/class/pwm/pwmchip{Chip.number}`.
 ///
 /// ---
-///
 /// **Note:** It may be required to enable the Linux Kernel PWM interface for
 /// the system. For example, Raspberry PI requires appending either:
 ///
@@ -41,9 +40,7 @@ const PathPwmBuffer = [MAX_PWM_PATH_BYTES]u8;
 /// * or `boot/firmware/usercfg.txt` on Ubuntu.
 pub const Chip = struct {
     /// Represents chip's Linux Kernel interface files opened by the library.
-    ///
     ///  ---
-    ///
     /// **Note:** does not contain `/sys/class/pwm/pwmchip{number}/npwn` file,
     /// because it is accessed only once and its result is cached.
     const FilesOpened = struct {
@@ -192,6 +189,10 @@ pub const Chip = struct {
 ///
 /// To use the channel, set its period and duty cycle (preferably through
 /// `Channel.setParameters`) and enable it through `Channel.enable`.
+///
+/// ---
+/// **Note:** The channel's frequency/period should be the first thing to set.
+/// Other setters will refuse to work otherwise
 pub const Channel = struct {
     /// Represents channel's Linux Kernel interface files opened by the library.
     const FilesOpened = struct {
@@ -242,7 +243,11 @@ pub const Channel = struct {
 
     /// Deinitializes the channel.
     pub fn deinit(self: *Channel) void {
-        self.unexport() catch std.log.err("couldn't unexport PWM channel\n", .{});
+        self.unexport() catch |err| std.debug.panic(
+            "couldn't unexport PWM channel {} on chip {}: {}\n",
+            .{ self.number, self.chip.number, err },
+        );
+
         inline for (std.meta.fields(FilesOpened)) |f| {
             const maybe_file = @field(self.files_opened, f.name);
             if (maybe_file) |file_| file_.close();
@@ -266,23 +271,28 @@ pub const Channel = struct {
 
     /// Sets both period and duty cycle in a user-friendly manner.
     ///
-    /// * `params.frequency` - requested frequency in Hz,
+    /// * `params.frequency` - requested frequency in Hz (must be non-zero);
+    ///   pass null to skip setting it and reuse most recently set frequency.
     /// * `params.duty_cycle_ratio` - part of the PWM period, that the wave
-    ///   should be set to high (in range [0.0, 1.0])
+    ///   should be set to high (in range [0.0, 1.0]).
     pub fn setParameters(self: *Channel, params: struct {
-        frequency: u64,
+        frequency: ?u64,
         duty_cycle_ratio: f32,
     }) !void {
-        const period_ns = std.time.ns_per_s / params.frequency;
+        if (params.frequency == 0) return error.PwmFrequencyZero;
+
+        const period_ns = if (params.frequency) |frequency|
+            std.time.ns_per_s / frequency
+        else
+            self.period_ns_cached orelse return error.FirstUseFrequencyNull;
         const duty_cycle_ns = @as(f32, @floatFromInt(period_ns)) * params.duty_cycle_ratio;
-        try self.setPeriodNs(period_ns);
+
+        if (params.frequency != null) try self.setPeriodNs(period_ns);
         try self.setDutyCycleNs(@intFromFloat(duty_cycle_ns));
     }
 
     /// Sets the channel's period in nanoseconds.
     pub fn setPeriodNs(self: *Channel, period_ns: u64) !void {
-        if (period_ns == self.period_ns_cached) return;
-
         const file_ = try self.file(.period, .{ .mode = .read_write });
         try file_.writer().print("{}", .{period_ns});
         self.period_ns_cached = period_ns;
@@ -298,6 +308,8 @@ pub const Channel = struct {
     }
 
     /// Sets the channel's duty cycle in nanoseconds.
+    /// ---
+    /// **Note:** can only be called after setting a frequency/period.
     pub fn setDutyCycleNs(self: *Channel, duty_cycle_ns: u64) !void {
         const file_ = try self.file(.duty_cycle, .{ .mode = .read_write });
         try file_.writer().print("{}", .{duty_cycle_ns});
@@ -311,10 +323,9 @@ pub const Channel = struct {
     }
 
     /// Sets the channel's polarity.
-    ///
     /// ---
-    ///
-    /// **Note:** can only be changed if the chip is not enabled
+    /// **Note:** can only be changed after setting a frequency/period and when
+    /// the chip is disabled.
     pub fn setPolarity(self: *Channel, value: Polarity) !void {
         if (try self.isEnabled()) return error.Enabled;
 
@@ -336,23 +347,29 @@ pub const Channel = struct {
         return try Polarity.parse(first_token);
     }
 
-    // Enables the channel.
+    /// Enables the channel.
+    /// ---
+    /// **Note:** can only be called after setting a frequency/period.
     pub fn enable(self: *Channel) !void {
         try self.setEnable(true);
     }
 
-    // Disables the channel.
+    /// Disables the channel.
+    /// ---
+    /// **Note:** can only be called after setting a frequency/period.
     pub fn disable(self: *Channel) !void {
         try self.setEnable(false);
     }
 
-    // Enables or disables the channel.
+    /// Enables or disables the channel.
+    /// ---
+    /// **Note:** can only be called after setting a frequency/period.
     fn setEnable(self: *Channel, value: bool) !void {
         const file_ = try self.file(.enable, .{ .mode = .read_write });
         _ = try file_.writer().print("{}", .{@intFromBool(value)});
     }
 
-    // Checks if the channel is enabled.
+    /// Checks if the channel is enabled.
     pub fn isEnabled(self: *Channel) !bool {
         const file_ = try self.file(.enable, .{ .mode = .read_write });
         try file_.seekTo(0);
@@ -433,7 +450,7 @@ fn readInt(comptime T: type, comptime bufsize: u8, file: std.fs.File, base: u8) 
     return try std.fmt.parseInt(T, first_token, base);
 }
 
-/// Returned the string view, but with '_' trimmed from the end.
+/// Returns the string view, but with '_' trimmed from the end.
 fn stripUnderscore(str: []const u8) []const u8 {
     if (!std.mem.endsWith(u8, str, "_")) return str;
     return str[0 .. str.len - 1];
