@@ -1,3 +1,5 @@
+arch := "arm-linux-gnueabihf"
+cpu := "arm1176jzf_s"
 artifacts_dir := "../artifacts/"
 
 build-all: helloworld-build motorcontroller-build
@@ -23,6 +25,6 @@ _watch PROJECT:
 
 _build PROJECT:
   cd {{PROJECT}} \
-  && zig build -Drpi -Drelease=false \
+  && zig build -Dtarget={{arch}} -Dcpu={{cpu}} \
   && cp ./zig-out/bin/* ../../artifacts/
 

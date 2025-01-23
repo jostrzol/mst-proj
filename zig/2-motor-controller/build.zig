@@ -8,10 +8,8 @@ const rpiTargetQuery = std.Target.Query{
 };
 
 pub fn build(b: *std.Build) void {
-    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSafe });
-
-    const isRpi = b.option(bool, "rpi", "Target Raspberry Pi Zero") orelse false;
-    const target = if (isRpi) b.resolveTargetQuery(rpiTargetQuery) else b.host;
+    const optimize = b.standardOptimizeOption(.{});
+    const target = b.standardTargetOptions(.{});
 
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
 
