@@ -32,23 +32,11 @@ pub fn main() !void {
     var channel = try chip.channel(pwm_channel);
     defer channel.deinit();
 
-    // Needed to set other parameters.
     try channel.setParameters(.{
         .frequency = pwm_frequency,
         .duty_cycle_ratio = 0,
     });
-
-    try channel.disable();
-    std.log.debug("enabled?: {}", .{try channel.isEnabled()});
-
-    try channel.setPolarity(pwm.Polarity.normal);
-    std.log.debug("polarity: {}", .{try channel.getPolarity()});
-    try channel.setPolarity(pwm.Polarity.inversed);
-    std.log.debug("polarity: {}", .{try channel.getPolarity()});
-    try channel.setPolarity(pwm.Polarity.normal);
-
     try channel.enable();
-    std.log.debug("enabled?: {}", .{try channel.isEnabled()});
 
     main_loop: while (true) {
         for (0..pwm_updates_per_period) |i| {
@@ -71,9 +59,4 @@ fn updateDutyCycle(channel: *pwm.Channel, step: u64) !void {
         .frequency = null,
         .duty_cycle_ratio = duty_cycle,
     });
-
-    std.log.debug(
-        "period [ns]: {}, duty_cycle [ns]: {}",
-        .{ try channel.getPeriodNs(), try channel.getDutyCycleNs() },
-    );
 }
