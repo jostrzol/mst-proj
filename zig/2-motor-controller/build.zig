@@ -13,10 +13,7 @@ pub fn build(b: *std.Build) void {
     const isRpi = b.option(bool, "rpi", "Target Raspberry Pi Zero") orelse false;
     const target = if (isRpi) b.resolveTargetQuery(rpiTargetQuery) else b.host;
 
-    const gpio = b.dependency("gpio", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
 
     const exe = b.addExecutable(.{
         .name = "2-motor-controller-zig",
@@ -24,7 +21,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("gpio", gpio.module("gpio"));
+    exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
     exe.linkLibC();
 
     b.installArtifact(exe);
