@@ -30,6 +30,9 @@ artifacts-server:
 
 analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
 
+install-dev: _venv_dev_dependencies
+
+# analyze private
 _analyze_c: (_analyze "c" "--exclude" "'./c/build/*'")
 _analyze_rust: (_analyze "rust")
 _analyze_zig: (
@@ -47,9 +50,9 @@ _analyze LANG *FLAGS:
   done
 
 
-# Private
-
+# venv private
 _venv_dependency_packages := "setuptools"
+_venv_dev_dependency_packages := "ruff basedpyright"
 
 _venv_init: _venv_dependencies _venv_lizard
 
@@ -65,10 +68,12 @@ _download_lizard: _cache
 _cache:
   mkdir -p "./.cache"
 
-_venv_dependencies: _venv_create
+_venv_dependencies: (_venv_install_packages _venv_dependency_packages)
+_venv_dev_dependencies: (_venv_install_packages _venv_dev_dependency_packages)
+_venv_install_packages *PACKAGES: _venv_create
   . ./.venv/bin/activate \
-  && pip3 install --dry-run {{_venv_dependency_packages}} 2>/dev/null | grep -q "^Would install"; \
-  if "$?" -ne "0"; then pip3 install {{_venv_dependency_packages}}; fi
+  && pip3 install --dry-run {{PACKAGES}} 2>/dev/null | grep -q "^Would install"; \
+  if test "$?" -eq "0"; then pip3 install {{PACKAGES}}; fi
   
 _venv_create:
   test -d "./.venv" || python3 -m venv ".venv"
