@@ -1,4 +1,5 @@
 # Language unspecific 
+/analysis/
 /artifacts/
 /.nlsp-settings/
 /.venv/

@@ -28,22 +28,23 @@ watch:
 artifacts-server:
   python3 -m http.server -d ./artifacts/
 
-analyze: _analyze_c _analyze_rust _analyze_zig
+analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
 
-_analyze_c:
-  @printf "\n##### ANALYZING C CODE ##################################################\n"
-  - . ./.venv/bin/activate \
-  && lizard ./c/ --exclude "./c/build/*"
+_analyze_c: (_analyze "c" "--exclude" "'./c/build/*'")
+_analyze_rust: (_analyze "rust")
+_analyze_zig: (
+  _analyze "zig"
+    "--exclude" "'./zig/*/.zig-cache/*'"
+    "--exclude" "'./zig/*/build.zig'"
+  )
 
-_analyze_rust:
-  @printf "\n##### ANALYZING RUST CODE ###############################################\n"
+_analyze LANG *FLAGS:
+  @printf "\n##### ANALYZING {{LANG}} CODE ################################################\n"
+  mkdir -p "./analysis"
   - . ./.venv/bin/activate \
-  && lizard ./rust/
-
-_analyze_zig:
-  @printf "\n##### ANALYZING ZIG CODE ################################################\n"
-  - . ./.venv/bin/activate \
-  && lizard ./zig/ --exclude "./zig/*/.zig-cache/*" --exclude "./zig/*/build.zig"
+  && for proj in ./{{LANG}}/?-*; \
+    do lizard "$proj" --csv {{FLAGS}} >"./analysis/$(basename "$proj")-{{LANG}}.csv"; \
+  done
 
 
 # Private
