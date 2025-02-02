@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 
 class FunctionInfo(NamedTuple):
     nloc_count: int
-    cnn: int
+    ccn: int
     token_count: int
     param_count: int
     loc_count: int
@@ -27,7 +27,7 @@ class FunctionInfo(NamedTuple):
     def from_csv_row(cls, row: list[str]):
         [
             nloc_count,
-            cnn,
+            ccn,
             token_count,
             param_count,
             loc_count,
@@ -40,7 +40,7 @@ class FunctionInfo(NamedTuple):
         ] = row
         return cls(
             nloc_count=int(nloc_count),
-            cnn=int(cnn),
+            ccn=int(ccn),
             token_count=int(token_count),
             param_count=int(param_count),
             loc_count=int(loc_count),
@@ -65,8 +65,8 @@ class FunctionInfos:
 
     @property
     @lru_cache
-    def cnn(self) -> int:
-        return sum(info.cnn for info in self.infos)
+    def ccn(self) -> int:
+        return sum(info.ccn for info in self.infos)
 
     @property
     @lru_cache
@@ -128,13 +128,13 @@ def main():
             infos = FunctionInfos.from_csv(file)
         langs_to_infos[lang] = infos
 
-    titles = ["CNN", "NLOC", "LOC", "Liczba tokenów"]
-    fields = ["cnn", "nloc_count", "loc_count", "token_count"]
+    titles = ["CCN", "NLOC", "LOC", "Liczba tokenów"]
+    fields = ["ccn", "nloc_count", "loc_count", "token_count"]
     labels = list(langs_to_infos.keys())
     for i, (title, field) in enumerate(zip(titles, fields)):
         values = [getattr(infos, field) for infos in langs_to_infos.values()]
         _ = plt.subplot(2, 2, i + 1)
-        _ = plt.bar(labels, values)
+        _ = plt.bar(labels, values, edgecolor="black", facecolor="dimgray")
         _ = plt.title(title)
 
     _ = plt.tight_layout()
