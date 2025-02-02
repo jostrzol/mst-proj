@@ -2,33 +2,54 @@ mod c
 mod rust
 mod zig
 
+set unstable := true
+
+languages := "c zig rust"
+
 build:
-  just --unstable rust::build-all \
-  & just --unstable c::build-all \
-  & just --unstable zig::build-all \
+  just rust::build-all \
+  & just c::build-all \
+  & just zig::build-all \
   & wait
 
 clean:
-  just --unstable rust::clean \
-  && just --unstable c::clean \
-  && just --unstable zig::clean
+  just rust::clean
+  just c::clean
+  just zig::clean
   
 
 watch-and-serve:
-  just --unstable artifacts-server \
-  & just --unstable watch \
+  just artifacts-server \
+  & just watch \
   & wait
 
 watch:
-  just --unstable rust::watch-all \
-  & just --unstable c::watch-all \
-  & just --unstable zig::watch-all \
+  just rust::watch-all \
+  & just c::watch-all \
+  & just zig::watch-all \
   & wait
 
 artifacts-server:
   python3 -m http.server -d ./artifacts/
 
 analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
+
+plot: analyze
+  #!/usr/bin/env bash
+  set -euo pipefail
+  experiments=$( \
+    find ./analysis/ -name '*.csv' -printf '%f\n' \
+    | sed 's/-\w\+\.csv//g' | sort | uniq
+  )
+  for experiment in $experiments; do
+    args="--out ./analysis/$experiment.svg"
+    for lang in {{languages}}; do
+      args="$args $lang:$(echo "./analysis/$experiment-$lang.csv")"
+    done
+    . ./.venv/bin/activate
+
+    ( set -x; ./scripts/plot.py $args )
+  done
 
 install-dev: _venv_dev_dependencies
 
@@ -42,7 +63,6 @@ _analyze_zig: (
   )
 
 _analyze LANG *FLAGS:
-  @printf "\n##### ANALYZING {{LANG}} CODE ################################################\n"
   mkdir -p "./analysis"
   - . ./.venv/bin/activate \
   && for proj in ./{{LANG}}/?-*; \
@@ -51,7 +71,7 @@ _analyze LANG *FLAGS:
 
 
 # venv private
-_venv_dependency_packages := "setuptools"
+_venv_dependency_packages := "setuptools matplotlib"
 _venv_dev_dependency_packages := "ruff basedpyright"
 
 _venv_init: _venv_dependencies _venv_lizard
