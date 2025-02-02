@@ -5,6 +5,7 @@ mod zig
 set unstable := true
 
 languages := "c zig rust"
+thesis_dir := "../thesis"
 
 build:
   just rust::build-all \
@@ -50,6 +51,9 @@ plot: analyze
 
     ( set -x; ./scripts/plot.py $args )
   done
+  if test -d "{{thesis_dir}}"; then
+    ( set -x; cp ./analysis/*.svg "{{thesis_dir}}/pdmgr/imgs/" )
+  fi
 
 install-dev: _venv_dev_dependencies
 
