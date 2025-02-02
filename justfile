@@ -36,24 +36,8 @@ artifacts-server:
 analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
 
 plot: analyze
-  #!/usr/bin/env bash
-  set -euo pipefail
-  experiments=$( \
-    find ./analysis/ -name '*.csv' -printf '%f\n' \
-    | sed 's/-\w\+\.csv//g' | sort | uniq
-  )
-  for experiment in $experiments; do
-    args="--out ./analysis/$experiment.svg"
-    for lang in {{languages}}; do
-      args="$args $lang:$(echo "./analysis/$experiment-$lang.csv")"
-    done
-    . ./.venv/bin/activate
-
-    ( set -x; ./scripts/plot.py $args )
-  done
-  if test -d "{{thesis_dir}}"; then
-    ( set -x; cp ./analysis/*.svg "{{thesis_dir}}/pdmgr/imgs/" )
-  fi
+  ./scripts/plot.py
+  if test -d "{{thesis_dir}}"; then cp ./analysis/*.svg "{{thesis_dir}}/pdmgr/imgs/"; fi
 
 install-dev: _venv_dev_dependencies
 

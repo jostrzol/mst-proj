@@ -1,13 +1,28 @@
 #!/usr/bin/env python3
 
 import csv
-from argparse import ArgumentParser
 from collections.abc import Iterable
-from dataclasses import dataclass
 from functools import lru_cache
-from typing import NamedTuple, final, override
+from pathlib import Path
+from typing import NamedTuple, TypedDict, final, override
 
 from matplotlib import pyplot as plt
+
+
+class Language(TypedDict):
+    name: str
+    slug: str
+    color: str
+
+
+ANALYSIS_DIR = Path("./analysis/")
+ARTIFACTS_DIR = Path("./artifacts/")
+EXPERIMENTS = ["1-hello-world", "2-motor-controller"]
+LANGUAGES: list[Language] = [
+    {"name": "C", "slug": "c", "color": "cornflowerblue"},
+    {"name": "Zig", "slug": "zig", "color": "orange"},
+    {"name": "Rust", "slug": "rust", "color": "indianred"},
+]
 
 
 class FunctionInfo(NamedTuple):
@@ -99,50 +114,41 @@ class FunctionInfos:
         return cls(infos)
 
 
-@dataclass
-class Args:
-    files: list[str]
-    out: str | None
-
-
-def main():
-    parser = ArgumentParser(description="generates plots for lizard outputs")
-    _ = parser.add_argument(
-        "files",
-        nargs="*",
-        type=str,
-        help="CSV output from lizard, in format <lang>:<path>, e.g. zig:lizard-zig.csv",
-    )
-    _ = parser.add_argument(
-        "--out",
-        nargs="?",
-        type=str,
-        help="output file; will show the plot if not given",
-    )
-    args: Args = parser.parse_args()  # pyright: ignore[reportAssignmentType]
-
+def plot_experiment(experiment: str):
     langs_to_infos: dict[str, FunctionInfos] = {}
-    for lang_path_pair in args.files:
-        [lang, path] = lang_path_pair.split(":")
-        with open(path) as file:
+    for lang in LANGUAGES:
+        path = ANALYSIS_DIR / f"{experiment}-{lang['slug']}.csv"
+        with path.open() as file:
             infos = FunctionInfos.from_csv(file)
-        langs_to_infos[lang] = infos
+        langs_to_infos[lang["slug"]] = infos
 
-    titles = ["CCN", "NLOC", "LOC", "Liczba tokenów"]
-    fields = ["ccn", "nloc_count", "loc_count", "token_count"]
-    labels = list(langs_to_infos.keys())
+    _ = plt.figure()
+
+    titles = ["CCN", "NLOC", "Liczba tokenów"]
+    fields = ["ccn", "nloc_count", "token_count"]
+    labels = [lang["name"] for lang in LANGUAGES]
+    colors = [lang["color"] for lang in LANGUAGES]
     for i, (title, field) in enumerate(zip(titles, fields)):
         values = [getattr(infos, field) for infos in langs_to_infos.values()]
         _ = plt.subplot(2, 2, i + 1)
-        _ = plt.bar(labels, values, edgecolor="black", facecolor="dimgray")
+        _ = plt.bar(labels, values, edgecolor="black", facecolor=colors)
         _ = plt.title(title)
+
+    execs = [ARTIFACTS_DIR / f"{experiment}-{lang['slug']}" for lang in LANGUAGES]
+    sizes = [exec.stat().st_size / 1000 for exec in execs]
+    _ = plt.subplot(2, 2, 4)
+    _ = plt.bar(labels, sizes, edgecolor="black", facecolor=colors)
+    _ = plt.title("Rozmiar [KB]")
 
     _ = plt.tight_layout()
 
-    if args.out is not None:
-        _ = plt.savefig(args.out)
-    else:
-        _ = plt.show()
+    out_path = ANALYSIS_DIR / f"{experiment}.svg"
+    _ = plt.savefig(out_path)
+
+
+def main():
+    for experiment in EXPERIMENTS:
+        plot_experiment(experiment)
 
 
 if __name__ == "__main__":
