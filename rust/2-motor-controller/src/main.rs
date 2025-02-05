@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use rppal::i2c::I2c;
 use rppal::pwm::{Channel, Pwm};
 
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
@@ -17,6 +18,9 @@ const SLEEP_DURATION: Duration = Duration::from_millis(PERIOD_MS / PWM_CHANGES);
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Controlling motor from Rust.");
+
+    let mut i2c = I2c::new()?;
+    i2c.set_slave_address(0x48)?;
 
     let pwm = Pwm::new(PWM_CHANNEL)?;
     pwm.set_frequency(PWM_FREQUENCY, 0.)?;
@@ -33,9 +37,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     'outer: loop {
         for i in 0..PWM_CHANGES {
-            let sin = f64::sin(i as f64 / PWM_CHANGES as f64 * 2. * PI);
-            let ratio = (sin + 1.) / 2.;
-            let duty_cycle = PWM_MIN + ratio * (PWM_MAX - PWM_MIN);
+            let value = match read_potentiometer_value(&mut i2c) {
+                Ok(value) => value,
+                Err(err) => {
+                    eprintln!("error reading potentiometer value: {err}");
+                    continue;
+                }
+            };
+            println!("potentiometer: {value}");
+
+            // let sin = f64::sin(i as f64 / PWM_CHANGES as f64 * 2. * PI);
+            // let ratio = (sin + 1.) / 2.;
+            // let duty_cycle = PWM_MIN + ratio * (PWM_MAX - PWM_MIN);
+            let duty_cycle = value as f64 / u8::MAX as f64;
             _ = pwm
                 .set_frequency(PWM_FREQUENCY, duty_cycle)
                 .inspect_err(|err| eprintln!("error setting pwm frequency: {err}"));
@@ -48,4 +62,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn read_potentiometer_value(i2c: &mut I2c) -> Result<u8, Box<dyn Error>> {
+    const WRITE_BUFFER: [u8; 1] = [0x84];
+    let mut read_buffer = [0; 1];
+    i2c.write_read(&WRITE_BUFFER, &mut read_buffer)?;
+    Ok(read_buffer[0])
 }
