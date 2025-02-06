@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <linux/i2c-dev.h>
+#include <i2c/smbus.h>
+
 const uint32_t LINE_NUMBER = 13;
 
 const uint64_t PERIOD_MS = 5000;

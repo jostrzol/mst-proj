@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project("Master thesis project: c" VERSION 0.1.0)
+cmake_policy(SET CMP0135 NEW)
 
 # ===== CROSS COMPILE OPTIONS =================================================
 include(./toolchain.cmake)
@@ -12,6 +13,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # ===== ADD DEPENDENCIES ======================================================
 include(./dependencies/libgpio.cmake)
 include(./dependencies/pigpio.cmake)
+include(./dependencies/i2c-tools.cmake)
 
 # ===== MAKE TARGETS ==========================================================
 add_subdirectory(1-hello-world)
