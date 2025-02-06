@@ -1,6 +1,5 @@
 #include <bits/types/siginfo_t.h>
 #include <fcntl.h>
-#include <math.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -17,12 +16,9 @@ const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
 const uint32_t ADS7830_ADDRESS = 0x48;
 const uint32_t MOTOR_LINE_NUMBER = 13;
 
-const uint64_t PERIOD_MS = 5000;
-const uint64_t PWM_CHANGES = 50;
-const uint64_t PWM_MIN = 0.2 * PI_HW_PWM_RANGE;
-const uint64_t PWM_MAX = 1.0 * PI_HW_PWM_RANGE;
 const uint64_t PWM_FREQUENCY = 1000;
-const uint64_t SLEEP_DURATION_NS = PERIOD_MS * 1000 / PWM_CHANGES;
+const uint64_t REFRESH_RATE = 60;
+const uint64_t SLEEP_DURATION_NS = 1e6 / REFRESH_RATE;
 
 bool do_continue = true;
 
@@ -31,8 +27,16 @@ void interrupt_handler(int) {
   do_continue = false;
 }
 
+// bit    7: single-ended inputs mode
+// bits 6-4: channel selection
+// bit    3: is internal reference enabled
+// bit    2: is converter enabled
+// bits 1-0: unused
+const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
+#define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND &(channel << 4))
+
 int32_t read_potentiometer_value(int i2c_file) {
-  if (i2c_smbus_write_byte(i2c_file, 0x84) < 0) {
+  if (i2c_smbus_write_byte(i2c_file, MAKE_READ_COMMAND(0)) < 0) {
     perror("writing i2c ADC command failed\n");
     return -1;
   }
@@ -54,49 +58,38 @@ int main(int, char **) {
 
   if (gpioSetSignalFunc(SIGINT, interrupt_handler)) {
     perror("Setting sigaction failed\n");
-    goto end;
+    goto close_pigpio;
   }
 
   printf("%s", I2C_ADAPTER_PATH);
   int i2c_file = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_file < 0) {
     perror("opening i2c adapter failed\n");
-    goto end;
+    goto close_pigpio;
   }
 
   if (ioctl(i2c_file, I2C_SLAVE, ADS7830_ADDRESS) < 0) {
     perror("assigning i2c adapter address failed\n");
-    goto end;
+    goto close_pigpio;
   }
 
   printf("Controlling motor from C.\n");
 
   while (do_continue) {
-    for (size_t i = 0; i < PWM_CHANGES; ++i) {
-      int32_t value = read_potentiometer_value(i2c_file);
-      if (value < 0)
-        continue;
+    usleep(SLEEP_DURATION_NS);
+    int32_t value = read_potentiometer_value(i2c_file);
+    if (value < 0)
+      continue;
 
-      printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
+    printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
 
-      // const double_t sin_value = sin((double_t)i / PWM_CHANGES * 2 * M_PI);
-      // const double_t ratio = (sin_value + 1.) / 2.;
-      const uint64_t duty_cycle =
-          PWM_MIN + (PWM_MAX - PWM_MIN) * value / UINT8_MAX;
-      if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) < 0) {
-        perror("Setting PWM failed\n");
-        goto close_pigpio;
-      }
-
-      if (!do_continue)
-        break;
-      usleep(SLEEP_DURATION_NS);
-    }
+    const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
+    if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) < 0)
+      perror("Setting PWM failed\n");
   }
 
-  if (gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0)) {
+  if (gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0))
     perror("Disabling PWM failed\n");
-  }
 
 close_pigpio:
   gpioTerminate();
