@@ -18,9 +18,6 @@ ExternalProject_Add(
   UPDATE_DISCONNECTED ON
   CMAKE_ARGS --install-prefix=${PIGPIO_PREFIX}
              --toolchain=${CMAKE_SOURCE_DIR}/toolchain.cmake)
-# BUILD_COMMAND CROSS_PREFIX=${TARGET_TRIPLET}- make -e INSTALL_COMMAND
-# prefix=${PIGPIO_PREFIX} make -e install INSTALL_BYPRODUCTS "${PIGPIO_LIBRARY}"
-# "${PIGPIO_HEADER}")
 
 # ===== MAKE TARGET ===========================================================
 # hack needed to avoid errors about non-existing directory
