@@ -21,7 +21,9 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
     exe.linkLibC();
-
+    exe.addIncludePath(b.path("./i2c-tools/include/"));
+    exe.addLibraryPath(b.path("./i2c-tools/lib/"));
+    exe.linkSystemLibrary("i2c");
     b.installArtifact(exe);
 
     const check_step = b.step("check", "Check the application");
