@@ -15,21 +15,18 @@ pub fn build(b: *std.Build) void {
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
     const i2c_tools = b.dependency("i2c-tools", .{ .target = target, .optimize = optimize });
 
-    const i2c_build_dir = makeCachedTempDir(b, "i2c-tools", "build") catch unreachable;
-    const copy_sources = b.addSystemCommand(&[_][]const u8{
-        "cp", "-r", i2c_tools.path("").getPath(b), i2c_build_dir.path(b, "").getPath(b),
+    const i2c_tools_lib = b.addSharedLibrary(.{
+        .name = "i2c",
+        .version = .{ .major = 0, .minor = 1, .patch = 1 },
+        .pic = true,
+        .target = target,
+        .optimize = optimize,
     });
-
-    const target_str = formatTarget(b.allocator, &target) catch unreachable;
-    defer b.allocator.free(target_str);
-    const cc = std.fmt.allocPrint(b.allocator, "zig cc --target={s}", .{target_str}) catch unreachable;
-    defer b.allocator.free(cc);
-
-    const i2c_tools_build = b.addSystemCommand(
-        &[_][]const u8{ "make", "-C", i2c_build_dir.path(b, "").getPath(b) },
-    );
-    i2c_tools_build.setEnvironmentVariable("CC", cc);
-    i2c_tools_build.step.dependOn(&copy_sources.step);
+    i2c_tools_lib.bundle_compiler_rt = false;
+    i2c_tools_lib.addIncludePath(i2c_tools.path("include"));
+    i2c_tools_lib.addCSourceFile(.{ .file = i2c_tools.path("lib/smbus.c") });
+    i2c_tools_lib.linkLibC();
+    b.installArtifact(i2c_tools_lib);
 
     const exe = b.addExecutable(.{
         .name = "2-motor-controller-zig",
@@ -39,16 +36,8 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
     exe.linkLibC();
-    // exe.addIncludePath(i2c_tools.path("./include/"));
-    // exe.addIncludePath(b.path("./i2c-tools/include/"));
-    // exe.addLibraryPath(b.path("./i2c-tools/lib/"));
-    // exe.linkSystemLibrary("i2c");
-
-    // exe.linkLibrary(i2c_tools_lib);
-    exe.addIncludePath(i2c_build_dir.path(b, "include"));
-    exe.addLibraryPath(i2c_build_dir.path(b, "lib"));
-    exe.linkSystemLibrary("i2c");
-    exe.step.dependOn(&i2c_tools_build.step);
+    exe.addIncludePath(i2c_tools.path("include"));
+    exe.linkLibrary(i2c_tools_lib);
 
     b.installArtifact(exe);
 
