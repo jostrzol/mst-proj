@@ -16,9 +16,9 @@ pub fn build(b: *std.Build) void {
     });
     i2c_tools_lib.bundle_compiler_rt = false;
     i2c_tools_lib.addIncludePath(i2c_tools.path("include"));
+    i2c_tools_lib.installHeadersDirectory(i2c_tools.path("include"), "", .{});
     i2c_tools_lib.addCSourceFile(.{ .file = i2c_tools.path("lib/smbus.c") });
     i2c_tools_lib.linkLibC();
-    b.installArtifact(i2c_tools_lib);
 
     const exe = b.addExecutable(.{
         .name = "2-motor-controller-zig",
@@ -26,10 +26,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
     exe.linkLibC();
-    exe.addIncludePath(i2c_tools.path("include"));
     exe.linkLibrary(i2c_tools_lib);
+    exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
 
     b.installArtifact(exe);
 
