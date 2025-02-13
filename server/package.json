@@ -41,6 +41,7 @@
 		"vitest": "^3.0.0"
 	},
 	"dependencies": {
+		"layerchart": "^0.98.0",
 		"svelte-ux": "^0.90.1"
 	}
 }
