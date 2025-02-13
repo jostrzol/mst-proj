@@ -1,6 +1,7 @@
 mod c
 mod rust
 mod zig
+mod server
 
 set unstable := true
 
