@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { ThemeSwitch } from "svelte-ux";
 	import { LineChart } from 'layerchart';
 	import { ticks } from 'd3-array';
 
@@ -9,13 +8,11 @@
 	let debug = false;
 </script>
 
-<ThemeSwitch />
-
 <h2>Dynamic data (move over chart)</h2>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
-	class="h-[300px] rounded border p-4"
+	class="h-[300px] rounded border p-4 "
 	on:mousemove={(e) => {
 		const x = e.clientX;
 		const y = e.clientY;

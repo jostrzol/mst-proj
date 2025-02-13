@@ -44,6 +44,7 @@
 		"vitest": "^3.0.0"
 	},
 	"dependencies": {
+		"@tailwindcss/typography": "^0.5.16",
 		"d3-array": "^3.2.4",
 		"d3-scale": "^4.0.2",
 		"d3-scale-chromatic": "^3.1.0",
