@@ -1,1 +1,4 @@
-@import 'tailwindcss'
+@import 'tailwindcss';
+
+/* @plugin 'svelte-ux'; */
+@config '../tailwind.config.cjs';
