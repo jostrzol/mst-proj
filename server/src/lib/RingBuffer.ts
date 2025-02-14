@@ -29,10 +29,10 @@ export class RingBuffer<T extends TypedNumberArray> {
     })
   }
 
-  push(item: number) {
-    this.#buffer[this.#head_i] = item;
-    this.#head_i = (this.#head_i + 1) % this.#buffer.length
-    this.#length = Math.min(this.#buffer.length, this.#length + 1)
+  push(...items: number[]) {
+    items.forEach((item, i) => this.#buffer[this.#head_i + i] = item)
+    this.#head_i = (this.#head_i + items.length) % this.#buffer.length
+    this.#length = Math.min(this.#buffer.length, this.#length + items.length)
 
     this.#update?.call(this)
   }

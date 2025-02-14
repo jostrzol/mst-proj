@@ -6,36 +6,42 @@
 	import { untrack } from 'svelte';
 
 	const SAMPLE_REFRESH_RATE = 20;
+	const SAMPLE_BATCH_SIZE = 1;
 	const SAMPLE_INTERVAL_MS = 1000 / SAMPLE_REFRESH_RATE;
 
 	const T_S_WINDOW = 8;
 	const PTS_WINDOW = Math.ceil((T_S_WINDOW * 1000) / SAMPLE_INTERVAL_MS);
 
+	const tMsStart = Date.now();
+
 	let xsRaw = $state(new RingBuffer(Uint32Array, PTS_WINDOW));
 	let y1sRaw = $state(new RingBuffer(Uint8Array, PTS_WINDOW));
 	let y2sRaw = $state(new RingBuffer(Uint8Array, PTS_WINDOW));
-	let tMsSample = $state(0);
-	let tSSample = $derived(tMsSample / 1000);
 
 	let sample = $state(true);
 
 	$effect(() => {
 		const interval = setInterval(() => {
 			if (sample) {
-				const y1 = ((Math.sin(tSSample) + 1) / 2) * 255;
-				const y2 = ((Math.cos(tSSample) + 1) / 2) * 255;
-				y1sRaw.push(y1);
-				y2sRaw.push(y2);
-				xsRaw.push(tMsSample);
+				const now = Date.now();
+				const xsToAdd = [...Array(SAMPLE_BATCH_SIZE).keys()]
+					.reverse()
+					.map((i) => now - tMsStart - i * SAMPLE_INTERVAL_MS);
+				const ys1ToAdd = xsToAdd.map((tMs) => ((Math.sin(tMs / 1000) + 1) / 2) * 255);
+				const ys2ToAdd = xsToAdd.map((tMs) => ((Math.cos(tMs / 1000) + 1) / 2) * 255);
+
+				y1sRaw.push(...ys1ToAdd);
+				y2sRaw.push(...ys2ToAdd);
+				xsRaw.push(...xsToAdd);
 			}
-			tMsSample += SAMPLE_INTERVAL_MS;
-		}, SAMPLE_INTERVAL_MS);
+		}, SAMPLE_INTERVAL_MS * SAMPLE_BATCH_SIZE);
 		return () => clearInterval(interval);
 	});
 
 	let xs = $state.raw(new Array<number>());
 	let y1s = $state.raw(new Array<number>());
 	let y2s = $state.raw(new Array<number>());
+
 	let tMsDraw = $state(0);
 	const tSDraw = $derived(tMsDraw / 1000);
 
@@ -48,7 +54,7 @@
 				y1s = untrack(() => [...y1sRaw]);
 				y2s = untrack(() => [...y2sRaw]);
 			}
-			tMsDraw = untrack(() => tMsSample);
+			tMsDraw = Date.now() - tMsStart;
 			frame = requestAnimationFrame(loop);
 		});
 		return () => cancelAnimationFrame(frame);
