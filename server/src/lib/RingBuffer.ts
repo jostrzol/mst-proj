@@ -41,10 +41,10 @@ export class RingBuffer<T extends TypedNumberArray> {
     return this.#length
   }
 
-  *[Symbol.iterator]() {
+  *[Symbol.iterator](): Iterator<NumberType<T>> {
     this.#subscribe?.call(this);
 
-    yield* Array(this.#length).keys().map(i => this.#buffer[this.real_index(i)]);
+    yield* Array(this.#length).keys().map(i => this.#buffer[this.real_index(i)] as any);
   }
 
   at(index: number): NumberType<T> | undefined {

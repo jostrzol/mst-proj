@@ -1,55 +1,139 @@
 <script lang="ts">
-	import { LineChart } from 'layerchart';
+	import {
+		Axis,
+		Chart,
+		LineChart,
+		Spline,
+		Svg,
+		Text,
+		Highlight,
+		Tooltip,
+		Canvas,
+	} from 'layerchart';
 	import { Checkbox } from 'svelte-ux';
 	import { RingBuffer } from '$lib';
+	import { scaleOrdinal } from 'd3-scale';
+	import { untrack } from 'svelte';
 
-	const REFRESH_RATE = 60;
-	const INTERVAL_MS = 1000 / REFRESH_RATE;
+	const SAMPLE_REFRESH_RATE = 20;
+	const SAMPLE_INTERVAL_MS = 1000 / SAMPLE_REFRESH_RATE;
+
 	const T_S_WINDOW = 8;
-	const PTS_WINDOW = Math.ceil((T_S_WINDOW * 1000) / INTERVAL_MS);
+	const PTS_WINDOW = Math.ceil((T_S_WINDOW * 1000) / SAMPLE_INTERVAL_MS);
 
-	let draw = $state(true);
+	let xsRaw = $state(new RingBuffer(Uint32Array, PTS_WINDOW));
+	let y1sRaw = $state(new RingBuffer(Uint8Array, PTS_WINDOW));
+	let y2sRaw = $state(new RingBuffer(Uint8Array, PTS_WINDOW));
+	let tMsSample = $state(0);
+	let tSSample = $derived(tMsSample / 1000);
 
-	let t_ms = $state(0);
-	const t_s = $derived(t_ms / 1000);
-
-	let xs = $state(new RingBuffer(Uint32Array, PTS_WINDOW));
-	let ys = $state(new RingBuffer(Uint8Array, PTS_WINDOW));
+	let sample = $state(true);
 
 	$effect(() => {
 		const interval = setInterval(() => {
-			if (draw) {
-				const y = ((Math.sin(t_s) + 1) / 2) * 255;
-				ys.push(y);
-				xs.push(t_ms);
+			if (sample) {
+				const y1 = ((Math.sin(tSSample) + 1) / 2) * 255;
+				const y2 = ((Math.cos(tSSample) + 1) / 2) * 255;
+				y1sRaw.push(y1);
+				y2sRaw.push(y2);
+				xsRaw.push(tMsSample);
 			}
-			t_ms += INTERVAL_MS;
-		}, INTERVAL_MS);
+			tMsSample += SAMPLE_INTERVAL_MS;
+		}, SAMPLE_INTERVAL_MS);
 		return () => clearInterval(interval);
 	});
 
-	const xDomain = $derived([t_s - T_S_WINDOW, t_s]);
+	let xs = $state.raw(new Array<number>());
+	let y1s = $state.raw(new Array<number>());
+	let y2s = $state.raw(new Array<number>());
+	let tMsDraw = $state(0);
+	const tSDraw = $derived(tMsDraw / 1000);
 
-	const plotData = $derived([...ys].map((value, i) => ({ x: xs.at(i)! / 1000, y: value })));
+	let draw = $state(true);
+
+	$effect(() => {
+		let frame = requestAnimationFrame(function loop() {
+			if (draw) {
+				xs = untrack(() => [...xsRaw]);
+				y1s = untrack(() => [...y1sRaw]);
+				y2s = untrack(() => [...y2sRaw]);
+			}
+			tMsDraw = untrack(() => tMsSample);
+			frame = requestAnimationFrame(loop);
+		});
+		return () => cancelAnimationFrame(frame);
+	});
+
+	const xDomain = $derived([tSDraw - T_S_WINDOW, tSDraw]);
+
+	const rawSeries = $derived([
+		{ name: 'A', rawData: y1s, color: 'red' },
+		{ name: 'B', rawData: y2s, color: 'green' },
+	]);
+	const series = $derived(
+		rawSeries.map((series) => ({
+			...series,
+			data: [...series.rawData].map((value, i) => ({
+				x: xs.at(i)! / 1000,
+				y: value,
+				c: series.name,
+			})),
+		})),
+	);
+
+	const combinedData = $derived(series.flatMap((series) => series.data));
 </script>
 
 <h2>Dynamic data (move over chart)</h2>
+
+<Checkbox bind:checked={sample} />
 
 <Checkbox bind:checked={draw} />
 
 <div class="h-[300px] rounded border p-4" role="img">
 	<div class="h-full w-full overflow-hidden">
-		<LineChart
-			data={plotData}
+		<Chart
+			data={combinedData}
 			x="x"
+			{xDomain}
 			y="y"
 			yDomain={[0, 255]}
-			{xDomain}
-			tooltip={{ mode: 'manual' }}
-			props={{ yAxis: { tweened: true }, grid: { tweened: true } }}
-			renderContext="canvas"
-			debug={false}
-		/>
+			yNice
+			c="c"
+			cScale={scaleOrdinal()}
+			cDomain={series.map(({ name }) => name)}
+			cRange={series.map(({ color }) => color)}
+			padding={{ left: 16, bottom: 24, right: 48 }}
+			tooltip={{ mode: 'voronoi' }}
+		>
+			<Canvas>
+				<Axis placement="left" grid rule />
+				<Axis placement="bottom" rule />
+				{#each series as { name, data, color }}
+					<Spline {data} class="stroke-2" stroke={color}>
+						<!-- <svelte:fragment slot="end"> -->
+						<!-- 	<circle r={4} fill={color} /> -->
+						<!-- 	<Text -->
+						<!-- 		value={name} -->
+						<!-- 		verticalAnchor="middle" -->
+						<!-- 		dx={6} -->
+						<!-- 		dy={-2} -->
+						<!-- 		class="text-xs" -->
+						<!-- 		fill={color} -->
+						<!-- 	/> -->
+						<!-- </svelte:fragment> -->
+					</Spline>
+				{/each}
+				<!-- <Highlight points lines /> -->
+			</Canvas>
+
+			<!-- <Tooltip.Root let:data> -->
+			<!-- 	<Tooltip.Header>{data.x}</Tooltip.Header> -->
+			<!-- 	<Tooltip.List> -->
+			<!-- 		<Tooltip.Item label={data.name} value={data.y} /> -->
+			<!-- 	</Tooltip.List> -->
+			<!-- </Tooltip.Root> -->
+		</Chart>
 	</div>
 </div>
 
