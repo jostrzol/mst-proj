@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Axis, Chart, Spline, Canvas } from 'layerchart';
+	import { Axis, Chart, Spline, Canvas, Legend } from 'layerchart';
 	import { Checkbox } from 'svelte-ux';
 	import { RingBuffer } from '$lib';
 	import { scaleOrdinal } from 'd3-scale';
@@ -57,8 +57,8 @@
 	const xDomain = $derived([tSDraw - T_S_WINDOW, tSDraw]);
 
 	const rawSeries = $derived([
-		{ name: 'A', rawData: y1s, color: 'red' },
-		{ name: 'B', rawData: y2s, color: 'green' },
+		{ name: 'Read frequency [Hz]', rawData: y1s, color: 'red' },
+		{ name: 'Set frequency [Hz]', rawData: y2s, color: 'green' },
 	]);
 	const series = $derived(
 		rawSeries.map((series) => ({
@@ -74,35 +74,44 @@
 	const combinedData = $derived(series.flatMap((series) => series.data));
 </script>
 
-<h2>Dynamic data (move over chart)</h2>
+<div class="m-4">
+	<div class="flex gap-4 p-4">
+		<label>
+			Sample:
+			<Checkbox bind:checked={sample} />
+		</label>
 
-<Checkbox bind:checked={sample} />
+		<label>
+			Draw:
+			<Checkbox bind:checked={draw} />
+		</label>
+	</div>
 
-<Checkbox bind:checked={draw} />
-
-<div class="h-[300px] rounded border p-4" role="img">
-	<div class="h-full w-full overflow-hidden">
-		<Chart
-			data={combinedData}
-			x="x"
-			{xDomain}
-			y="y"
-			yDomain={[0, 255]}
-			yNice
-			c="c"
-			cScale={scaleOrdinal()}
-			cDomain={series.map(({ name }) => name)}
-			cRange={series.map(({ color }) => color)}
-			padding={{ left: 16, bottom: 24, right: 48 }}
-			tooltip={{ mode: 'voronoi' }}
-		>
-			<Canvas>
-				<Axis placement="left" grid rule />
-				<Axis placement="bottom" rule />
-				{#each series as { data, color }}
-					<Spline {data} class="stroke-2" stroke={color}></Spline>
-				{/each}
-			</Canvas>
-		</Chart>
+	<div class="h-[300px] rounded border p-4" role="img">
+		<div class="h-full w-full overflow-hidden">
+			<Chart
+				data={combinedData}
+				x="x"
+				{xDomain}
+				y="y"
+				yDomain={[0, 255]}
+				yNice
+				c="c"
+				cScale={scaleOrdinal()}
+				cDomain={series.map(({ name }) => name)}
+				cRange={series.map(({ color }) => color)}
+				padding={{ left: 16, bottom: 48, right: 16 }}
+				tooltip={{ mode: 'voronoi' }}
+			>
+				<Canvas>
+					<Axis placement="left" grid rule />
+					<Axis placement="bottom" rule />
+					{#each series as { data, color }}
+						<Spline {data} class="stroke-2" stroke={color}></Spline>
+					{/each}
+				</Canvas>
+				<Legend placement="bottom" variant="swatches" />
+			</Chart>
+		</div>
 	</div>
 </div>

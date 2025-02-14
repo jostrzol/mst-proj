@@ -10,14 +10,14 @@
 <ThemeInit />
 
 <AppLayout areas="'header header' 'aside main'" navWidth={0}>
-	<AppBar title="Motor speed regulator" menuIcon={null}>
+	<AppBar title="Motor speed regulator" menuIcon={null} class="bg-surface-100">
 		<div slot="actions" class="flex gap-4">
 			<Fps />
 			<ThemeSwitch />
 		</div>
 	</AppBar>
 
-	<main class="p-4">
+	<main class="h-min-screen">
 		{@render children()}
 	</main>
 </AppLayout>
