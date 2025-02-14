@@ -1,15 +1,5 @@
 <script lang="ts">
-	import {
-		Axis,
-		Chart,
-		LineChart,
-		Spline,
-		Svg,
-		Text,
-		Highlight,
-		Tooltip,
-		Canvas,
-	} from 'layerchart';
+	import { Axis, Chart, Spline, Canvas } from 'layerchart';
 	import { Checkbox } from 'svelte-ux';
 	import { RingBuffer } from '$lib';
 	import { scaleOrdinal } from 'd3-scale';
@@ -109,47 +99,10 @@
 			<Canvas>
 				<Axis placement="left" grid rule />
 				<Axis placement="bottom" rule />
-				{#each series as { name, data, color }}
-					<Spline {data} class="stroke-2" stroke={color}>
-						<!-- <svelte:fragment slot="end"> -->
-						<!-- 	<circle r={4} fill={color} /> -->
-						<!-- 	<Text -->
-						<!-- 		value={name} -->
-						<!-- 		verticalAnchor="middle" -->
-						<!-- 		dx={6} -->
-						<!-- 		dy={-2} -->
-						<!-- 		class="text-xs" -->
-						<!-- 		fill={color} -->
-						<!-- 	/> -->
-						<!-- </svelte:fragment> -->
-					</Spline>
+				{#each series as { data, color }}
+					<Spline {data} class="stroke-2" stroke={color}></Spline>
 				{/each}
-				<!-- <Highlight points lines /> -->
 			</Canvas>
-
-			<!-- <Tooltip.Root let:data> -->
-			<!-- 	<Tooltip.Header>{data.x}</Tooltip.Header> -->
-			<!-- 	<Tooltip.List> -->
-			<!-- 		<Tooltip.Item label={data.name} value={data.y} /> -->
-			<!-- 	</Tooltip.List> -->
-			<!-- </Tooltip.Root> -->
 		</Chart>
 	</div>
 </div>
-
-<!-- <h2>Brushing</h2> -->
-
-<!-- <div class="h-[300px] rounded border p-4"> -->
-<!-- 	<LineChart -->
-<!-- 		{data} -->
-<!-- 		x="date" -->
-<!-- 		y="value" -->
-<!-- 		brush -->
-<!-- 		props={{ -->
-<!-- 			spline: { tweened: { duration: 200 } }, -->
-<!-- 			xAxis: { format: undefined, tweened: { duration: 200 } }, -->
-<!-- 		}} -->
-<!-- 		renderContext="svg" -->
-<!-- 		debug={false} -->
-<!-- 	/> -->
-<!-- </div> -->
