@@ -1,90 +1,117 @@
 <script lang="ts">
-	import { Axis, Chart, Spline, Canvas, Legend } from 'layerchart';
+	import { Chart } from 'chart.js';
 	import { Checkbox } from 'svelte-ux';
-	import { RingBuffer } from '$lib';
-	import { scaleOrdinal } from 'd3-scale';
-	import { untrack } from 'svelte';
+	import { theme_color } from '$lib';
+	import 'chartjs-adapter-date-fns';
 
 	const SAMPLE_REFRESH_RATE = 20;
-	const SAMPLE_BATCH_SIZE = 1;
 	const SAMPLE_INTERVAL_MS = 1000 / SAMPLE_REFRESH_RATE;
 
-	const T_S_WINDOW = 8;
-	const PTS_WINDOW = Math.ceil((T_S_WINDOW * 1000) / SAMPLE_INTERVAL_MS);
+	interface Point {
+		x: number;
+		y: number;
+	}
 
-	const tMsStart = Date.now();
-
-	let xsRaw = new RingBuffer(Uint32Array, PTS_WINDOW);
-	let y1sRaw = new RingBuffer(Uint8Array, PTS_WINDOW);
-	let y2sRaw = new RingBuffer(Uint8Array, PTS_WINDOW);
-	let y3sRaw = new RingBuffer(Uint8Array, PTS_WINDOW);
+	let freqSet: Point[] = [];
+	let freqRead: Point[] = [];
+	let control: Point[] = [];
 
 	let sample = $state(true);
 
 	$effect(() => {
 		const interval = setInterval(() => {
 			if (sample) {
-				const now = Date.now();
-				const xsToAdd = [...Array(SAMPLE_BATCH_SIZE).keys()]
-					.reverse()
-					.map((i) => now - tMsStart - i * SAMPLE_INTERVAL_MS);
-				const ys1ToAdd = xsToAdd.map((tMs) => ((Math.sin(tMs / 1000) + 1) / 2) * 255);
-				const ys2ToAdd = xsToAdd.map((tMs) => ((Math.cos(tMs / 1000) + 1) / 2) * 255);
-				const ys3ToAdd = xsToAdd.map((tMs) => ((Math.sin(tMs / 1000 + 1) + 1) / 2) * 255);
+				const tMs = Date.now();
+				const tS = tMs / 1000;
+				const freqSetValue = ((Math.sin(tS) + 1) / 2) * 255;
+				const freqReadValue = ((Math.cos(tS) + 1) / 2) * 255;
+				const controlValue = ((Math.sin(tS + 1) + 1) / 2) * 255;
 
-				y1sRaw.push(...ys1ToAdd);
-				y2sRaw.push(...ys2ToAdd);
-				y3sRaw.push(...ys3ToAdd);
-				xsRaw.push(...xsToAdd);
+				freqSet.push({ x: tMs, y: freqSetValue });
+				freqRead.push({ x: tMs, y: freqReadValue });
+				control.push({ x: tMs, y: controlValue });
 			}
-		}, SAMPLE_INTERVAL_MS * SAMPLE_BATCH_SIZE);
+			chart.update('quiet');
+		}, SAMPLE_INTERVAL_MS);
 		return () => clearInterval(interval);
 	});
 
-	let xs = $state.raw(new Array<number>());
-	let y1s = $state.raw(new Array<number>());
-	let y2s = $state.raw(new Array<number>());
-	let y3s = $state.raw(new Array<number>());
-
-	let tMsDraw = $state(0);
-	const tSDraw = $derived(tMsDraw / 1000);
-
-	let draw = $state(true);
+	let frequencyCanvas = $state<HTMLCanvasElement>(null!);
+	let chart = $state<Chart>(null!);
 
 	$effect(() => {
-		let frame = requestAnimationFrame(function loop() {
-			if (draw) {
-				xs = [...xsRaw];
-				y1s = [...y1sRaw];
-				y2s = [...y2sRaw];
-				y3s = [...y3sRaw];
-			}
-			tMsDraw = Date.now() - tMsStart;
-			frame = requestAnimationFrame(loop);
+		const style = getComputedStyle(frequencyCanvas);
+		const gridColor = theme_color(style, 'neutral');
+		chart = new Chart(frequencyCanvas, {
+			type: 'line',
+			data: {
+				datasets: [
+					{
+						label: 'Set frequency [Hz]',
+						data: freqSet,
+					},
+					{
+						label: 'Read frequency [Hz]',
+						data: freqRead,
+					},
+				],
+			},
+			options: {
+				clip: false,
+				maintainAspectRatio: false,
+				elements: {
+					point: {
+						pointStyle: false,
+					},
+				},
+				scales: {
+					y: {
+						type: 'linear',
+						grid: { color: gridColor },
+						min: 0,
+						max: 255,
+					},
+					x: {
+						type: 'realtime',
+						realtime: {
+							duration: 20000,
+							delay: 100,
+						},
+						grid: { color: gridColor },
+					},
+				},
+				animation: false,
+				animations: {
+					colors: false,
+					x: false,
+				},
+				transitions: {
+					active: {
+						animation: {
+							duration: 0,
+						},
+					},
+				},
+			},
 		});
-		return () => cancelAnimationFrame(frame);
+		() => chart.destroy();
 	});
 
-	const xDomain = $derived([tSDraw - T_S_WINDOW, tSDraw]);
+	// let chartjsUpdate = $state(true);
 
-	const rawSeries = $derived([
-		{ name: 'Read frequency [Hz]', rawData: y1s, color: 'red' },
-		{ name: 'Set frequency [Hz]', rawData: y2s, color: 'green' },
-		{ name: 'Control signal', rawData: y3s, color: 'yellow' },
-	]);
-	const series = $derived(
-		rawSeries.map((series) => ({
-			...series,
-			data: series.rawData.map((value, i) => ({
-				x: xs.at(i)! / 1000,
-				y: value,
-				c: series.name,
-			})),
-		})),
-	);
-
-	const frequencySeries = $derived(series.slice(0, 2));
-	const controlSeries = $derived(series.slice(2, 3));
+	// $effect(() => {
+	// 	if (chartjsUpdate) {
+	// 		chart.data.labels = series[0].data.map(({ x }) => x);
+	// 		chart.data.datasets[0].data = series[0].data.map(({ x, y }) => ({ x, y }));
+	// 		chart.scales.x.ticks.min = xDomain[0] as any;
+	// 		chart.scales.x.ticks.max = xDomain[1] as any;
+	// 		// chart.scales['x'].min = xDomain[0];
+	// 		// chart.scales['x'].max = xDomain[1];
+	// 		// console.log(chart.scales['x'].min);
+	// 		// console.log(chart);
+	// 		chart.update('none');
+	// 	}
+	// });
 </script>
 
 <div class="m-4">
@@ -94,44 +121,28 @@
 			<Checkbox bind:checked={sample} />
 		</label>
 
-		<label>
-			Draw:
-			<Checkbox bind:checked={draw} />
-		</label>
+		<!-- <label> -->
+		<!-- 	Draw: -->
+		<!-- 	<Checkbox bind:checked={draw} /> -->
+		<!-- </label> -->
+
+		<!-- <label> -->
+		<!-- 	ChartJS update: -->
+		<!-- 	<Checkbox bind:checked={chartjsUpdate} /> -->
+		<!-- </label> -->
+
+		<!-- <label> -->
+		<!-- 	ChartJS update: -->
+		<!-- 	<Button -->
+		<!-- 		onclick={() => { -->
+		<!-- 			chart.scales.x = { min: xDomain[0], max: xDomain[1], paddingRight: 0 }; -->
+		<!-- 			chart.update('none'); -->
+		<!-- 		}}>Update scales</Button -->
+		<!-- 	> -->
+		<!-- </label> -->
 	</div>
 
-	{@render chart(frequencySeries)}
-
-	{@render chart(controlSeries)}
+	<div class="h-[300px] w-full rounded border p-4">
+		<canvas bind:this={frequencyCanvas}></canvas>
+	</div>
 </div>
-
-{#snippet chart(localSeries: typeof series)}
-	<div class="h-[300px] rounded border p-4" role="img">
-		<div class="h-full w-full overflow-hidden">
-			<Chart
-				data={localSeries.flatMap(series => series.data)}
-				x="x"
-				{xDomain}
-				y="y"
-				yDomain={[0, 255]}
-				yNice
-				c="c"
-				cScale={scaleOrdinal()}
-				cDomain={localSeries.map(({ name }) => name)}
-				cRange={localSeries.map(({ color }) => color)}
-				padding={{ left: 16, bottom: 48, right: 16 }}
-				tooltip={{ mode: 'voronoi' }}
-			>
-				<Canvas>
-					<Axis placement="left" grid rule />
-					<Axis placement="bottom" rule />
-					{#each localSeries as { data, color }}
-						<Spline {data} class="stroke-2" stroke={color}></Spline>
-					{/each}
-				</Canvas>
-
-				<Legend placement="bottom" variant="swatches" />
-			</Chart>
-		</div>
-	</div>
-{/snippet}

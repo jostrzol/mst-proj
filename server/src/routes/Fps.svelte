@@ -2,6 +2,7 @@
 	import { scaleLinear, scaleSequential } from 'd3-scale';
 	import { interpolateRgb, interpolateRgbBasis } from 'd3-interpolate';
 	import { untrack } from 'svelte';
+	import { theme_color } from '$lib';
 
 	const SAMPLING_INTERVAL_MS = 1000;
 
@@ -25,20 +26,14 @@
 		return () => clearInterval(interval);
 	});
 
-	function hsl(color: string | undefined) {
-		if (!color) return undefined;
-		return `hsl(${color.split(' ').join(',')})`;
-	}
-
-	let p = $state<HTMLElement | undefined>();
+	let p = $state<HTMLElement>(null!);
 	let colorInterpolator = $state(interpolateRgbBasis(['red', 'yellow', 'green']));
 	let color = $derived(scaleSequential([0, 30, 60], colorInterpolator).clamp(true));
 	$effect(() => {
-		const element = untrack(() => p);
-		const style = getComputedStyle(element!);
-		const colorError = hsl(style.getPropertyValue('--color-danger')) || 'red';
-		const colorWarning = hsl(style.getPropertyValue('--color-warning')) || 'yellow';
-		const colorSuccess = hsl(style.getPropertyValue('--color-success')) || 'green';
+		const style = getComputedStyle(p!);
+		const colorError = theme_color(style, 'danger') || 'red';
+		const colorWarning = theme_color(style, 'warning') || 'yellow';
+		const colorSuccess = theme_color(style, 'success') || 'green';
 		const colors = [colorError, colorWarning, colorSuccess];
 		colorInterpolator = interpolateRgbBasis(colors);
 	});
