@@ -1,14 +1,25 @@
 <script lang="ts">
-	import { Checkbox } from 'svelte-ux';
+	import { Checkbox, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
 	import 'chartjs-adapter-date-fns';
+
+	const PLOT_DURATION_MS = 20000;
+	const PLOT_DELAY_MS = 100;
+
+	const FREQ_RANGE: [number, number] = [0, 1000];
+	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
 
 	const SAMPLE_REFRESH_RATE = 20;
 	const SAMPLE_INTERVAL_MS = 1000 / SAMPLE_REFRESH_RATE;
 
-	const freqSet: Point[] = $state([]);
-	const freqRead: Point[] = $state([]);
-	const control: Point[] = $state([]);
+	const GC_INTERVAL_MS = 20 * 1000;
+	const GC_MAX_POINTS = (PLOT_DURATION_MS / SAMPLE_INTERVAL_MS) * 2;
+
+	const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+	let freqTarget: Point[] = $state([]);
+	let freqCurrent: Point[] = $state([]);
+	let control: Point[] = $state([]);
 
 	let sample = $state(true);
 
@@ -17,35 +28,64 @@
 			if (sample) {
 				const tMs = Date.now();
 				const tS = tMs / 1000;
-				const freqSetValue = ((Math.sin(tS) + 1) / 2) * 255;
-				const freqReadValue = ((Math.cos(tS) + 1) / 2) * 255;
-				const controlValue = ((Math.sin(tS + 1) + 1) / 2) * 255;
+				const freqCurrentValue = ((Math.cos(tS) + 1) / 2) * 1000;
+				const controlValue = (Math.sin(tS + 1) + 1) / 2;
 
-				freqSet.push({ x: tMs, y: freqSetValue });
-				freqRead.push({ x: tMs, y: freqReadValue });
+				freqCurrent.push({ x: tMs, y: freqCurrentValue });
 				control.push({ x: tMs, y: controlValue });
 			}
 		}, SAMPLE_INTERVAL_MS);
+		return () => clearInterval(interval);
+	});
+
+	$effect(() => {
+		const interval = setInterval(() => {
+			freqTarget = freqTarget.slice(-GC_MAX_POINTS);
+			freqCurrent = freqCurrent.slice(-GC_MAX_POINTS);
+			control = control.slice(-GC_MAX_POINTS);
+		}, GC_INTERVAL_MS);
 		return () => clearInterval(interval);
 	});
 </script>
 
 <div class="m-4">
 	<div class="flex gap-4 p-4">
-		<label>
-			Sample:
-			<Checkbox bind:checked={sample} />
-		</label>
+		<Checkbox bind:checked={sample}>Sample</Checkbox>
+
+		<RangeField
+			on:change={({ detail: { value } }) => {
+				const now = Date.now();
+				const point = { x: now, y: value };
+				const cap = { x: now + MS_PER_DAY, y: value };
+				freqTarget.pop();
+				freqTarget.push(point, cap);
+			}}
+			label="Target frequency [Hz]"
+			min={FREQ_MIN}
+			max={FREQ_MAX}
+		/>
 	</div>
 
 	<div class="flex flex-col gap-4">
 		<LiveChart
 			datasets={[
-				{ label: 'Frequency set [Hz]', data: freqSet },
-				{ label: 'Frequency read [Hz]', data: freqRead },
+				{ label: 'Target frequency [Hz]', data: freqTarget, color: 'green', stepped: 'before' },
+				{ label: 'Current frequency [Hz]', data: freqCurrent, color: 'red' },
 			]}
+			domain={FREQ_RANGE}
+			realtime={{
+				duration: PLOT_DURATION_MS,
+				delay: PLOT_DELAY_MS,
+			}}
 		/>
 
-		<LiveChart datasets={[{ label: 'Control signal', data: control }]} />
+		<LiveChart
+			datasets={[{ label: 'Control signal', data: control, color: 'yellow' }]}
+			domain={[0, 1]}
+			realtime={{
+				duration: PLOT_DURATION_MS,
+				delay: PLOT_DELAY_MS,
+			}}
+		/>
 	</div>
 </div>
