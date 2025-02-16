@@ -25,6 +25,7 @@
 		datasets: DatasetProp[];
 		domain?: [number, number];
 		realtime?: RealTimeScaleOptions['realtime'];
+		yTitle?: string;
 	}
 
 	const props: Props = $props();
@@ -69,13 +70,14 @@
 						grid: { color: gridColor },
 						min,
 						max,
-						ticks: { format: {} },
+						title: { text: props.yTitle, display: !!props.yTitle },
 					},
 					x: {
 						type: 'realtime',
 						realtime: props.realtime,
 						grid: { color: gridColor },
 						adapters: { date: { locale: pl } },
+						title: { text: 'Time', display: true },
 					},
 				},
 				animation: false,

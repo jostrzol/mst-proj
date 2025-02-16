@@ -69,14 +69,15 @@
 	<div class="flex flex-col gap-4">
 		<LiveChart
 			datasets={[
-				{ label: 'Target frequency [Hz]', data: freqTarget, color: 'green', stepped: 'before' },
-				{ label: 'Current frequency [Hz]', data: freqCurrent, color: 'red' },
+				{ label: 'Target', data: freqTarget, color: 'green', stepped: 'before' },
+				{ label: 'Current', data: freqCurrent, color: 'red' },
 			]}
 			domain={FREQ_RANGE}
 			realtime={{
 				duration: PLOT_DURATION_MS,
 				delay: PLOT_DELAY_MS,
 			}}
+			yTitle="Frequency [Hz]"
 		/>
 
 		<LiveChart
@@ -86,6 +87,7 @@
 				duration: PLOT_DURATION_MS,
 				delay: PLOT_DELAY_MS,
 			}}
+    yTitle="Duty cycle"
 		/>
 	</div>
 </div>
