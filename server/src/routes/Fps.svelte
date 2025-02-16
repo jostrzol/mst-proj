@@ -1,8 +1,7 @@
 <script lang="ts">
-	import { scaleLinear, scaleSequential } from 'd3-scale';
-	import { interpolateRgb, interpolateRgbBasis } from 'd3-interpolate';
-	import { untrack } from 'svelte';
 	import { theme_color } from '$lib';
+	import { interpolateRgbBasis } from 'd3-interpolate';
+	import { scaleSequential } from 'd3-scale';
 
 	const SAMPLING_INTERVAL_MS = 1000;
 
