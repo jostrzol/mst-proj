@@ -1,6 +1,32 @@
+<script module lang="ts">
+	import {
+		CategoryScale,
+		Chart,
+		Colors,
+		Legend,
+		LinearScale,
+		LineController,
+		LineElement,
+		PointElement,
+	} from 'chart.js';
+
+	import ChartStreaming from 'chartjs-plugin-streaming';
+
+	Chart.register(
+		Colors,
+		LineController,
+		LineElement,
+		PointElement,
+		CategoryScale,
+		LinearScale,
+		Legend,
+		ChartStreaming,
+	);
+</script>
+
 <script lang="ts">
 	import { theme_color } from '$lib';
-	import { Chart, type ChartDataset } from 'chart.js';
+	import { type ChartDataset } from 'chart.js';
 	import { untrack } from 'svelte';
 
 	import 'chartjs-adapter-date-fns';
