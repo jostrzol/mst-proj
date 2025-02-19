@@ -1,15 +1,11 @@
 <script lang="ts">
-	import { ModbusClient } from '$lib';
+	import { onMount } from 'svelte';
 	import { Checkbox, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
-	import {
-		PUBLIC_CONTROLLER_MODBUS_UNIT_ID,
-		PUBLIC_CONTROLLER_HOST,
-		PUBLIC_CONTROLLER_PORT,
-	} from '$env/static/public';
+	import type { Reading } from '$lib/server';
 
 	const PLOT_DURATION_MS = 20000;
-	const PLOT_DELAY_MS = 100;
+	const PLOT_DELAY_MS = 200;
 
 	const FREQ_RANGE: [number, number] = [0, 1000];
 	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
@@ -27,16 +23,14 @@
 	let control: Point[] = $state([]);
 
 	let sample = $state(true);
-
-	$effect(() => {
-		const client = new ModbusClient({
-			host: PUBLIC_CONTROLLER_HOST,
-			port: parseInt(PUBLIC_CONTROLLER_PORT),
-			unit_id: parseInt(PUBLIC_PID_MODBUS_UNIT_ID),
+	onMount(() => {
+		const socket = new WebSocket(`/ws`);
+		socket.addEventListener('message', async (event: MessageEvent<string>) => {
+      console.log(event.data)
+      const data = JSON.parse(event.data) as Reading[]
+			const points = data.map(({ value, timestamp }) => ({ x: timestamp, y: value / 255 * 1000 }));
+			freqCurrent.push(...points);
 		});
-		client.start_reading();
-
-		return client.close;
 	});
 
 	$effect(() => {
@@ -44,10 +38,8 @@
 			if (sample) {
 				const tMs = Date.now();
 				const tS = tMs / 1000;
-				const freqCurrentValue = ((Math.cos(tS) + 1) / 2) * 1000;
 				const controlValue = (Math.sin(tS + 1) + 1) / 2;
 
-				freqCurrent.push({ x: tMs, y: freqCurrentValue });
 				control.push({ x: tMs, y: controlValue });
 			}
 		}, SAMPLE_INTERVAL_MS);

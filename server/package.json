@@ -18,8 +18,8 @@
   "devDependencies": {
     "@eslint/compat": "^1.2.5",
     "@eslint/js": "^9.18.0",
-    "@sveltejs/adapter-node": "^5.2.11",
-    "@sveltejs/kit": "^2.16.0",
+    "@sveltejs/adapter-node": "https://pkg.pr.new/sveltejs/kit/@sveltejs/adapter-node@12973",
+    "@sveltejs/kit": "https://pkg.pr.new/sveltejs/kit/@sveltejs/kit@12973",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",
