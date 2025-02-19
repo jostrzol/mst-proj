@@ -11,6 +11,7 @@
 	} from 'chart.js';
 
 	import ChartStreaming from 'chartjs-plugin-streaming';
+	import 'chartjs-adapter-date-fns';
 
 	Chart.register(
 		Colors,

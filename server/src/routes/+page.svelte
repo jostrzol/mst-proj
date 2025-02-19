@@ -1,7 +1,12 @@
 <script lang="ts">
+	import { ModbusClient } from '$lib';
 	import { Checkbox, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
-	import 'chartjs-adapter-date-fns';
+	import {
+		PUBLIC_CONTROLLER_MODBUS_UNIT_ID,
+		PUBLIC_CONTROLLER_HOST,
+		PUBLIC_CONTROLLER_PORT,
+	} from '$env/static/public';
 
 	const PLOT_DURATION_MS = 20000;
 	const PLOT_DELAY_MS = 100;
@@ -22,6 +27,17 @@
 	let control: Point[] = $state([]);
 
 	let sample = $state(true);
+
+	$effect(() => {
+		const client = new ModbusClient({
+			host: PUBLIC_CONTROLLER_HOST,
+			port: parseInt(PUBLIC_CONTROLLER_PORT),
+			unit_id: parseInt(PUBLIC_PID_MODBUS_UNIT_ID),
+		});
+		client.start_reading();
+
+		return client.close;
+	});
 
 	$effect(() => {
 		const interval = setInterval(() => {
@@ -87,7 +103,7 @@
 				duration: PLOT_DURATION_MS,
 				delay: PLOT_DELAY_MS,
 			}}
-    yTitle="Duty cycle"
+			yTitle="Duty cycle"
 		/>
 	</div>
 </div>
