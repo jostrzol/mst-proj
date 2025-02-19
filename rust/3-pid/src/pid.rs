@@ -1,3 +1,4 @@
+use async_mutex::Mutex;
 use rppal::i2c::I2c;
 use rppal::pwm::{Channel, Pwm};
 use std::error::Error;
@@ -33,9 +34,9 @@ const fn make_read_command(channel: u8) -> u8 {
     DEFAULT_READ_COMMAND & (channel << 4)
 }
 
-pub async fn pid_context<const CAP: usize>(
+pub async fn run_pid_loop<const CAP: usize>(
     reading_interval: Duration,
-    state: Arc<State<CAP>>,
+    state: Arc<Mutex<State<CAP>>>,
 ) -> Result<(), Box<dyn Error>> {
     println!("Controlling motor from Rust.");
 
@@ -49,19 +50,16 @@ pub async fn pid_context<const CAP: usize>(
     let mut interval = interval(reading_interval);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {
-        let now = interval.tick().await;
+        interval.tick().await;
 
         let Some(value) = read_potentiometer_value(&mut i2c) else {
             continue;
         };
 
-        state.push(now.into(), value).await;
+        let mut state = state.lock().await;
+        state.push(value);
 
-        let duty_cycle = value as f64 / u8::MAX as f64;
+        let duty_cycle = state.get_target();
         println!("selected duty cycle: {duty_cycle:.2}");
-
-        if let Err(err) = pwm.set_frequency(PWM_FREQUENCY, duty_cycle) {
-            eprintln!("error setting pwm frequency: {err}");
-        }
     }
 }

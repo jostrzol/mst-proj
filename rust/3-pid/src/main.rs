@@ -1,4 +1,5 @@
 #![feature(duration_constants)]
+#![feature(impl_trait_in_assoc_type)]
 
 mod pid;
 mod server;
@@ -6,8 +7,9 @@ mod state;
 
 use std::{sync::Arc, time::Duration};
 
-use pid::pid_context;
-use server::server_context;
+use async_mutex::Mutex;
+use pid::run_pid_loop;
+use server::serve;
 use state::State;
 use tokio::signal::ctrl_c;
 
@@ -20,12 +22,12 @@ const READING_HISTORY_COUNT: usize =
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let state = Arc::new(State::<READING_HISTORY_COUNT>::new());
-    let socket_addr = "0.0.0.0:5502".parse().unwrap();
+    let state = Arc::new(Mutex::new(State::<READING_HISTORY_COUNT>::new()));
+    let socket_addr = "0.0.0.0:5502".parse()?;
 
     tokio::select! {
-        _ = server_context(socket_addr) => unreachable!(),
-        _ = pid_context(READING_INTERVAL, state.clone()) => unreachable!(),
+        _ = serve(state.clone(), socket_addr) => unreachable!(),
+        _ = run_pid_loop(READING_INTERVAL, state) => unreachable!(),
         _ = ctrl_c() => println!("Gracefully stopping\n"),
     }
 
