@@ -14,6 +14,9 @@ const REPORTING_INTERVAL: Duration = Duration::from_secs(1);
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
 const PWM_FREQUENCY: f64 = 1000.;
 
+const REVOLUTION_TRESHOLD_CLOSE: u8 = 90;
+const REVOLUTION_TRESHOLD_FAR: u8 = 100;
+
 fn read_potentiometer_value(i2c: &mut I2c) -> Option<u8> {
     const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
     let mut read_buffer = [0];
@@ -41,8 +44,6 @@ pub async fn run_pid_loop<const CAP: usize>(
     reading_interval: Duration,
     state: Arc<Mutex<State<CAP>>>,
 ) -> Result<(), Box<dyn Error>> {
-    println!("Controlling motor from Rust.");
-
     let mut i2c = I2c::new()?;
     i2c.set_slave_address(0x48)?;
 
@@ -50,12 +51,17 @@ pub async fn run_pid_loop<const CAP: usize>(
     pwm.set_frequency(PWM_FREQUENCY, 0.)?;
     pwm.enable()?;
 
+    pwm.set_frequency(PWM_FREQUENCY, 0.6)?;
+
     let reads = Cell::new(0);
 
     tokio::select! {
         _ = async {
             let mut interval = interval(reading_interval);
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+            let mut revolutions: u32 = 0;
+            let mut is_close: bool = false;
 
             loop {
                 interval.tick().await;
@@ -67,21 +73,32 @@ pub async fn run_pid_loop<const CAP: usize>(
                 let mut state = state.lock().await;
                 state.push(value);
 
+                // println!("read: {}", value);
+
+                if value < REVOLUTION_TRESHOLD_CLOSE && !is_close {
+                    // gone close
+                    is_close = true;
+                    revolutions += 1;
+                    println!("revolutions: {}", revolutions);
+                } else if value > REVOLUTION_TRESHOLD_FAR && is_close {
+                    // gone far
+                    is_close = false;
+                }
+
+
                 reads.set(reads.get() + 1)
-
-                // let duty_cycle = state.get_target();
             }
         } => unreachable!(),
-        _ = async {
-            let target_update_rate = Duration::SECOND.as_nanos() / reading_interval.as_nanos();
-            let mut interval = interval(REPORTING_INTERVAL);
-            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-
-            loop {
-                interval.tick().await;
-
-                println!("update rate: {}/{} Hz", reads.replace(0), target_update_rate);
-            }
-        } => unreachable!(),
+        // _ = async {
+        //     let target_update_rate = Duration::SECOND.as_nanos() / reading_interval.as_nanos();
+        //     let mut interval = interval(REPORTING_INTERVAL);
+        //     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        //
+        //     loop {
+        //         interval.tick().await;
+        //
+        //         println!("update rate: {}/{} Hz", reads.replace(0), target_update_rate);
+        //     }
+        // } => unreachable!(),
     }
 }

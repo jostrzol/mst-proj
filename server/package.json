@@ -45,6 +45,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "chart.js": "^4.4.7",
     "chartjs-adapter-date-fns": "^3.0.0",
     "chartjs-plugin-streaming": "^2.0.0",

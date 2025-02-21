@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Checkbox, RangeField } from 'svelte-ux';
+	import { Button, Checkbox, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
 	import type { Reading } from '$lib';
+	import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
 
-	const PLOT_DURATION_MS = 20000;
+	const PLOT_DURATION_MS = 4000;
 	const PLOT_DELAY_MS = 200;
 
-	const FREQ_RANGE: [number, number] = [0, 1000];
+	const FREQ_RANGE: [number, number] = [70, 150];
 	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
 
 	const SAMPLE_REFRESH_RATE = 20;
@@ -26,13 +27,9 @@
 	onMount(() => {
 		const socket = new WebSocket(`/ws`);
 		socket.addEventListener('message', async (event: MessageEvent<string>) => {
-			console.log(event.data);
 			const data = JSON.parse(event.data) as Reading[];
-			const points = data.map(({ value, timestamp }) => ({
-				x: timestamp,
-				y: (value / 255) * 1000,
-			}));
-			freqCurrent.push(...points);
+			const points = data.map(({ value, timestamp }) => ({ x: timestamp, y: value }));
+			freqCurrent.push(...points.reverse());
 		});
 	});
 
@@ -57,10 +54,30 @@
 		}, GC_INTERVAL_MS);
 		return () => clearInterval(interval);
 	});
+
+	let isPaused = $state(false);
+	let togglePause = () => (isPaused = !isPaused);
+	onMount(() => {
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key == ' ') {
+				togglePause();
+				event.preventDefault();
+			}
+		};
+		window.addEventListener('keydown', onKeyDown);
+		return () => window.removeEventListener('keydown', onKeyDown);
+	});
 </script>
 
 <div class="m-4">
-	<div class="flex gap-4 p-4">
+	<div class="flex items-center gap-4 p-4">
+		<Button
+			variant="outline"
+			color="primary"
+			icon={isPaused ? faPlay : faPause}
+			onclick={togglePause}
+		/>
+
 		<Checkbox bind:checked={sample}>Sample</Checkbox>
 
 		<RangeField
@@ -81,7 +98,7 @@
 		<LiveChart
 			datasets={[
 				{ label: 'Target', data: freqTarget, color: 'green', stepped: 'before' },
-				{ label: 'Current', data: freqCurrent, color: 'red' },
+				{ label: 'Current', data: freqCurrent, color: 'red', borderWidth: 1 },
 			]}
 			domain={FREQ_RANGE}
 			realtime={{
@@ -89,6 +106,7 @@
 				delay: PLOT_DELAY_MS,
 			}}
 			yTitle="Frequency [Hz]"
+			{isPaused}
 		/>
 
 		<LiveChart
@@ -99,6 +117,7 @@
 				delay: PLOT_DELAY_MS,
 			}}
 			yTitle="Duty cycle"
+			{isPaused}
 		/>
 	</div>
 </div>

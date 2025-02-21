@@ -8,12 +8,14 @@
 		LineController,
 		LineElement,
 		PointElement,
+		Tooltip,
 	} from 'chart.js';
 
 	import ChartStreaming from 'chartjs-plugin-streaming';
 	import 'chartjs-adapter-date-fns';
 
 	Chart.register(
+		Tooltip,
 		Colors,
 		LineController,
 		LineElement,
@@ -53,6 +55,7 @@
 		domain?: [number, number];
 		realtime?: RealTimeScaleOptions['realtime'];
 		yTitle?: string;
+		isPaused?: boolean;
 	}
 
 	const props: Props = $props();
@@ -81,7 +84,7 @@
 		chart = new Chart<'line', Point[], never>(canvas, {
 			type: 'line',
 			data: {
-				datasets: untrack(() => $state.snapshot(datasets)) as any,
+				datasets: untrack(() => $state.snapshot(datasets)) as Dataset[],
 			},
 			options: {
 				clip: false,
@@ -102,6 +105,12 @@
 					x: {
 						type: 'realtime',
 						realtime: props.realtime,
+						time: {
+							displayFormats: {
+								millisecond: 'HH:mm:ss.SSS',
+								second: 'HH:mm:ss.SSS',
+							},
+						},
 						grid: { color: gridColor },
 						adapters: { date: { locale: pl } },
 						title: { text: 'Time', display: true },
@@ -127,7 +136,8 @@
 
 	$effect(() => {
 		if (chart) {
-			chart.data.datasets = $state.snapshot(datasets) as any;
+			chart.data.datasets = $state.snapshot(datasets) as Dataset[];
+			chart.options.plugins!.streaming!.pause = props.isPaused ?? false;
 			chart.update();
 		}
 	});

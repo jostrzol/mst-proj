@@ -1,90 +1,115 @@
-import type { Reading } from '$lib/Reading'
-import modbus from 'jsmodbus'
-import net from 'net'
+import type { Reading } from '$lib/Reading';
+import modbus from 'jsmodbus';
+import net from 'net';
 
-const MAX_U16 = 2 << 16 - 1
+const MAX_U16 = (1 << 16) - 1;
 
 export type Options = net.SocketConnectOpts & {
-  unitId: number
-  sample_rate: number
-  batch_size?: number
-  interval_ms?: number
-  retry_ms?: number
-  onMessage?: (readings: Reading[]) => void
-}
+  unitId: number;
+  sampleRate: number;
+  batchSize?: number;
+  intervalMs?: number;
+  retryMs?: number;
+  retries?: number;
+  onMessage?: (readings: Reading[]) => void;
+};
 
 export class ModbusClient {
-  #options: Options
-  #client?: modbus.ModbusTCPClient
-  #intervalHandle?: NodeJS.Timeout
-  #sample_interval_ms: number
+  #options: Options;
+  #client?: modbus.ModbusTCPClient;
+  #intervalHandle?: NodeJS.Timeout;
+  #sampleIntervalMs: number;
+  #retryNumber: number = 0;
+  #isError: boolean = false;
 
   constructor(options: Options) {
     this.#options = options;
-    this.#sample_interval_ms = 1000 / options.sample_rate
+    this.#sampleIntervalMs = 1000 / options.sampleRate;
   }
 
   private get batch_size() {
-    return this.#options.batch_size || 1
+    return this.#options.batchSize || 1;
   }
 
   private get interval_ms() {
-    return this.#options.interval_ms || 100
+    return this.#options.intervalMs || 100;
   }
 
   private get retry_ms() {
-    return this.#options.retry_ms || 5000
+    return this.#options.retryMs || 1000;
+  }
+
+  private get retries() {
+    return this.#options.retries || 5;
   }
 
   private async client() {
-    if (this.#client) return this.#client
+    if (this.#client) return this.#client;
 
-    console.info("Connecting to modbus server with options:", this.#options)
+    console.info('Connecting to modbus server with options:', this.#options);
     const socket = new net.Socket();
-    this.#client = new modbus.client.TCP(socket, this.#options.unitId)
+    this.#client = new modbus.client.TCP(socket, this.#options.unitId);
     const promise = new Promise((resolve, reject) => {
-      socket.on("connect", resolve)
-      socket.on("error", reject)
-      socket.connect(this.#options)
-    })
-    await promise
+      socket.on('connect', resolve);
+      socket.on('error', reject);
+      socket.connect(this.#options);
+    });
+    this.#retryNumber = 0;
+    await promise;
     return this.#client;
   }
 
   async startReading() {
-    if (this.#intervalHandle) return
+    if (this.#intervalHandle) return;
 
     const loop = async () => {
       try {
-        const client = await this.client()
+        if (this.#isError) return;
 
-        const result = await client.readInputRegisters(1, this.batch_size)
-        const receivedAt = result.metrics.receivedAt.valueOf()
-        const data = result.response.body.valuesAsArray
-        const readings = [...data]
-          .filter(value => value < MAX_U16)
+        const client = await this.client();
+
+        const result = await client.readInputRegisters(1, this.batch_size);
+        const receivedAt = result.metrics.receivedAt.valueOf();
+        const data = result.response.body.valuesAsArray;
+        const readings = [...data.reverse()]
+          .filter((value) => value < MAX_U16)
           .map((value, i) => ({
             value: value,
-            timestamp: receivedAt - i * this.#sample_interval_ms,
-          }))
+            timestamp: receivedAt - i * this.#sampleIntervalMs,
+          }));
 
-        this.#options.onMessage?.call(null, readings)
+        this.#options.onMessage?.call(null, readings);
       } catch (e) {
-        console.error("Error while reading modbus:", e)
-        console.info(`Restarting modbus server in ${this.retry_ms} ms`)
-        this.close()
-        await new Promise(r => setTimeout(r, this.retry_ms));
-        this.startReading()
-      }
-    }
+        console.error('Error while reading modbus:', e);
 
-    this.#intervalHandle = setInterval(loop, this.interval_ms)
+        if (this.#isError) return;
+        this.#isError = true;
+        if (this.#retryNumber++ < this.retries) {
+          console.info(`Retrying in ${this.retry_ms} ms`);
+        } else {
+          console.info(`Restarting modbus client in ${this.retry_ms} ms`);
+          this.closeClient();
+        }
+        await new Promise((r) => setTimeout(r, this.retry_ms));
+        this.#isError = false;
+      }
+    };
+
+    this.#intervalHandle = setInterval(loop, this.interval_ms);
   }
 
   close() {
-    if (this.#intervalHandle) clearInterval(this.#intervalHandle)
-    this.#intervalHandle = undefined
-    if (this.#client) this.#client.socket.destroy()
-    this.#client = undefined
+    this.clearInterval();
+    this.closeClient();
+  }
+
+  private clearInterval() {
+    if (this.#intervalHandle) clearInterval(this.#intervalHandle);
+    this.#intervalHandle = undefined;
+  }
+
+  private closeClient() {
+    if (this.#client) this.#client.socket.destroy();
+    this.#client = undefined;
   }
 }
