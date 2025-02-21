@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Checkbox, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
-	import type { Reading } from '$lib/server';
+	import type { Reading } from '$lib';
 
 	const PLOT_DURATION_MS = 20000;
 	const PLOT_DELAY_MS = 200;
@@ -26,9 +26,12 @@
 	onMount(() => {
 		const socket = new WebSocket(`/ws`);
 		socket.addEventListener('message', async (event: MessageEvent<string>) => {
-      console.log(event.data)
-      const data = JSON.parse(event.data) as Reading[]
-			const points = data.map(({ value, timestamp }) => ({ x: timestamp, y: value / 255 * 1000 }));
+			console.log(event.data);
+			const data = JSON.parse(event.data) as Reading[];
+			const points = data.map(({ value, timestamp }) => ({
+				x: timestamp,
+				y: (value / 255) * 1000,
+			}));
 			freqCurrent.push(...points);
 		});
 	});
