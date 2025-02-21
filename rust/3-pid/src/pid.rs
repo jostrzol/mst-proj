@@ -1,12 +1,15 @@
 use async_mutex::Mutex;
 use rppal::i2c::I2c;
 use rppal::pwm::{Channel, Pwm};
+use std::cell::Cell;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{interval, MissedTickBehavior};
 
 use crate::state::State;
+
+const REPORTING_INTERVAL: Duration = Duration::from_secs(1);
 
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
 const PWM_FREQUENCY: f64 = 1000.;
@@ -47,19 +50,38 @@ pub async fn run_pid_loop<const CAP: usize>(
     pwm.set_frequency(PWM_FREQUENCY, 0.)?;
     pwm.enable()?;
 
-    let mut interval = interval(reading_interval);
-    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    loop {
-        interval.tick().await;
+    let reads = Cell::new(0);
 
-        let Some(value) = read_potentiometer_value(&mut i2c) else {
-            continue;
-        };
+    tokio::select! {
+        _ = async {
+            let mut interval = interval(reading_interval);
+            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-        let mut state = state.lock().await;
-        state.push(value);
+            loop {
+                interval.tick().await;
 
-        let duty_cycle = state.get_target();
-        println!("selected duty cycle: {duty_cycle:.2}");
+                let Some(value) = read_potentiometer_value(&mut i2c) else {
+                    continue;
+                };
+
+                let mut state = state.lock().await;
+                state.push(value);
+
+                reads.set(reads.get() + 1)
+
+                // let duty_cycle = state.get_target();
+            }
+        } => unreachable!(),
+        _ = async {
+            let target_update_rate = Duration::SECOND.as_nanos() / reading_interval.as_nanos();
+            let mut interval = interval(REPORTING_INTERVAL);
+            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+            loop {
+                interval.tick().await;
+
+                println!("update rate: {}/{} Hz", reads.replace(0), target_update_rate);
+            }
+        } => unreachable!(),
     }
 }
