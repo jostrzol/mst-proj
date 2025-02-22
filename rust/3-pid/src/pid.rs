@@ -1,7 +1,8 @@
 use async_mutex::Mutex;
+use ringbuffer::{ConstGenericRingBuffer, RingBuffer};
 use rppal::i2c::I2c;
 use rppal::pwm::{Channel, Pwm};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -9,6 +10,8 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::state::State;
 
+const UPDATING_INTERVAL: Duration = Duration::from_millis(100);
+const UPDATING_BINS: usize = 10;
 const REPORTING_INTERVAL: Duration = Duration::from_secs(1);
 
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
@@ -51,16 +54,19 @@ pub async fn run_pid_loop<const CAP: usize>(
     pwm.set_frequency(PWM_FREQUENCY, 0.)?;
     pwm.enable()?;
 
-    pwm.set_frequency(PWM_FREQUENCY, 0.6)?;
+    pwm.set_frequency(PWM_FREQUENCY, 1.)?;
 
     let reads = Cell::new(0);
+
+    let mut revolutions = ConstGenericRingBuffer::<u32, UPDATING_BINS>::new();
+    revolutions.fill_default();
+    let revolutions = RefCell::new(revolutions);
 
     tokio::select! {
         _ = async {
             let mut interval = interval(reading_interval);
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-            let mut revolutions: u32 = 0;
             let mut is_close: bool = false;
 
             loop {
@@ -78,8 +84,9 @@ pub async fn run_pid_loop<const CAP: usize>(
                 if value < REVOLUTION_TRESHOLD_CLOSE && !is_close {
                     // gone close
                     is_close = true;
-                    revolutions += 1;
-                    println!("revolutions: {}", revolutions);
+                    let mut revolutions = revolutions.borrow_mut();
+                    revolutions[UPDATING_BINS - 1] += 1;
+                    // println!("revolutions: {}", revolutions);
                 } else if value > REVOLUTION_TRESHOLD_FAR && is_close {
                     // gone far
                     is_close = false;
@@ -87,6 +94,28 @@ pub async fn run_pid_loop<const CAP: usize>(
 
 
                 reads.set(reads.get() + 1)
+            }
+        } => unreachable!(),
+        _ = async {
+            let mut interval = interval(UPDATING_INTERVAL);
+            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+            loop {
+                interval.tick().await;
+
+                let sum: u32 = {
+                    let mut revolutions = revolutions.borrow_mut();
+                    let sum = revolutions.iter().sum();
+                    revolutions.push(0);
+                    sum
+                };
+
+                let frequency = sum as f32 / (UPDATING_INTERVAL.as_secs_f32() * UPDATING_BINS as f32);
+                let frequency = frequency.floor() as u16;
+                println!("frequency: {} Hz", frequency);
+
+                let mut state = state.lock().await;
+                state.set_current(frequency);
             }
         } => unreachable!(),
         // _ = async {
@@ -97,7 +126,7 @@ pub async fn run_pid_loop<const CAP: usize>(
         //     loop {
         //         interval.tick().await;
         //
-        //         println!("update rate: {}/{} Hz", reads.replace(0), target_update_rate);
+        //         println!("update rate: {}/{} Hz", reads.take(), target_update_rate);
         //     }
         // } => unreachable!(),
     }

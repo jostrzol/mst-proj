@@ -35,9 +35,9 @@ impl<const CAP: usize> Service for PidService<CAP> {
         let state = self.state.clone();
         async move {
             match req {
-                Request::ReadInputRegisters(_, cnt) => {
-                    let readings = state.lock().await.get_readings(cnt as usize);
-                    Ok(Response::ReadInputRegisters(readings))
+                Request::ReadInputRegisters(_, _) => {
+                    let current = state.lock().await.get_current();
+                    Ok(Response::ReadInputRegisters(vec![current]))
                 }
                 Request::WriteSingleRegister(addr, value) => {
                     state.lock().await.set_target(value);

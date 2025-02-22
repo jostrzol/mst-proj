@@ -2,6 +2,7 @@ use ringbuffer::{ConstGenericRingBuffer, RingBuffer};
 
 pub struct State<const CAP: usize> {
     readings: ConstGenericRingBuffer<u16, CAP>,
+    current: u16,
     target: u16,
 }
 
@@ -10,6 +11,7 @@ impl<const CAP: usize> State<CAP> {
         Self {
             readings: Default::default(),
             target: Default::default(),
+            current: Default::default(),
         }
     }
 
@@ -40,5 +42,13 @@ impl<const CAP: usize> State<CAP> {
 
     pub fn get_target(&mut self) -> f64 {
         self.target as f64 / u16::MAX as f64
+    }
+
+    pub fn set_current(&mut self, value: u16) {
+        self.current = value;
+    }
+
+    pub fn get_current(&mut self) -> u16 {
+        self.current
     }
 }

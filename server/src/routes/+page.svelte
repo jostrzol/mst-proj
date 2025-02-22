@@ -8,7 +8,7 @@
 	const PLOT_DURATION_MS = 4000;
 	const PLOT_DELAY_MS = 200;
 
-	const FREQ_RANGE: [number, number] = [70, 150];
+	const FREQ_RANGE: [number?, number?] = [0, 20];
 	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
 
 	const SAMPLE_REFRESH_RATE = 20;
@@ -28,6 +28,7 @@
 		const socket = new WebSocket(`/ws`);
 		socket.addEventListener('message', async (event: MessageEvent<string>) => {
 			const data = JSON.parse(event.data) as Reading[];
+			console.log(data);
 			const points = data.map(({ value, timestamp }) => ({ x: timestamp, y: value }));
 			freqCurrent.push(...points.reverse());
 		});
