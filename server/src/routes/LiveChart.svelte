@@ -52,7 +52,7 @@
 
 	export interface Props {
 		datasets: DatasetProp[];
-		domain?: [number, number];
+		domain?: [number?, number?];
 		realtime?: RealTimeScaleOptions['realtime'];
 		yTitle?: string;
 		isPaused?: boolean;

@@ -1,17 +1,31 @@
+use std::intrinsics::variant_count;
+
 use ringbuffer::{ConstGenericRingBuffer, RingBuffer};
+
+pub enum InputRegister {
+    CurrentFrequency,
+}
+
+#[allow(dead_code)]
+pub enum HoldingRegister {
+    TargetFrequency,
+    ProportionalFactor,
+    IntegrationTime,
+    Differentiationtime,
+}
 
 pub struct State<const CAP: usize> {
     readings: ConstGenericRingBuffer<u16, CAP>,
-    current: u16,
-    target: u16,
+    input_registers: [u16; variant_count::<InputRegister>()],
+    holding_registers: [u16; variant_count::<HoldingRegister>()],
 }
 
 impl<const CAP: usize> State<CAP> {
     pub fn new() -> Self {
         Self {
             readings: Default::default(),
-            target: Default::default(),
-            current: Default::default(),
+            input_registers: Default::default(),
+            holding_registers: [0, 0, 1, 0],
         }
     }
 
@@ -36,19 +50,33 @@ impl<const CAP: usize> State<CAP> {
         }
     }
 
-    pub fn set_target(&mut self, value: u16) {
-        self.target = value;
+    pub fn read_input_registers(&self, addr: usize, count: usize) -> &[u16] {
+        &self.input_registers[addr..count]
     }
 
-    pub fn get_target(&mut self) -> f64 {
-        self.target as f64 / u16::MAX as f64
+    pub fn write_input_registers<'a>(
+        &mut self,
+        addr: usize,
+        values: impl IntoIterator<Item = &'a u16>,
+    ) {
+        self.input_registers[addr..]
+            .iter_mut()
+            .zip(values)
+            .for_each(|(reg, value)| *reg = *value);
     }
 
-    pub fn set_current(&mut self, value: u16) {
-        self.current = value;
+    pub fn read_holding_registers(&self, addr: usize, count: usize) -> &[u16] {
+        &self.holding_registers[addr..count]
     }
 
-    pub fn get_current(&mut self) -> u16 {
-        self.current
+    pub fn write_holding_registers<'a>(
+        &mut self,
+        addr: usize,
+        values: impl IntoIterator<Item = &'a u16>,
+    ) {
+        self.holding_registers[addr..]
+            .iter_mut()
+            .zip(values)
+            .for_each(|(reg, value)| *reg = *value);
     }
 }

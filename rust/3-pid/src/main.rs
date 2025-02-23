@@ -1,5 +1,6 @@
 #![feature(duration_constants)]
 #![feature(impl_trait_in_assoc_type)]
+#![feature(core_intrinsics)]
 
 mod pid;
 mod server;
@@ -26,10 +27,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket_addr = "0.0.0.0:5502".parse()?;
 
     tokio::select! {
-        _ = serve(state.clone(), socket_addr) => unreachable!(),
-        _ = run_pid_loop(READING_INTERVAL, state) => unreachable!(),
-        _ = ctrl_c() => println!("Gracefully stopping\n"),
+        result = serve(state.clone(), socket_addr) => match result {
+            Ok(_) => unreachable!(),
+            err => err,
+        },
+        result = run_pid_loop(READING_INTERVAL, state) => match result {
+            Ok(_) => unreachable!(),
+            err => err,
+        },
+        result = ctrl_c() => match result {
+            Ok(_) => {
+                println!("Gracefully stopping\n");
+                Ok(())
+            },
+            Err(err) => Err(err.into()),
+        },
     }
-
-    Ok(())
 }

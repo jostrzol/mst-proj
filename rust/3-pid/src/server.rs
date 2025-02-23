@@ -6,7 +6,7 @@
 //! This example shows how to start a server and implement basic register
 //! read/write operations.
 
-use std::{future::Future, net::SocketAddr, sync::Arc};
+use std::{error::Error, future::Future, net::SocketAddr, sync::Arc};
 
 use async_mutex::Mutex;
 use tokio::net::TcpListener;
@@ -35,13 +35,20 @@ impl<const CAP: usize> Service for PidService<CAP> {
         let state = self.state.clone();
         async move {
             match req {
-                Request::ReadInputRegisters(_, _) => {
-                    let current = state.lock().await.get_current();
-                    Ok(Response::ReadInputRegisters(vec![current]))
+                Request::ReadInputRegisters(addr, count) => {
+                    let state = state.lock().await;
+                    let values = state.read_input_registers(addr as usize, count as usize);
+                    Ok(Response::ReadInputRegisters(values.into()))
                 }
                 Request::WriteSingleRegister(addr, value) => {
-                    state.lock().await.set_target(value);
+                    let mut state = state.lock().await;
+                    state.write_holding_registers(addr as usize, &[value]);
                     Ok(Response::WriteSingleRegister(addr, value))
+                }
+                Request::WriteMultipleRegisters(addr, values) => {
+                    let mut state = state.lock().await;
+                    state.write_holding_registers(addr as usize, values.iter());
+                    Ok(Response::WriteMultipleRegisters(addr, values.len() as u16))
                 }
                 _ => Err(ExceptionCode::IllegalFunction),
             }
@@ -58,7 +65,7 @@ impl<const CAP: usize> PidService<CAP> {
 pub async fn serve<const CAP: usize>(
     state: Arc<Mutex<State<CAP>>>,
     socket_addr: SocketAddr,
-) -> anyhow::Result<()> {
+) -> Result<(), Box<dyn Error>> {
     println!("Starting up server on {socket_addr}");
     let listener = TcpListener::bind(socket_addr).await?;
     let server = Server::new(listener);

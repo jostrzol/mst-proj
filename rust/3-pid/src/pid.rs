@@ -8,11 +8,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{interval, MissedTickBehavior};
 
-use crate::state::State;
+use crate::state::{InputRegister, State};
 
 const UPDATING_INTERVAL: Duration = Duration::from_millis(100);
 const UPDATING_BINS: usize = 10;
-const REPORTING_INTERVAL: Duration = Duration::from_secs(1);
 
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
 const PWM_FREQUENCY: f64 = 1000.;
@@ -44,7 +43,7 @@ const fn make_read_command(channel: u8) -> u8 {
 }
 
 pub async fn run_pid_loop<const CAP: usize>(
-    reading_interval: Duration,
+    pid_interval: Duration,
     state: Arc<Mutex<State<CAP>>>,
 ) -> Result<(), Box<dyn Error>> {
     let mut i2c = I2c::new()?;
@@ -54,17 +53,15 @@ pub async fn run_pid_loop<const CAP: usize>(
     pwm.set_frequency(PWM_FREQUENCY, 0.)?;
     pwm.enable()?;
 
-    pwm.set_frequency(PWM_FREQUENCY, 1.)?;
-
-    let reads = Cell::new(0);
-
     let mut revolutions = ConstGenericRingBuffer::<u32, UPDATING_BINS>::new();
     revolutions.fill_default();
     let revolutions = RefCell::new(revolutions);
 
+    let duty_cycle = Cell::new(0.);
+
     tokio::select! {
         _ = async {
-            let mut interval = interval(reading_interval);
+            let mut interval = interval(pid_interval);
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
             let mut is_close: bool = false;
@@ -79,26 +76,27 @@ pub async fn run_pid_loop<const CAP: usize>(
                 let mut state = state.lock().await;
                 state.push(value);
 
-                // println!("read: {}", value);
-
                 if value < REVOLUTION_TRESHOLD_CLOSE && !is_close {
                     // gone close
                     is_close = true;
                     let mut revolutions = revolutions.borrow_mut();
                     revolutions[UPDATING_BINS - 1] += 1;
-                    // println!("revolutions: {}", revolutions);
                 } else if value > REVOLUTION_TRESHOLD_FAR && is_close {
                     // gone far
                     is_close = false;
                 }
 
-
-                reads.set(reads.get() + 1)
+                if let Err(err) = pwm.set_frequency(PWM_FREQUENCY, duty_cycle.get()) {
+                    eprintln!("error setting pwm duty cycle: {err}");
+                }
             }
         } => unreachable!(),
         _ = async {
             let mut interval = interval(UPDATING_INTERVAL);
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+            let mut last_delta: f64 = 0.;
+            let mut last_integration_component: f64 = 0.;
 
             loop {
                 interval.tick().await;
@@ -111,23 +109,43 @@ pub async fn run_pid_loop<const CAP: usize>(
                 };
 
                 let frequency = sum as f32 / (UPDATING_INTERVAL.as_secs_f32() * UPDATING_BINS as f32);
-                let frequency = frequency.floor() as u16;
-                println!("frequency: {} Hz", frequency);
+                let current_frequency = frequency.floor() as u16;
+                println!("frequency: {} Hz", current_frequency);
 
                 let mut state = state.lock().await;
-                state.set_current(frequency);
+                state.write_input_registers(InputRegister::CurrentFrequency as usize, &[current_frequency]);
+
+                let registers = state.read_holding_registers(0, 4)
+                    .iter()
+                    .map(|x| *x as f64)
+                    .collect::<Vec<_>>();
+
+                let [
+                    target_frequency,
+                    proportional_factor,
+                    integration_time,
+                    differentiation_time,
+                ] = registers[..] else { unreachable!() };
+
+                let integration_factor: f64 = proportional_factor / integration_time;
+                let differentiation_factor: f64 = proportional_factor * differentiation_time / UPDATING_INTERVAL.as_secs_f64();
+
+                let delta = target_frequency - current_frequency as f64;
+                println!("delta: {:.2}", delta);
+
+                let proportional_component = proportional_factor * delta;
+                let integration_component = last_integration_component
+                    + integration_factor * last_delta;
+                let differentiation_component = differentiation_factor * (delta - last_delta);
+
+                let control_signal = (proportional_component + integration_component + differentiation_component).clamp(0., 1.);
+                println!("control signal: {:.2}", control_signal);
+
+                duty_cycle.set(control_signal);
+
+                last_delta = delta;
+                last_integration_component = integration_component;
             }
         } => unreachable!(),
-        // _ = async {
-        //     let target_update_rate = Duration::SECOND.as_nanos() / reading_interval.as_nanos();
-        //     let mut interval = interval(REPORTING_INTERVAL);
-        //     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        //
-        //     loop {
-        //         interval.tick().await;
-        //
-        //         println!("update rate: {}/{} Hz", reads.take(), target_update_rate);
-        //     }
-        // } => unreachable!(),
     }
 }
