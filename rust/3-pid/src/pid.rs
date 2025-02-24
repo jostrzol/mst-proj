@@ -11,7 +11,7 @@ use tokio::time::{interval, MissedTickBehavior};
 use crate::state::State;
 
 const PWM_MIN: f32 = 0.;
-const PWM_MAX: f32 = 0.6;
+const PWM_MAX: f32 = 1.0;
 
 const UPDATING_INTERVAL: Duration = Duration::from_millis(100);
 const UPDATING_BINS: usize = 10;
@@ -141,11 +141,11 @@ pub async fn run_pid_loop<const CAP: usize>(
                 let control_signal = (proportional_component + integration_component + differentiation_component).clamp(PWM_MIN, PWM_MAX);
 
                 println!("frequency: {} Hz", frequency);
-                // println!("delta: {:.2}", delta);
-                // println!("control signal: {:.2} = {:.2} + {:.2} + {:.2}", control_signal, proportional_component, integration_component, differentiation_component);
+                println!("delta: {:.2}", delta);
+                println!("control signal: {:.2} = {:.2} + {:.2} + {:.2}", control_signal, proportional_component, integration_component, differentiation_component);
 
-                // duty_cycle.set(control_signal as f64);
-                duty_cycle.set(*target_frequency as f64 / 100.);
+                duty_cycle.set(control_signal as f64);
+                // duty_cycle.set(*target_frequency as f64 / 100.);
 
                 state.write_input_registers(0, [frequency, control_signal]);
 

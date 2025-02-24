@@ -117,7 +117,7 @@
 			class="w-48"
 			bind:value={proportionalFactor}
 			label="Proportional factor"
-			step={0.05}
+			step={0.01}
 		/>
 
 		<div class="flex flex-col gap-2">
@@ -127,7 +127,7 @@
 				disabled={!isFinite(integrationTime)}
 				on:change={(event) => (integrationTime = event.detail.value)}
 				label="Integration time"
-				step={0.05}
+				step={0.01}
 			/>
 			<label>
 				<Checkbox
@@ -147,7 +147,7 @@
 				if (differentiationTime == Infinity) differentiationTime = 1000;
 			}}
 			label="Differentiation time"
-			step={0.05}
+			step={0.01}
 		/>
 	</div>
 
