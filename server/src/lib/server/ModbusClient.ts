@@ -1,17 +1,12 @@
 import modbus from 'jsmodbus';
 import net from 'net';
-import type { Reading } from '../../routes/ws/messages';
-
-const MAX_U16 = (1 << 16) - 1;
 
 export type Options = net.SocketConnectOpts & {
 	unitId: number;
-	sampleRate: number;
-	batchSize?: number;
 	intervalMs?: number;
 	retryMs?: number;
 	retries?: number;
-	onMessage?: (readings: Reading[]) => void;
+	onMessage?: (reading: { timestamp: number; data: number[] }) => void;
 	onConnected?: () => void;
 };
 
@@ -19,17 +14,11 @@ export class ModbusClient {
 	#options: Options;
 	#client?: modbus.ModbusTCPClient;
 	#intervalHandle?: NodeJS.Timeout;
-	#sampleIntervalMs: number;
 	#retryNumber: number = 0;
 	#isError: boolean = false;
 
 	constructor(options: Options) {
 		this.#options = options;
-		this.#sampleIntervalMs = 1000 / options.sampleRate;
-	}
-
-	private get batch_size() {
-		return this.#options.batchSize || 1;
 	}
 
 	private get interval_ms() {
@@ -61,7 +50,7 @@ export class ModbusClient {
 		return this.#client;
 	}
 
-	async startReadingCurrentFrequency() {
+	async startReading(address: number = 0, count: number = 2) {
 		if (this.#intervalHandle) return;
 
 		const loop = async () => {
@@ -70,17 +59,16 @@ export class ModbusClient {
 
 				const client = await this.client();
 
-				const result = await client.readInputRegisters(1, this.batch_size);
+				const result = await client.readInputRegisters(address, count);
 				const receivedAt = result.metrics.receivedAt.valueOf();
-				const data = result.response.body.valuesAsArray;
-				const readings = [...data.reverse()]
-					.filter((value) => value < MAX_U16)
-					.map((value, i) => ({
-						value: value,
-						timestamp: receivedAt - i * this.#sampleIntervalMs,
-					}));
+				const buffer = result.response.body.valuesAsBuffer;
+				const floats = [...Array(count)]
+					.keys()
+					.map((i) => buffer.readFloatBE(i * 4))
+					.toArray();
 
-				this.#options.onMessage?.call(null, readings);
+				const reading = { timestamp: receivedAt, data: floats };
+				this.#options.onMessage?.call(null, reading);
 			} catch (e) {
 				console.error('Error while reading modbus:', e);
 
@@ -100,11 +88,15 @@ export class ModbusClient {
 		this.#intervalHandle = setInterval(loop, this.interval_ms);
 	}
 
-	async sendRegisters(address: number, values: number[]) {
+	async writeRegistersFloat32(address: number, values: number[]) {
 		if (this.#isError) return;
 
 		const client = await this.client();
-		await client.writeMultipleRegisters(address, values);
+		const floats = Float32Array.of(...values);
+		const data = Buffer.from(floats.buffer);
+		data.swap32(); // convert to Big Endian
+		console.log('sending', values, ' = ', data);
+		await client.writeMultipleRegisters(address, data);
 	}
 
 	close() {

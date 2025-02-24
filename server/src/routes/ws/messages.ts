@@ -1,15 +1,15 @@
 export type WsMessage =
 	| {
 			type: 'read';
-			data: Reading[];
+			data: Reading;
 	  }
 	| {
 			type: 'write';
 			data: {
-				targetFrequency: number,
-				proportionalFactor: number,
-				integrationTime: number,
-				differentiationTime: number,
+				targetFrequency: number;
+				proportionalFactor: number;
+				integrationTime: number;
+				differentiationTime: number;
 			};
 	  }
 	| {
@@ -18,8 +18,9 @@ export type WsMessage =
 	  };
 
 export interface Reading {
+	frequency: number;
+	controlSignal: number;
 	timestamp: number;
-	value: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace

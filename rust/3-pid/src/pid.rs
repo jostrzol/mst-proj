@@ -8,7 +8,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{interval, MissedTickBehavior};
 
-use crate::state::{InputRegister, State};
+use crate::state::State;
+
+const PWM_MIN: f32 = 0.;
+const PWM_MAX: f32 = 0.6;
 
 const UPDATING_INTERVAL: Duration = Duration::from_millis(100);
 const UPDATING_BINS: usize = 10;
@@ -16,8 +19,8 @@ const UPDATING_BINS: usize = 10;
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
 const PWM_FREQUENCY: f64 = 1000.;
 
-const REVOLUTION_TRESHOLD_CLOSE: u8 = 90;
-const REVOLUTION_TRESHOLD_FAR: u8 = 100;
+const REVOLUTION_TRESHOLD_CLOSE: u8 = 105;
+const REVOLUTION_TRESHOLD_FAR: u8 = 118;
 
 fn read_potentiometer_value(i2c: &mut I2c) -> Option<u8> {
     const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
@@ -73,6 +76,8 @@ pub async fn run_pid_loop<const CAP: usize>(
                     continue;
                 };
 
+                // println!("value: {:03}", value);
+
                 let mut state = state.lock().await;
                 state.push(value);
 
@@ -95,8 +100,8 @@ pub async fn run_pid_loop<const CAP: usize>(
             let mut interval = interval(UPDATING_INTERVAL);
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-            let mut last_delta: f64 = 0.;
-            let mut last_integration_component: f64 = 0.;
+            let mut last_delta: f32 = 0.;
+            let mut last_integration_component: f32 = 0.;
 
             loop {
                 interval.tick().await;
@@ -109,15 +114,11 @@ pub async fn run_pid_loop<const CAP: usize>(
                 };
 
                 let frequency = sum as f32 / (UPDATING_INTERVAL.as_secs_f32() * UPDATING_BINS as f32);
-                let current_frequency = frequency.floor() as u16;
-                println!("frequency: {} Hz", current_frequency);
 
                 let mut state = state.lock().await;
-                state.write_input_registers(InputRegister::CurrentFrequency as usize, &[current_frequency]);
 
                 let registers = state.read_holding_registers(0, 4)
                     .iter()
-                    .map(|x| *x as f64)
                     .collect::<Vec<_>>();
 
                 let [
@@ -127,24 +128,30 @@ pub async fn run_pid_loop<const CAP: usize>(
                     differentiation_time,
                 ] = registers[..] else { unreachable!() };
 
-                let integration_factor: f64 = proportional_factor / integration_time;
-                let differentiation_factor: f64 = proportional_factor * differentiation_time / UPDATING_INTERVAL.as_secs_f64();
+                let integration_factor = proportional_factor / integration_time * UPDATING_INTERVAL.as_secs_f32();
+                let differentiation_factor = proportional_factor * differentiation_time / UPDATING_INTERVAL.as_secs_f32();
 
-                let delta = target_frequency - current_frequency as f64;
-                println!("delta: {:.2}", delta);
+                let delta = target_frequency - frequency;
 
                 let proportional_component = proportional_factor * delta;
                 let integration_component = last_integration_component
                     + integration_factor * last_delta;
                 let differentiation_component = differentiation_factor * (delta - last_delta);
 
-                let control_signal = (proportional_component + integration_component + differentiation_component).clamp(0., 1.);
-                println!("control signal: {:.2}", control_signal);
+                let control_signal = (proportional_component + integration_component + differentiation_component).clamp(PWM_MIN, PWM_MAX);
 
-                duty_cycle.set(control_signal);
+                println!("frequency: {} Hz", frequency);
+                // println!("delta: {:.2}", delta);
+                // println!("control signal: {:.2} = {:.2} + {:.2} + {:.2}", control_signal, proportional_component, integration_component, differentiation_component);
 
-                last_delta = delta;
-                last_integration_component = integration_component;
+                // duty_cycle.set(control_signal as f64);
+                duty_cycle.set(*target_frequency as f64 / 100.);
+
+                state.write_input_registers(0, [frequency, control_signal]);
+
+                last_delta = if delta.is_finite() {delta} else {0.};
+                last_integration_component = if integration_component.is_finite()
+                        { integration_component } else {0.};
             }
         } => unreachable!(),
     }

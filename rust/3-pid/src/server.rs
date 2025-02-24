@@ -37,17 +37,26 @@ impl<const CAP: usize> Service for PidService<CAP> {
             match req {
                 Request::ReadInputRegisters(addr, count) => {
                     let state = state.lock().await;
-                    let values = state.read_input_registers(addr as usize, count as usize);
-                    Ok(Response::ReadInputRegisters(values.into()))
-                }
-                Request::WriteSingleRegister(addr, value) => {
-                    let mut state = state.lock().await;
-                    state.write_holding_registers(addr as usize, &[value]);
-                    Ok(Response::WriteSingleRegister(addr, value))
+                    let floats = state.read_input_registers(addr as usize, count as usize);
+                    let data: Vec<_> = floats
+                        .iter()
+                        .flat_map(|x| x.to_be_bytes())
+                        .array_chunks()
+                        .map(u16::from_be_bytes)
+                        .collect();
+                    Ok(Response::ReadInputRegisters(data))
                 }
                 Request::WriteMultipleRegisters(addr, values) => {
                     let mut state = state.lock().await;
-                    state.write_holding_registers(addr as usize, values.iter());
+                    let bytes: Vec<_> = values.iter().flat_map(|x| x.to_be_bytes()).collect();
+                    print!("receiving {:x?}", bytes);
+                    let floats: Vec<_> = bytes
+                        .into_iter()
+                        .array_chunks()
+                        .map(f32::from_be_bytes)
+                        .collect();
+                    println!(" = {:?}", floats);
+                    state.write_holding_registers(addr as usize, floats);
                     Ok(Response::WriteMultipleRegisters(addr, values.len() as u16))
                 }
                 _ => Err(ExceptionCode::IllegalFunction),

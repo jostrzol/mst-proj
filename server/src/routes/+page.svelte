@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button, RangeField } from 'svelte-ux';
+	import { Button, Checkbox, NumberStepper, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
 	import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
 	import { WsMessage } from './ws/messages';
@@ -8,15 +8,15 @@
 	const PLOT_DURATION_MS = 4000;
 	const PLOT_DELAY_MS = 200;
 
-	const FREQ_RANGE: [number?, number?] = [0, 20];
+	const FREQ_RANGE: [number?, number?] = [0, 100];
 	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
 
-	const PROPORTIONAL_FACTOR_RANGE = [0, 1];
-	const [PROPORTIONAL_FACTOR_MIN, PROPORTIONAL_FACTOR_MAX] = PROPORTIONAL_FACTOR_RANGE;
-	const INTEGRATION_TIME_RANGE = [0, 1];
-	const [INTEGRATION_TIME_MIN, INTEGRATION_TIME_MAX] = INTEGRATION_TIME_RANGE;
-	const DIFFERENTIATION_TIME_RANGE = [0, 1];
-	const [DIFFERENTIATION_TIME_MIN, DIFFERENTIATION_TIME_MAX] = DIFFERENTIATION_TIME_RANGE;
+	// const PROPORTIONAL_FACTOR_RANGE = [0, 1];
+	// const [PROPORTIONAL_FACTOR_MIN, PROPORTIONAL_FACTOR_MAX] = PROPORTIONAL_FACTOR_RANGE;
+	// const INTEGRATION_TIME_RANGE = [0, 1];
+	// const [INTEGRATION_TIME_MIN, INTEGRATION_TIME_MAX] = INTEGRATION_TIME_RANGE;
+	// const DIFFERENTIATION_TIME_RANGE = [0, 1];
+	// const [DIFFERENTIATION_TIME_MIN, DIFFERENTIATION_TIME_MAX] = DIFFERENTIATION_TIME_RANGE;
 
 	const SAMPLE_REFRESH_RATE = 20;
 	const SAMPLE_INTERVAL_MS = 1000 / SAMPLE_REFRESH_RATE;
@@ -28,7 +28,7 @@
 
 	let targetFrequency = $state(0);
 	let proportionalFactor = $state(0);
-	let integrationTime = $state(1);
+	let integrationTime = $state(Infinity);
 	let differentiationTime = $state(0);
 
 	const writeData = $derived({
@@ -53,24 +53,14 @@
 		socket.addEventListener('message', async (event: MessageEvent<string>) => {
 			const message = WsMessage.parse(event.data);
 			if (message.type === 'read') {
-				const points = message.data.map(({ value, timestamp }) => ({ x: timestamp, y: value }));
-				dataCurrent.push(...points.reverse());
+				const reading = message.data;
+				dataCurrent.push({ x: reading.timestamp, y: reading.frequency });
+				dataControl.push({ x: reading.timestamp, y: reading.controlSignal });
 			} else if (message.type === 'connected') {
 				socket!.send(WsMessage.serialize({ type: 'write', data: writeData }));
 			} else console.error('Undefined WS message:', message);
 		});
 		return socket.close;
-	});
-
-	$effect(() => {
-		const interval = setInterval(() => {
-			const tMs = Date.now();
-			const tS = tMs / 1000;
-			const controlValue = (Math.sin(tS + 1) + 1) / 2;
-
-			dataControl.push({ x: tMs, y: controlValue });
-		}, SAMPLE_INTERVAL_MS);
-		return () => clearInterval(interval);
 	});
 
 	$effect(() => {
@@ -99,13 +89,15 @@
 </script>
 
 <div class="m-4">
-	<div class="flex items-center gap-4 p-4">
-		<Button
-			variant="outline"
-			color="primary"
-			icon={isPaused ? faPlay : faPause}
-			onclick={togglePause}
-		/>
+	<div class="flex gap-4 p-4">
+		<div class="aspect-square">
+			<Button
+				variant="outline"
+				color="primary"
+				icon={isPaused ? faPlay : faPause}
+				onclick={togglePause}
+			/>
+		</div>
 
 		<RangeField
 			bind:value={targetFrequency}
@@ -121,28 +113,41 @@
 			max={FREQ_MAX}
 		/>
 
-		<RangeField
+		<NumberStepper
+			class="w-48"
 			bind:value={proportionalFactor}
 			label="Proportional factor"
 			step={0.05}
-			min={PROPORTIONAL_FACTOR_MIN}
-			max={PROPORTIONAL_FACTOR_MAX}
 		/>
 
-		<RangeField
-			bind:value={integrationTime}
-			label="Integration time"
-			step={0.05}
-			min={INTEGRATION_TIME_MIN}
-			max={INTEGRATION_TIME_MAX}
-		/>
+		<div class="flex flex-col gap-2">
+			<NumberStepper
+				class="w-48"
+				value={integrationTime}
+				disabled={!isFinite(integrationTime)}
+				on:change={(event) => (integrationTime = event.detail.value)}
+				label="Integration time"
+				step={0.05}
+			/>
+			<label>
+				<Checkbox
+					checked={!isFinite(integrationTime)}
+					on:change={() => {
+						integrationTime = !isFinite(integrationTime) ? 1000 : Infinity;
+					}}
+				/>
+				Infinity?
+			</label>
+		</div>
 
-		<RangeField
+		<NumberStepper
+			class="w-48"
 			bind:value={differentiationTime}
+			on:change={() => {
+				if (differentiationTime == Infinity) differentiationTime = 1000;
+			}}
 			label="Differentiation time"
 			step={0.05}
-			min={DIFFERENTIATION_TIME_MIN}
-			max={DIFFERENTIATION_TIME_MAX}
 		/>
 	</div>
 
