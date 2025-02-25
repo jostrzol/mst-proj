@@ -8,7 +8,7 @@
 	const PLOT_DURATION_MS = 4000;
 	const PLOT_DELAY_MS = 200;
 
-	const FREQ_RANGE: [number?, number?] = [0, 100];
+	const FREQ_RANGE: [number?, number?] = [0, 70];
 	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
 
 	// const PROPORTIONAL_FACTOR_RANGE = [0, 1];

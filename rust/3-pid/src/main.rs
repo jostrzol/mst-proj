@@ -15,7 +15,7 @@ use server::serve;
 use state::State;
 use tokio::signal::ctrl_c;
 
-const READING_RATE: u128 = 3000;
+const READING_RATE: u128 = 1000;
 const READING_INTERVAL: Duration =
     Duration::from_nanos((Duration::SECOND.as_nanos() / READING_RATE) as u64);
 const READING_HISTORY_TIME: Duration = Duration::from_secs(5);
