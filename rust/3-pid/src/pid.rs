@@ -1,8 +1,8 @@
 use async_mutex::Mutex;
-use ringbuffer::{ConstGenericRingBuffer, RingBuffer};
+use ringbuffer::{AllocRingBuffer, RingBuffer};
 use rppal::i2c::I2c;
-use rppal::pwm::{Channel, Pwm};
-use std::cell::{Cell, RefCell};
+use rppal::pwm::{self, Pwm};
+use std::cell::RefCell;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,14 +13,42 @@ use crate::state::State;
 const PWM_MIN: f32 = 0.;
 const PWM_MAX: f32 = 1.0;
 
-const UPDATING_INTERVAL: Duration = Duration::from_millis(100);
-const UPDATING_BINS: usize = 10;
-
-const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
-const PWM_FREQUENCY: f64 = 1000.;
-
-const REVOLUTION_TRESHOLD_CLOSE: u8 = 105;
-const REVOLUTION_TRESHOLD_FAR: u8 = 118;
+pub struct PidSettings {
+    /// Interval between ADC reads.
+    pub read_interval: Duration,
+    /// When ADC reads below this signal, the state is set to `close` to the motor magnet. If the
+    /// state has changed, a new revolution is counted.
+    pub revolution_treshold_close: u8,
+    /// When ADC reads above this signal, the state is set to `far` from the motor magnet.
+    pub revolution_treshold_far: u8,
+    /// Revolutions are binned in a ring buffer based on when they happened. More recent
+    /// revolutions are in the tail of the buffer, while old ones are in the head of the buffer
+    /// (soon to be replaced).
+    ///
+    /// [revolution_bins] is the number of bins in the ring buffer.
+    pub revolution_bins: usize,
+    /// Revolutions are binned in a ring buffer based on when they happened. More recent
+    /// revolutions are in the tail of the buffer, while old ones are in the head of the buffer
+    /// (soon to be replaced).
+    ///
+    /// [revolution_bin_rotate_interval] is the interval that each of the bins correspond to.
+    ///
+    /// If `revolution_bin_rotate_interval = Duration::from_millis(100)`, then:
+    /// * the last bin corresponds to range `0..-100 ms` from now,
+    /// * the second-to-last bin corresponds to range `-100..-200 ms` from now,
+    /// * and so on.
+    ///
+    /// In total, frequency will be counted from revolutions in all bins, across the total interval
+    /// of [revolution_bins] * [revolution_bin_rotate_interval].
+    ///
+    /// [revolution_bin_rotate_interval] is also the interval at which the measured frequency updates,
+    /// so all the IO happens at this interval too.
+    pub revolution_bin_rotate_interval: Duration,
+    /// Linux PWM channel to use.
+    pub pwm_channel: pwm::Channel,
+    /// Frequency of the PWM signal.
+    pub pwm_frequency: f64,
+}
 
 fn read_potentiometer_value(i2c: &mut I2c) -> Option<u8> {
     const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
@@ -45,114 +73,173 @@ const fn make_read_command(channel: u8) -> u8 {
     DEFAULT_READ_COMMAND & (channel << 4)
 }
 
-pub async fn run_pid_loop<const CAP: usize>(
-    pid_interval: Duration,
-    state: Arc<Mutex<State<CAP>>>,
+pub async fn run_pid(
+    settings: PidSettings,
+    state: Arc<Mutex<State>>,
 ) -> Result<(), Box<dyn Error>> {
     let mut i2c = I2c::new()?;
     i2c.set_slave_address(0x48)?;
 
-    let pwm = Pwm::new(PWM_CHANNEL)?;
-    pwm.set_frequency(PWM_FREQUENCY, 0.)?;
+    let pwm = Pwm::new(settings.pwm_channel)?;
+    pwm.set_frequency(settings.pwm_frequency, 0.)?;
     pwm.enable()?;
 
-    let mut revolutions = ConstGenericRingBuffer::<u32, UPDATING_BINS>::new();
+    let mut revolutions = AllocRingBuffer::<u32>::new(settings.revolution_bins);
     revolutions.fill_default();
     let revolutions = RefCell::new(revolutions);
 
-    let duty_cycle = Cell::new(0.);
-
     tokio::select! {
-        _ = async {
-            let mut interval = interval(pid_interval);
-            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        _ = read_loop(&settings, &revolutions, &mut i2c) => unreachable!(),
+        _ = io_loop(&settings, &revolutions, pwm, state) => unreachable!(),
+    }
+}
 
-            let mut is_close: bool = false;
+async fn read_loop(
+    settings: &PidSettings,
+    revolutions: &RefCell<impl RingBuffer<u32>>,
+    i2c: &mut I2c,
+) -> ! {
+    let mut interval = interval(settings.read_interval);
+    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-            loop {
-                interval.tick().await;
+    let mut is_close: bool = false;
 
-                let Some(value) = read_potentiometer_value(&mut i2c) else {
-                    continue;
-                };
+    loop {
+        interval.tick().await;
 
-                // println!("value: {:03}", value);
+        let Some(value) = read_potentiometer_value(i2c) else {
+            continue;
+        };
 
-                let mut state = state.lock().await;
-                state.push(value);
+        if value < settings.revolution_treshold_close && !is_close {
+            // gone close
+            is_close = true;
+            let mut revolutions = revolutions.borrow_mut();
+            let last = revolutions.back_mut().expect("revolutions is empty");
+            *last += 1;
+        } else if value > settings.revolution_treshold_far && is_close {
+            // gone far
+            is_close = false;
+        }
+    }
+}
 
-                if value < REVOLUTION_TRESHOLD_CLOSE && !is_close {
-                    // gone close
-                    is_close = true;
-                    let mut revolutions = revolutions.borrow_mut();
-                    revolutions[UPDATING_BINS - 1] += 1;
-                } else if value > REVOLUTION_TRESHOLD_FAR && is_close {
-                    // gone far
-                    is_close = false;
-                }
+async fn io_loop(
+    settings: &PidSettings,
+    revolutions: &RefCell<impl RingBuffer<u32>>,
+    pwm: Pwm,
+    state: Arc<Mutex<State>>,
+) -> ! {
+    let interval_duration = settings.revolution_bin_rotate_interval;
+    let interval_duration_s = interval_duration.as_secs_f32();
+    let all_bins_interval_s = interval_duration_s * settings.revolution_bins as f32;
 
-                if let Err(err) = pwm.set_frequency(PWM_FREQUENCY, duty_cycle.get()) {
-                    eprintln!("error setting pwm duty cycle: {err}");
-                }
-            }
-        } => unreachable!(),
-        _ = async {
-            let mut interval = interval(UPDATING_INTERVAL);
-            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut interval = interval(interval_duration);
+    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-            let mut last_delta: f32 = 0.;
-            let mut last_integration_component: f32 = 0.;
+    let mut feedback = PidFeedback::default();
 
-            loop {
-                interval.tick().await;
+    loop {
+        interval.tick().await;
 
-                let sum: u32 = {
-                    let mut revolutions = revolutions.borrow_mut();
-                    let sum = revolutions.iter().sum();
-                    revolutions.push(0);
-                    sum
-                };
+        let revolutions_sum = sum_and_push_new(revolutions);
+        let frequency = revolutions_sum as f32 / all_bins_interval_s;
+        println!("frequency: {} Hz", frequency);
 
-                let frequency = sum as f32 / (UPDATING_INTERVAL.as_secs_f32() * UPDATING_BINS as f32);
+        let mut state = state.lock().await;
 
-                let mut state = state.lock().await;
+        let calculator = PidCalculator::from_state(&state, interval_duration_s);
+        let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
 
-                let registers = state.read_holding_registers(0, 4)
-                    .iter()
-                    .collect::<Vec<_>>();
+        let control_signal_mapped = control_signal.clamp(PWM_MIN, PWM_MAX);
+        state.write_input_registers(.., [frequency, control_signal_mapped]);
+        drop(state); // unlock
 
-                let [
-                    target_frequency,
-                    proportional_factor,
-                    integration_time,
-                    differentiation_time,
-                ] = registers[..] else { unreachable!() };
+        let result = pwm.set_frequency(settings.pwm_frequency, control_signal as f64);
+        if let Err(err) = result {
+            eprintln!("error setting pwm duty cycle: {err}");
+        }
 
-                let integration_factor = proportional_factor / integration_time * UPDATING_INTERVAL.as_secs_f32();
-                let differentiation_factor = proportional_factor * differentiation_time / UPDATING_INTERVAL.as_secs_f32();
+        feedback = new_feedback;
+    }
+}
 
-                let delta = target_frequency - frequency;
+struct PidCalculator {
+    target_frequency: f32,
+    proportional_factor: f32,
+    integration_factor: f32,
+    differentiation_factor: f32,
+}
 
-                let proportional_component = proportional_factor * delta;
-                let integration_component = last_integration_component
-                    + integration_factor * last_delta;
-                let differentiation_component = differentiation_factor * (delta - last_delta);
+impl PidCalculator {
+    fn from_state(state: &State, interval_duration_s: f32) -> PidCalculator {
+        let registers = state.read_holding_registers(..);
 
-                let control_signal = (proportional_component + integration_component + differentiation_component).clamp(PWM_MIN, PWM_MAX);
+        #[rustfmt::skip]
+        let &[
+            target_frequency,
+            proportional_factor,
+            integration_time,
+            differentiation_time
+        ] = registers else { panic!("expected to read 4 registers") };
 
-                println!("frequency: {} Hz", frequency);
-                println!("delta: {:.2}", delta);
-                println!("control signal: {:.2} = {:.2} + {:.2} + {:.2}", control_signal, proportional_component, integration_component, differentiation_component);
+        let integration_factor = proportional_factor / integration_time * interval_duration_s;
+        let differentiation_factor =
+            proportional_factor * differentiation_time / interval_duration_s;
 
-                duty_cycle.set(control_signal as f64);
-                // duty_cycle.set(*target_frequency as f64 / 100.);
+        PidCalculator {
+            target_frequency,
+            proportional_factor,
+            integration_factor,
+            differentiation_factor,
+        }
+    }
 
-                state.write_input_registers(0, [frequency, control_signal]);
+    fn calculate(&self, frequency: f32, feedback: &PidFeedback) -> (f32, PidFeedback) {
+        let delta = self.target_frequency - frequency;
 
-                last_delta = if delta.is_finite() {delta} else {0.};
-                last_integration_component = if integration_component.is_finite()
-                        { integration_component } else {0.};
-            }
-        } => unreachable!(),
+        let proportional_component = self.proportional_factor * delta;
+        let integration_component =
+            feedback.integration_component + self.integration_factor * feedback.delta;
+        let differentiation_component = self.differentiation_factor * (delta - feedback.delta);
+
+        let control_signal =
+            proportional_component + integration_component + differentiation_component;
+
+        println!("delta: {:.2}", delta);
+        println!(
+            "control signal: {:.2} = {:.2} + {:.2} + {:.2}",
+            control_signal,
+            proportional_component,
+            integration_component,
+            differentiation_component
+        );
+
+        let new_feedback = PidFeedback {
+            delta: finite_or_zero(delta),
+            integration_component: finite_or_zero(integration_component),
+        };
+        (control_signal, new_feedback)
+    }
+}
+
+#[derive(Default)]
+struct PidFeedback {
+    delta: f32,
+    integration_component: f32,
+}
+
+fn sum_and_push_new(revolutions: &RefCell<impl RingBuffer<u32>>) -> u32 {
+    let mut revolutions = revolutions.borrow_mut();
+    let sum = revolutions.iter().sum();
+    revolutions.push(0);
+    sum
+}
+
+fn finite_or_zero(value: f32) -> f32 {
+    if value.is_finite() {
+        value
+    } else {
+        0.
     }
 }

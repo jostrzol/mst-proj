@@ -1,11 +1,3 @@
-// SPDX-FileCopyrightText: Copyright (c) 2017-2024 slowtec GmbH <post@slowtec.de>
-// SPDX-License-Identifier: MIT OR Apache-2.0
-
-//! # TCP server example
-//!
-//! This example shows how to start a server and implement basic register
-//! read/write operations.
-
 use std::{error::Error, future::Future, net::SocketAddr, sync::Arc};
 
 use async_mutex::Mutex;
@@ -19,13 +11,13 @@ use tokio_modbus::{
     },
 };
 
-use crate::state::State;
+use crate::state::{range_from_addr_count, State};
 
-struct PidService<const CAP: usize> {
-    state: Arc<Mutex<State<CAP>>>,
+struct PidService {
+    state: Arc<Mutex<State>>,
 }
 
-impl<const CAP: usize> Service for PidService<CAP> {
+impl Service for PidService {
     type Request = Request<'static>;
     type Response = Response;
     type Exception = ExceptionCode;
@@ -37,7 +29,10 @@ impl<const CAP: usize> Service for PidService<CAP> {
             match req {
                 Request::ReadInputRegisters(addr, count) => {
                     let state = state.lock().await;
-                    let floats = state.read_input_registers(addr as usize, count as usize);
+
+                    let range = range_from_addr_count(addr, count)
+                        .ok_or(ExceptionCode::IllegalDataAddress)?;
+                    let floats = state.read_input_registers(range);
                     let data: Vec<_> = floats
                         .iter()
                         .flat_map(|x| x.to_be_bytes())
@@ -47,16 +42,18 @@ impl<const CAP: usize> Service for PidService<CAP> {
                     Ok(Response::ReadInputRegisters(data))
                 }
                 Request::WriteMultipleRegisters(addr, values) => {
+                    if values.len() % 2 != 0 {
+                        return Err(ExceptionCode::IllegalDataValue);
+                    }
+
+                    let bytes = values.iter().flat_map(|x| x.to_be_bytes());
+                    let floats: Vec<_> = bytes.array_chunks().map(f32::from_be_bytes).collect();
+
+                    let range = range_from_addr_count(addr, floats.len() as u16)
+                        .ok_or(ExceptionCode::IllegalDataAddress)?;
+
                     let mut state = state.lock().await;
-                    let bytes: Vec<_> = values.iter().flat_map(|x| x.to_be_bytes()).collect();
-                    print!("receiving {:x?}", bytes);
-                    let floats: Vec<_> = bytes
-                        .into_iter()
-                        .array_chunks()
-                        .map(f32::from_be_bytes)
-                        .collect();
-                    println!(" = {:?}", floats);
-                    state.write_holding_registers(addr as usize, floats);
+                    state.write_holding_registers(range, floats);
                     Ok(Response::WriteMultipleRegisters(addr, values.len() as u16))
                 }
                 _ => Err(ExceptionCode::IllegalFunction),
@@ -65,15 +62,15 @@ impl<const CAP: usize> Service for PidService<CAP> {
     }
 }
 
-impl<const CAP: usize> PidService<CAP> {
-    fn new(state: Arc<Mutex<State<CAP>>>) -> Self {
+impl PidService {
+    fn new(state: Arc<Mutex<State>>) -> Self {
         Self { state }
     }
 }
 
-pub async fn serve<const CAP: usize>(
-    state: Arc<Mutex<State<CAP>>>,
+pub async fn serve(
     socket_addr: SocketAddr,
+    state: Arc<Mutex<State>>,
 ) -> Result<(), Box<dyn Error>> {
     println!("Starting up server on {socket_addr}");
     let listener = TcpListener::bind(socket_addr).await?;
