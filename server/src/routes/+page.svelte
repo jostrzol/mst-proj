@@ -56,7 +56,7 @@
 				const reading = message.data;
 				dataCurrent.push({ x: reading.timestamp, y: reading.frequency });
 				dataControl.push({ x: reading.timestamp, y: reading.controlSignal });
-			} else if (message.type === 'connected') {
+			} else if (message.type === 'connected' || message.type === 'recovered') {
 				socket!.send(WsMessage.serialize({ type: 'write', data: writeData }));
 			} else console.error('Undefined WS message:', message);
 		});

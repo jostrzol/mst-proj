@@ -1,21 +1,25 @@
 export type WsMessage =
 	| {
-			type: 'read';
-			data: Reading;
-	  }
+		type: 'read';
+		data: Reading;
+	}
 	| {
-			type: 'write';
-			data: {
-				targetFrequency: number;
-				proportionalFactor: number;
-				integrationTime: number;
-				differentiationTime: number;
-			};
-	  }
+		type: 'write';
+		data: {
+			targetFrequency: number;
+			proportionalFactor: number;
+			integrationTime: number;
+			differentiationTime: number;
+		};
+	}
 	| {
-			type: 'connected';
-			data?: never;
-	  };
+		type: 'connected';
+		data?: never;
+	}
+	| {
+		type: 'recovered';
+		data?: never;
+	};
 
 export interface Reading {
 	frequency: number;

@@ -8,6 +8,7 @@ export type Options = net.SocketConnectOpts & {
 	retries?: number;
 	onMessage?: (reading: { timestamp: number; data: number[] }) => void;
 	onConnected?: () => void;
+	onRecovered?: () => void;
 };
 
 export class ModbusClient {
@@ -16,6 +17,7 @@ export class ModbusClient {
 	#intervalHandle?: NodeJS.Timeout;
 	#retryNumber: number = 0;
 	#isError: boolean = false;
+	#wasError: boolean = false;
 
 	constructor(options: Options) {
 		this.#options = options;
@@ -69,11 +71,12 @@ export class ModbusClient {
 
 				const reading = { timestamp: receivedAt, data: floats };
 				this.#options.onMessage?.call(null, reading);
+				this.#wasError = false;
 			} catch (e) {
 				console.error('Error while reading modbus:', e);
 
 				if (this.#isError) return;
-				this.#isError = true;
+				this.#isError = this.#wasError = true;
 				if (this.#retryNumber++ < this.retries) {
 					console.info(`Retrying in ${this.retry_ms} ms`);
 				} else {

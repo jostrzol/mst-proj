@@ -69,7 +69,7 @@
 			const borderColor = d3c.color(color || scheme(colorIndex.toString()));
 			return {
 				borderColor: borderColor?.toString(),
-				backgroundColor: borderColor?.copy({ opacity: 0.6 }).toString(),
+				backgroundColor: borderColor?.darker(0.4).toString(),
 				...rest,
 			};
 		}),
@@ -141,8 +141,49 @@
 			chart.update();
 		}
 	});
+
+	function format(value: number) {
+		const text = value.toFixed(2);
+		const zerosLength = Math.max(5 - text.length, 0);
+		const zeros = [...Array(zerosLength)].map(() => '0').join('');
+		return zeros + text;
+	}
+
+	const datasetStats = $derived(
+		datasets.map(({ borderColor, data }) => {
+			const endTimestamp = Date.now() - (props.realtime?.duration || 1000 * 10);
+			let endIndex = data.findLastIndex((point) => point.x < endTimestamp);
+			if (endIndex === -1) endIndex = data.length - 1;
+			console.log(data.length, endIndex);
+			console.log(data.map((point) => point.x < endTimestamp));
+
+			const values = data.slice(endIndex, data.length).map((point) => point.y);
+			console.log(values);
+			const last = values[values.length - 1] ?? 0;
+			let average = values.reduce((acc, value) => acc + value, 0) / values.length;
+			if (!isFinite(average)) average = 0;
+
+			return {
+				color: borderColor as string,
+				last: format(last),
+				average: format(average),
+			};
+		}),
+	);
 </script>
 
-<div class="h-[300px] w-full rounded border p-4">
-	<canvas bind:this={canvas}></canvas>
+<div class="flex h-[300px] w-full rounded border p-4">
+	<div class="flex-grow">
+		<canvas bind:this={canvas}></canvas>
+	</div>
+	<aside class="align-center flex flex-col justify-around p-4">
+		{#each datasetStats as stats}
+			<div class="flex flex-col text-center" style:color={stats.color}>
+				<span>Now:</span>
+				<span class="text-xl">{stats.last}</span>
+				<span>Avg:</span>
+				<span class="text-xl">{stats.average}</span>
+			</div>
+		{/each}
+	</aside>
 </div>

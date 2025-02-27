@@ -10,8 +10,10 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::state::State;
 
-const PWM_MIN: f32 = 0.;
+const PWM_MIN: f32 = 0.2;
 const PWM_MAX: f32 = 1.0;
+
+const LIMIT_MIN_DEADZONE: f32 = 0.001;
 
 pub struct PidSettings {
     /// Interval between ADC reads.
@@ -146,14 +148,18 @@ async fn io_loop(
         let frequency = revolutions_sum as f32 / all_bins_interval_s;
         println!("frequency: {} Hz", frequency);
 
-        let mut state = state.lock().await;
+        let (control_signal, new_feedback) = {
+            let mut state = state.lock().await;
 
-        let calculator = PidCalculator::from_state(&state, interval_duration_s);
-        let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
+            let calculator = PidCalculator::from_state(&state, interval_duration_s);
+            let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
 
-        let control_signal_mapped = control_signal.clamp(PWM_MIN, PWM_MAX);
-        state.write_input_registers(.., [frequency, control_signal_mapped]);
-        drop(state); // unlock
+            let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
+            println!("control_signal_limited: {}", control_signal_limited);
+            state.write_input_registers(.., [frequency, control_signal_limited]);
+
+            (control_signal_limited, new_feedback)
+        };
 
         let result = pwm.set_frequency(settings.pwm_frequency, control_signal as f64);
         if let Err(err) = result {
@@ -241,5 +247,13 @@ fn finite_or_zero(value: f32) -> f32 {
         value
     } else {
         0.
+    }
+}
+
+fn limit(signal: f32, min: f32, max: f32) -> f32 {
+    if signal < LIMIT_MIN_DEADZONE {
+        0.
+    } else {
+        (signal + min).clamp(min, max)
     }
 }

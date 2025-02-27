@@ -21,6 +21,7 @@ export const init: ServerInit = async () => {
 			_sendToAll({ type: 'read', data: { timestamp, frequency, controlSignal } });
 		},
 		onConnected: () => _sendToAll({ type: 'connected' }),
+		onRecovered: () => _sendToAll({ type: 'recovered' }),
 	});
 	client.startReading();
 
