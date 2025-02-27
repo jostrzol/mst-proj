@@ -54,7 +54,7 @@ impl State {
 
     pub fn write_holding_registers(
         &mut self,
-        range: impl IntoBounds<InputRegister>,
+        range: impl IntoBounds<HoldingRegister>,
         values: impl IntoIterator<Item = f32>,
     ) {
         self.holding_registers[into_usize_bounds(range)]
