@@ -37,7 +37,7 @@ artifacts-server:
 analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
 
 plot: analyze
-  ./scripts/plot.py
+  ./scripts/plot_metrics.py
   if test -d "{{thesis_dir}}"; then cp ./analysis/*.svg "{{thesis_dir}}/pdmgr/imgs/"; fi
 
 install-dev: _venv_dev_dependencies
