@@ -1,22 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button, Checkbox, NumberStepper, RangeField } from 'svelte-ux';
+	import { Button, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
 	import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
 	import { WsMessage } from './ws/messages';
+	import PidParameters from './PidParameters.svelte';
 
 	const PLOT_DURATION_MS = 4000;
 	const PLOT_DELAY_MS = 200;
 
 	const FREQ_RANGE: [number?, number?] = [0, 70];
 	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
-
-	// const PROPORTIONAL_FACTOR_RANGE = [0, 1];
-	// const [PROPORTIONAL_FACTOR_MIN, PROPORTIONAL_FACTOR_MAX] = PROPORTIONAL_FACTOR_RANGE;
-	// const INTEGRATION_TIME_RANGE = [0, 1];
-	// const [INTEGRATION_TIME_MIN, INTEGRATION_TIME_MAX] = INTEGRATION_TIME_RANGE;
-	// const DIFFERENTIATION_TIME_RANGE = [0, 1];
-	// const [DIFFERENTIATION_TIME_MIN, DIFFERENTIATION_TIME_MAX] = DIFFERENTIATION_TIME_RANGE;
 
 	const SAMPLE_REFRESH_RATE = 20;
 	const SAMPLE_INTERVAL_MS = 1000 / SAMPLE_REFRESH_RATE;
@@ -113,42 +107,7 @@
 			max={FREQ_MAX}
 		/>
 
-		<NumberStepper
-			class="w-48"
-			bind:value={proportionalFactor}
-			label="Proportional factor"
-			step={0.01}
-		/>
-
-		<div class="flex flex-col gap-2">
-			<NumberStepper
-				class="w-48"
-				value={integrationTime}
-				disabled={!isFinite(integrationTime)}
-				on:change={(event) => (integrationTime = event.detail.value)}
-				label="Integration time"
-				step={0.01}
-			/>
-			<label>
-				<Checkbox
-					checked={!isFinite(integrationTime)}
-					on:change={() => {
-						integrationTime = !isFinite(integrationTime) ? 1000 : Infinity;
-					}}
-				/>
-				Infinity?
-			</label>
-		</div>
-
-		<NumberStepper
-			class="w-48"
-			bind:value={differentiationTime}
-			on:change={() => {
-				if (differentiationTime == Infinity) differentiationTime = 1000;
-			}}
-			label="Differentiation time"
-			step={0.01}
-		/>
+		<PidParameters bind:proportionalFactor bind:integrationTime bind:differentiationTime />
 	</div>
 
 	<div class="flex flex-col gap-4">
