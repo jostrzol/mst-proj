@@ -31,7 +31,6 @@
 		value={integrationTime}
 		disabled={!isFinite(integrationTime)}
 		on:change={(e) => {
-			console.log(e);
 			onchange?.call(null, { ...parameters, integrationTime: e.detail.value });
 		}}
 		label="Integration time"

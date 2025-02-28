@@ -6,6 +6,10 @@
 	import { WsMessage } from './ws/messages';
 	import type { PidParameters } from './PidParametersDial.svelte';
 	import PidParametersDial from './PidParametersDial.svelte';
+	import { localJsonStorage } from '$lib/localJsonStorage';
+	import { getSettings } from 'svelte-ux';
+
+	const { currentTheme } = getSettings();
 
 	const PLOT_DURATION_MS = 4000;
 	const PLOT_DELAY_MS = 200;
@@ -22,15 +26,18 @@
 	const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 	let targetFrequency = $state(0);
-	let parameters: PidParameters = $state({
-		proportionalFactor: 0,
-		integrationTime: Infinity,
-		differentiationTime: 0,
-	});
+	let parameters: PidParameters = $state(
+		localJsonStorage.get('pid-parameters') || {
+			proportionalFactor: 0,
+			integrationTime: Infinity,
+			differentiationTime: 0,
+		},
+	);
 
 	const writeData = $derived({ targetFrequency, ...parameters });
 
 	$effect(() => {
+		localJsonStorage.set('pid-parameters', parameters);
 		const message = WsMessage.serialize({ type: 'write', data: writeData });
 		socket?.send(message);
 	});
@@ -78,7 +85,6 @@
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
 	});
-	$inspect(parameters);
 </script>
 
 <div class="m-4">
@@ -117,8 +123,20 @@
 	<div class="flex flex-col gap-4">
 		<LiveChart
 			datasets={[
-				{ label: 'Target', data: dataTarget, color: 'green', stepped: 'before' },
-				{ label: 'Current', data: dataCurrent, color: 'red', borderWidth: 1 },
+				{
+					label: 'Target',
+					data: dataTarget,
+					color: 'green',
+					stepped: 'before',
+					stats: { now: true, average: false },
+				},
+				{
+					label: 'Current',
+					data: dataCurrent,
+					color: 'red',
+					borderWidth: 1,
+					stats: { now: true, average: true },
+				},
 			]}
 			domain={FREQ_RANGE}
 			realtime={{
@@ -130,7 +148,14 @@
 		/>
 
 		<LiveChart
-			datasets={[{ label: 'Control signal', data: dataControl, color: 'yellow' }]}
+			datasets={[
+				{
+					label: 'Control signal',
+					data: dataControl,
+					color: $currentTheme.resolvedTheme === 'dark' ? 'yellow' : 'blue',
+					stats: { now: true, average: true },
+				},
+			]}
 			domain={[0, 1]}
 			realtime={{
 				duration: PLOT_DURATION_MS,

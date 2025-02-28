@@ -44,7 +44,9 @@
 		y: number;
 	}
 
-	export type Dataset = ChartDataset<'line', Point[]>;
+	export type Dataset = ChartDataset<'line', Point[]> & {
+		stats?: { now?: boolean; average?: boolean };
+	};
 
 	export type DatasetProp = Dataset & {
 		color?: string;
@@ -150,20 +152,20 @@
 	}
 
 	const datasetStats = $derived(
-		datasets.map(({ borderColor, data }) => {
+		datasets.map(({ borderColor, data, stats }) => {
 			const endTimestamp = Date.now() - (props.realtime?.duration || 1000 * 10);
 			let endIndex = data.findLastIndex((point) => point.x < endTimestamp);
 			if (endIndex === -1) endIndex = data.length - 1;
 
 			const values = data.slice(endIndex, data.length).map((point) => point.y);
-			const last = values[values.length - 1] ?? 0;
+			const now = values[values.length - 1] ?? 0;
 			let average = values.reduce((acc, value) => acc + value, 0) / values.length;
 			if (!isFinite(average)) average = 0;
 
 			return {
 				color: borderColor as string,
-				last: format(last),
-				average: format(average),
+				now: stats?.now ? now : undefined,
+				average: stats?.average ? average : undefined,
 			};
 		}),
 	);
@@ -173,14 +175,17 @@
 	<div class="flex-grow">
 		<canvas bind:this={canvas}></canvas>
 	</div>
-	<aside class="align-center flex flex-col justify-around p-4">
+	<aside class="align-center flex flex-col justify-center gap-2 p-4">
 		{#each datasetStats as stats}
-			<div class="flex flex-col text-center" style:color={stats.color}>
-				<span>Now:</span>
-				<span class="text-xl">{stats.last}</span>
-				<span>Avg:</span>
-				<span class="text-xl">{stats.average}</span>
-			</div>
+			{#if stats.now !== undefined}{@render gauge('Now', stats.now, stats.color)}{/if}
+			{#if stats.average !== undefined}{@render gauge('Avg.', stats.average, stats.color)}{/if}
 		{/each}
 	</aside>
 </div>
+
+{#snippet gauge(name: string, value: number, color: string)}
+	<div class="relative m-1 rounded border" style:color>
+		<span class="bg-surface-200 absolute -top-2 mx-1 px-1 text-xs">{name}</span>
+		<div class="p-1 pt-2 text-xl">{format(value)}</div>
+	</div>
+{/snippet}
