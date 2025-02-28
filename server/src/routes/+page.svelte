@@ -4,7 +4,8 @@
 	import LiveChart, { type Point } from './LiveChart.svelte';
 	import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
 	import { WsMessage } from './ws/messages';
-	import PidParameters from './PidParameters.svelte';
+	import type { PidParameters } from './PidParametersDial.svelte';
+	import PidParametersDial from './PidParametersDial.svelte';
 
 	const PLOT_DURATION_MS = 4000;
 	const PLOT_DELAY_MS = 200;
@@ -21,16 +22,13 @@
 	const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 	let targetFrequency = $state(0);
-	let proportionalFactor = $state(0);
-	let integrationTime = $state(Infinity);
-	let differentiationTime = $state(0);
-
-	const writeData = $derived({
-		targetFrequency,
-		proportionalFactor,
-		integrationTime,
-		differentiationTime,
+	let parameters: PidParameters = $state({
+		proportionalFactor: 0,
+		integrationTime: Infinity,
+		differentiationTime: 0,
 	});
+
+	const writeData = $derived({ targetFrequency, ...parameters });
 
 	$effect(() => {
 		const message = WsMessage.serialize({ type: 'write', data: writeData });
@@ -80,6 +78,7 @@
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
 	});
+	$inspect(parameters);
 </script>
 
 <div class="m-4">
@@ -107,7 +106,12 @@
 			max={FREQ_MAX}
 		/>
 
-		<PidParameters bind:proportionalFactor bind:integrationTime bind:differentiationTime />
+		<PidParametersDial
+			{parameters}
+			onchange={(value) => {
+				parameters = value;
+			}}
+		/>
 	</div>
 
 	<div class="flex flex-col gap-4">

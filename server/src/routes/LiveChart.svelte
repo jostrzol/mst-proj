@@ -154,11 +154,8 @@
 			const endTimestamp = Date.now() - (props.realtime?.duration || 1000 * 10);
 			let endIndex = data.findLastIndex((point) => point.x < endTimestamp);
 			if (endIndex === -1) endIndex = data.length - 1;
-			console.log(data.length, endIndex);
-			console.log(data.map((point) => point.x < endTimestamp));
 
 			const values = data.slice(endIndex, data.length).map((point) => point.y);
-			console.log(values);
 			const last = values[values.length - 1] ?? 0;
 			let average = values.reduce((acc, value) => acc + value, 0) / values.length;
 			if (!isFinite(average)) average = 0;

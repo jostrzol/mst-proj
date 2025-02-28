@@ -71,7 +71,7 @@ export class ModbusClient {
 
 				const reading = { timestamp: receivedAt, data: floats };
 				this.#options.onMessage?.call(null, reading);
-				this.#wasError = false;
+				this.clearWasError();
 			} catch (e) {
 				console.error('Error while reading modbus:', e);
 
@@ -94,12 +94,24 @@ export class ModbusClient {
 	async writeRegistersFloat32(address: number, values: number[]) {
 		if (this.#isError) return;
 
-		const client = await this.client();
-		const floats = Float32Array.of(...values);
-		const data = Buffer.from(floats.buffer);
-		data.swap32(); // convert to Big Endian
-		console.log('sending', values, ' = ', data);
-		await client.writeMultipleRegisters(address, data);
+		try {
+			const client = await this.client();
+			const floats = Float32Array.of(...values);
+			const data = Buffer.from(floats.buffer);
+			data.swap32(); // convert to Big Endian
+			await client.writeMultipleRegisters(address, data);
+			this.clearWasError();
+		} catch (e) {
+			console.error('Error while writing modbus:', e);
+			this.#wasError = true;
+		}
+	}
+
+	private clearWasError() {
+		if (this.#wasError) {
+			this.#wasError = false;
+			console.error('Successful modbus message exchange after error');
+		}
 	}
 
 	close() {
