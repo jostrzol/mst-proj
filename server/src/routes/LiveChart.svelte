@@ -30,7 +30,7 @@
 <script lang="ts">
 	import { theme_color } from '$lib';
 	import { type ChartDataset } from 'chart.js';
-	import { untrack } from 'svelte';
+	import { onMount } from 'svelte';
 
 	import 'chartjs-adapter-date-fns';
 	import { pl } from 'date-fns/locale';
@@ -58,10 +58,15 @@
 		realtime?: RealTimeScaleOptions['realtime'];
 		yTitle?: string;
 		isPaused?: boolean;
+		crosshair?: { enabled?: boolean; color?: string };
+		onclick?(point: Point): void;
 	}
 
 	const props: Props = $props();
-	const [min, max] = props.domain || [undefined, undefined];
+
+	const [min = undefined, max = undefined] = props.domain || [];
+	const { duration = 1000 * 10, delay = 0 } = props.realtime || {};
+	const crosshair = props.crosshair || {};
 
 	const scheme = scaleOrdinal(schemeCategory10);
 
@@ -80,13 +85,13 @@
 	let canvas = $state<HTMLCanvasElement>(null!);
 	let chart = $state<Chart>();
 
-	$effect(() => {
+	onMount(() => {
 		const style = getComputedStyle(canvas);
 		const gridColor = theme_color(style, 'neutral');
 		chart = new Chart<'line', Point[], never>(canvas, {
 			type: 'line',
 			data: {
-				datasets: untrack(() => $state.snapshot(datasets)) as Dataset[],
+				datasets: $state.snapshot(datasets) as Dataset[],
 			},
 			options: {
 				clip: false,
@@ -131,29 +136,44 @@
 					},
 				},
 				locale: 'pl-PL',
+				plugins: {
+					legend: {
+						labels: {
+							filter: (item) => item.text != 'crosshair',
+						},
+					},
+				},
 			},
 		});
 		return () => chart?.destroy();
 	});
 
+	let yLine: number | undefined = $state(undefined);
+
 	$effect(() => {
-		if (chart) {
-			chart.data.datasets = $state.snapshot(datasets) as Dataset[];
-			chart.options.plugins!.streaming!.pause = props.isPaused ?? false;
-			chart.update();
-		}
+		if (!chart) return;
+
+		let localDatasets = $state.snapshot(datasets) as Dataset[];
+		if (yLine && crosshair.enabled)
+			localDatasets.push({
+				borderColor: crosshair.color,
+				showLine: true,
+				borderWidth: 1,
+				data: [
+					{ x: Date.now() - 60 * 60 * 1000, y: yLine },
+					{ x: Date.now() + 60 * 60 * 1000, y: yLine },
+				],
+				label: 'crosshair',
+			});
+
+		chart.data.datasets = localDatasets;
+		chart.options.plugins!.streaming!.pause = props.isPaused ?? false;
+		chart.update();
 	});
 
-	function format(value: number) {
-		const text = value.toFixed(2);
-		const zerosLength = Math.max(5 - text.length, 0);
-		const zeros = [...Array(zerosLength)].map(() => '0').join('');
-		return zeros + text;
-	}
-
-	const datasetStats = $derived(
+	const stats = $derived(
 		datasets.map(({ borderColor, data, stats }) => {
-			const endTimestamp = Date.now() - (props.realtime?.duration || 1000 * 10);
+			const endTimestamp = Date.now() - duration;
 			let endIndex = data.findLastIndex((point) => point.x < endTimestamp);
 			if (endIndex === -1) endIndex = data.length - 1;
 
@@ -169,14 +189,78 @@
 			};
 		}),
 	);
+
+	function onclick(e: MouseEvent) {
+		const point = getPoint(e);
+		if (!point) return;
+		props.onclick?.call(null, point);
+	}
+
+	function onmousemove(e: MouseEvent) {
+		const point = getPoint(e);
+		const bounds = getBounds();
+
+		if (!point || !bounds) return;
+
+		const { x, y } = point;
+		const { xMin, xMax, yMin, yMax } = bounds;
+
+		const inRange = x >= xMin && x <= xMax && y >= yMin && y <= yMax;
+		if (!inRange) {
+			yLine = undefined;
+		} else {
+			yLine = y;
+			if ((e.buttons & 1) != 0) props.onclick?.call(null, point);
+		}
+	}
+
+	function onmouseleave() {
+		yLine = undefined;
+	}
+
+	function getBounds(): { xMin: number; xMax: number; yMin: number; yMax: number } | undefined {
+		if (!chart) return undefined;
+
+		const { min: yMin, max: yMax } = chart?.scales.y.getMinMax(false) || { min: 0, max: 0 };
+		const xMax = Date.now() - delay;
+		const xMin = xMax - duration;
+		return { xMin, xMax, yMin, yMax };
+	}
+
+	function getPoint(e: MouseEvent): Point | undefined {
+		if (!chart) return undefined;
+
+		const rect = canvas.getBoundingClientRect();
+		const clientY = e.clientY - rect.top;
+		const scaleY = chart.scales.y;
+		const clientX = e.clientX - rect.left;
+		const scaleX = chart.scales.x;
+		const y = scaleY.getValueForPixel(clientY);
+		const x = scaleX.getValueForPixel(clientX);
+		if (x === undefined || y === undefined) return undefined;
+
+		return { x, y };
+	}
+
+	function format(value: number) {
+		const text = value.toFixed(2);
+		const zerosLength = Math.max(5 - text.length, 0);
+		const zeros = [...Array(zerosLength)].map(() => '0').join('');
+		return zeros + text;
+	}
 </script>
 
 <div class="flex h-[300px] w-full rounded border p-4">
 	<div class="flex-grow">
-		<canvas bind:this={canvas}></canvas>
+		<canvas
+			bind:this={canvas}
+			onclick={crosshair.enabled ? onclick : null}
+			onmousemove={crosshair.enabled ? onmousemove : null}
+			onmouseleave={crosshair.enabled ? onmouseleave : null}
+		></canvas>
 	</div>
 	<aside class="align-center flex flex-col justify-center gap-2 p-4">
-		{#each datasetStats as stats}
+		{#each stats as stats}
 			{#if stats.now !== undefined}{@render gauge('Now', stats.now, stats.color)}{/if}
 			{#if stats.average !== undefined}{@render gauge('Avg.', stats.average, stats.color)}{/if}
 		{/each}

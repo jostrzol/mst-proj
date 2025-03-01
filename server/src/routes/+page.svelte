@@ -8,6 +8,7 @@
 	import PidParametersDial from './PidParametersDial.svelte';
 	import { localJsonStorage } from '$lib/localJsonStorage';
 	import { getSettings } from 'svelte-ux';
+	import * as d3c from 'd3-color';
 
 	const { currentTheme } = getSettings();
 
@@ -122,6 +123,7 @@
 
 	<div class="flex flex-col gap-4">
 		<LiveChart
+			onclick={({ y }) => (targetFrequency = y)}
 			datasets={[
 				{
 					label: 'Target',
@@ -142,6 +144,10 @@
 			realtime={{
 				duration: PLOT_DURATION_MS,
 				delay: PLOT_DELAY_MS,
+			}}
+			crosshair={{
+				enabled: true,
+				color: d3c.color('green')?.copy({ opacity: 0.5 }).toString(),
 			}}
 			yTitle="Frequency [Hz]"
 			{isPaused}
