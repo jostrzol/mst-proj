@@ -123,7 +123,7 @@
 
 	<div class="flex flex-col gap-4">
 		<LiveChart
-			onclick={({ y }) => (targetFrequency = y)}
+			onclick={({ y }) => (targetFrequency = Math.round(y))}
 			datasets={[
 				{
 					label: 'Target',
