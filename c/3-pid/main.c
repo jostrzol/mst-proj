@@ -1,5 +1,8 @@
 #include <bits/types/siginfo_t.h>
 #include <fcntl.h>
+#include <i2c/smbus.h>
+#include <linux/i2c-dev.h>
+#include <pigpio.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -7,18 +10,20 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include <i2c/smbus.h>
-#include <linux/i2c-dev.h>
-#include <pigpio.h>
+#include "pid.h"
 
-#define I2C_ADAPTER_NUMBER "1"
-const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
-const uint32_t ADS7830_ADDRESS = 0x48;
-const uint32_t MOTOR_LINE_NUMBER = 13;
+const uint64_t READ_RATE = 1000;
+const uint64_t READ_INTERVAL_US = 1e6 / READ_RATE;
 
-const uint64_t PWM_FREQUENCY = 1000;
-const uint64_t REFRESH_RATE = 60;
-const uint64_t SLEEP_DURATION_NS = 1e6 / REFRESH_RATE;
+const struct pid_settings_t pid_settings = {
+    .read_interval_us = READ_INTERVAL_US,
+    .revolution_treshold_close = 105,
+    .revolution_treshold_far = 118,
+    .revolution_bins = 10,
+    .revolution_bin_rotate_interval_us = 100 * 1e3,
+    .pwm_channel = 13,
+    .pwm_frequency = 1000.,
+};
 
 bool do_continue = true;
 
@@ -26,73 +31,22 @@ void interrupt_handler(int) {
   printf("\nGracefully stopping\n");
   do_continue = false;
 }
-
-// bit    7: single-ended inputs mode
-// bits 6-4: channel selection
-// bit    3: is internal reference enabled
-// bit    2: is converter enabled
-// bits 1-0: unused
-const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
-#define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
-
-int32_t read_potentiometer_value(int i2c_file) {
-  if (i2c_smbus_write_byte(i2c_file, MAKE_READ_COMMAND(0)) < 0) {
-    perror("writing i2c ADC command failed\n");
-    return -1;
-  }
-
-  int32_t value = i2c_smbus_read_byte(i2c_file);
-  if (value < 0) {
-    perror("reading i2c ADC value failed\n");
-    return -1;
-  }
-
-  return value;
-}
+const struct sigaction interrupt_sigaction = {
+    .sa_handler = &interrupt_handler,
+};
 
 int main(int, char **) {
-  if (gpioInitialise() < 0) {
-    perror("pigpio initialization failed\n");
+  int ret;
+
+  ret = sigaction(SIGINT, &interrupt_sigaction, NULL);
+  if (ret < 0) {
+    perror("Setting sigaction failed\n");
     goto end;
   }
 
-  if (gpioSetSignalFunc(SIGINT, interrupt_handler)) {
-    perror("Setting sigaction failed\n");
-    goto close_pigpio;
-  }
-
-  printf("%s", I2C_ADAPTER_PATH);
-  int i2c_file = open(I2C_ADAPTER_PATH, O_RDWR);
-  if (i2c_file < 0) {
-    perror("opening i2c adapter failed\n");
-    goto close_pigpio;
-  }
-
-  if (ioctl(i2c_file, I2C_SLAVE, ADS7830_ADDRESS) < 0) {
-    perror("assigning i2c adapter address failed\n");
-    goto close_pigpio;
-  }
-
-  printf("Controlling motor from C.\n");
-
   while (do_continue) {
-    usleep(SLEEP_DURATION_NS);
-    int32_t value = read_potentiometer_value(i2c_file);
-    if (value < 0)
-      continue;
-
-    printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
-
-    const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
-    if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) < 0)
-      perror("Setting PWM failed\n");
   }
 
-  if (gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0))
-    perror("Disabling PWM failed\n");
-
-close_pigpio:
-  gpioTerminate();
 end:
   return EXIT_SUCCESS;
 }
