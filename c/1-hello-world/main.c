@@ -11,7 +11,7 @@ const char CHIPNAME[] = "gpiochip0";
 const int32_t LINE_NUMBER = 14;
 
 const int64_t PERIOD_MS = 1000;
-const int64_t SLEEP_DURATION_NS = PERIOD_MS * 1000 / 2;
+const int64_t SLEEP_DURATION_US = PERIOD_MS * 1000 / 2;
 
 bool do_continue = true;
 
@@ -59,7 +59,7 @@ int main(int, char **) {
       perror("Set line output failed\n");
       goto release_line;
     }
-    usleep(SLEEP_DURATION_NS);
+    usleep(SLEEP_DURATION_US);
     line_value = !line_value;
   }
 

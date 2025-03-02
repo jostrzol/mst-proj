@@ -18,7 +18,7 @@ const uint32_t MOTOR_LINE_NUMBER = 13;
 
 const uint64_t PWM_FREQUENCY = 1000;
 const uint64_t REFRESH_RATE = 60;
-const uint64_t SLEEP_DURATION_NS = 1e6 / REFRESH_RATE;
+const uint64_t SLEEP_DURATION_US = 1e6 / REFRESH_RATE;
 
 bool do_continue = true;
 
@@ -75,7 +75,7 @@ int main(int, char **) {
   printf("Controlling motor from C.\n");
 
   while (do_continue) {
-    usleep(SLEEP_DURATION_NS);
+    usleep(SLEEP_DURATION_US);
     int32_t value = read_potentiometer_value(i2c_file);
     if (value < 0)
       continue;
