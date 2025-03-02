@@ -33,7 +33,7 @@ void interrupt_handler(int) {
 // bit    2: is converter enabled
 // bits 1-0: unused
 const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
-#define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND &(channel << 4))
+#define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
 
 int32_t read_potentiometer_value(int i2c_file) {
   if (i2c_smbus_write_byte(i2c_file, MAKE_READ_COMMAND(0)) < 0) {
@@ -61,7 +61,6 @@ int main(int, char **) {
     goto close_pigpio;
   }
 
-  printf("%s", I2C_ADAPTER_PATH);
   int i2c_file = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_file < 0) {
     perror("opening i2c adapter failed\n");
