@@ -18,3 +18,4 @@ include(./dependencies/i2c-tools.cmake)
 # ===== MAKE TARGETS ==========================================================
 add_subdirectory(1-hello-world)
 add_subdirectory(2-motor-controller)
+add_subdirectory(3-pid)
