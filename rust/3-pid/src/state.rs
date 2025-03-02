@@ -9,7 +9,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy, FromPrimitive, ToPrimitive)]
 pub enum InputRegister {
     Frequency,
-    ControlValue,
+    ControlSignal,
 }
 
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy, FromPrimitive, ToPrimitive)]
