@@ -29,13 +29,29 @@
 	let targetFrequency = $state(0);
 	let parameters: PidParameters = $state(
 		localJsonStorage.get('pid-parameters') || {
-			proportionalFactor: 0,
-			integrationTime: Infinity,
-			differentiationTime: 0,
+			proportional: {
+				enabled: false,
+				factor: 0,
+			},
+			integration: {
+				enabled: false,
+				time: 100,
+			},
+			differentiation: {
+				enabled: false,
+				time: 0,
+			},
 		},
 	);
+	$inspect(parameters);
+	const { proportional, integration, differentiation } = $derived(parameters);
 
-	const writeData = $derived({ targetFrequency, ...parameters });
+	const writeData = $derived({
+		targetFrequency,
+		proportionalFactor: proportional.enabled ? proportional.factor : 0,
+		integrationTime: integration.enabled ? integration.time : Infinity,
+		differentiationTime: differentiation.enabled ? differentiation.time : 0,
+	});
 
 	$effect(() => {
 		localJsonStorage.set('pid-parameters', parameters);
@@ -88,39 +104,7 @@
 	});
 </script>
 
-<div class="m-4">
-	<div class="flex gap-4 p-4">
-		<div class="aspect-square">
-			<Button
-				variant="outline"
-				color="primary"
-				icon={isPaused ? faPlay : faPause}
-				onclick={togglePause}
-			/>
-		</div>
-
-		<RangeField
-			bind:value={targetFrequency}
-			on:change={({ detail: { value } }) => {
-				const now = Date.now();
-				const point = { x: now, y: value };
-				const cap = { x: now + MS_PER_DAY, y: value };
-				dataTarget.pop();
-				dataTarget.push(point, cap);
-			}}
-			label="Target frequency [Hz]"
-			min={FREQ_MIN}
-			max={FREQ_MAX}
-		/>
-
-		<PidParametersDial
-			{parameters}
-			onchange={(value) => {
-				parameters = value;
-			}}
-		/>
-	</div>
-
+<div class="p-4">
 	<div class="flex flex-col gap-4">
 		<LiveChart
 			onclick={({ y }) => (targetFrequency = Math.round(y))}
@@ -169,6 +153,40 @@
 			}}
 			yTitle="Duty cycle"
 			{isPaused}
+		/>
+	</div>
+
+	<div class="h-20"></div>
+
+	<div
+		class="bg-surface-100/90 fixed right-0 bottom-0 left-0 flex items-center justify-center gap-6 p-4"
+	>
+		<Button
+			class="aspect-square w-10"
+			variant="outline"
+			icon={isPaused ? faPlay : faPause}
+			onclick={togglePause}
+		/>
+
+		<RangeField
+			bind:value={targetFrequency}
+			on:change={({ detail: { value } }) => {
+				const now = Date.now();
+				const point = { x: now, y: value };
+				const cap = { x: now + MS_PER_DAY, y: value };
+				dataTarget.pop();
+				dataTarget.push(point, cap);
+			}}
+			label="Target frequency [Hz]"
+			min={FREQ_MIN}
+			max={FREQ_MAX}
+		/>
+
+		<PidParametersDial
+			{parameters}
+			onchange={(value) => {
+				parameters = value;
+			}}
 		/>
 	</div>
 </div>

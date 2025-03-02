@@ -250,7 +250,7 @@
 	}
 </script>
 
-<div class="flex h-[300px] w-full rounded border p-4">
+<div class="flex h-[275px] w-full rounded border p-4">
 	<div class="flex-grow">
 		<canvas
 			bind:this={canvas}

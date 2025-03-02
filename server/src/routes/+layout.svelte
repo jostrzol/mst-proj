@@ -10,7 +10,7 @@
 <ThemeInit />
 
 <AppLayout areas="'header header' 'aside main'" navWidth={0}>
-	<AppBar title="Motor speed regulator" menuIcon={null} class="bg-surface-100">
+	<AppBar title="Motor speed regulator" menuIcon={null} class="bg-surface-100 absolute!">
 		<div slot="actions" class="flex gap-4">
 			<Fps />
 			<ThemeSwitch />

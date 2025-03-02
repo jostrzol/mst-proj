@@ -1,10 +1,19 @@
 <script lang="ts">
-	import { Checkbox, NumberStepper } from 'svelte-ux';
+	import { Checkbox, NumberStepper, Switch } from 'svelte-ux';
 
 	export interface PidParameters {
-		proportionalFactor: number;
-		integrationTime: number;
-		differentiationTime: number;
+		proportional: {
+			enabled: boolean;
+			factor: number;
+		};
+		integration: {
+			enabled: boolean;
+			time: number;
+		};
+		differentiation: {
+			enabled: boolean;
+			time: number;
+		};
 	}
 	export interface Props {
 		parameters: PidParameters;
@@ -12,48 +21,74 @@
 	}
 
 	const { onchange, parameters }: Props = $props();
-	const { proportionalFactor, integrationTime, differentiationTime } = $derived(parameters);
+	const { proportional, integration, differentiation } = $derived(parameters);
 </script>
 
 <NumberStepper
 	class="w-48"
-	value={proportionalFactor}
+	value={proportional.factor}
+	disabled={!proportional.enabled}
 	on:change={(e) => {
-		onchange?.call(null, { ...parameters, proportionalFactor: e.detail.value });
+		onchange?.call(null, {
+			...parameters,
+			proportional: { ...proportional, factor: e.detail.value },
+		});
 	}}
 	label="Proportional factor"
 	step={0.01}
 />
-
-<div class="flex flex-col gap-2">
-	<NumberStepper
-		class="w-48"
-		value={integrationTime}
-		disabled={!isFinite(integrationTime)}
-		on:change={(e) => {
-			onchange?.call(null, { ...parameters, integrationTime: e.detail.value });
-		}}
-		label="Integration time"
-		step={0.01}
-	/>
-	<label>
-		<Checkbox
-			checked={!isFinite(integrationTime)}
-			on:change={() => {
-				const value = !isFinite(integrationTime) ? 1000 : Infinity;
-				onchange?.call(null, { ...parameters, integrationTime: value });
-			}}
-		/>
-		Infinity?
-	</label>
-</div>
+<Switch
+	class="-mr-2 -ml-4 rotate-90"
+	checked={proportional.enabled}
+	on:change={() => {
+		onchange?.call(null, {
+			...parameters,
+			proportional: { ...proportional, enabled: !proportional.enabled },
+		});
+	}}
+/>
 
 <NumberStepper
 	class="w-48"
-	value={differentiationTime}
+	value={integration.time}
+	disabled={!integration.enabled}
 	on:change={(e) => {
-		onchange?.call(null, { ...parameters, differentiationTime: e.detail.value });
+		onchange?.call(null, { ...parameters, integration: { ...integration, time: e.detail.value } });
+	}}
+	label="Integration time"
+	step={0.01}
+/>
+<Switch
+	class="-mr-2 -ml-4 rotate-90"
+	checked={integration.enabled}
+	on:change={() => {
+		onchange?.call(null, {
+			...parameters,
+			integration: { ...integration, enabled: !integration.enabled },
+		});
+	}}
+/>
+
+<NumberStepper
+	class="w-48"
+	value={differentiation.time}
+	disabled={!differentiation.enabled}
+	on:change={(e) => {
+		onchange?.call(null, {
+			...parameters,
+			differentiation: { ...differentiation, time: e.detail.value },
+		});
 	}}
 	label="Differentiation time"
 	step={0.01}
+/>
+<Switch
+	class="-mr-2 -ml-4 rotate-90"
+	checked={differentiation.enabled}
+	on:change={() => {
+		onchange?.call(null, {
+			...parameters,
+			differentiation: { ...differentiation, enabled: !differentiation.enabled },
+		});
+	}}
 />
