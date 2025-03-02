@@ -12,7 +12,7 @@
 
 	const { currentTheme } = getSettings();
 
-	const PLOT_DURATION_MS = 4000;
+	const PLOT_DURATION_MS = 6000;
 	const PLOT_DELAY_MS = 200;
 
 	const FREQ_RANGE: [number?, number?] = [0, 70];
@@ -162,7 +162,7 @@
 		class="bg-surface-100/90 fixed right-0 bottom-0 left-0 flex items-center justify-center gap-6 p-4"
 	>
 		<Button
-			class="aspect-square w-10"
+			class="aspect-square w-10 cursor-pointer"
 			variant="outline"
 			icon={isPaused ? faPlay : faPause}
 			onclick={togglePause}
