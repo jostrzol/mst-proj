@@ -1,14 +1,20 @@
 #include <bits/types/siginfo_t.h>
 #include <fcntl.h>
-#include <i2c/smbus.h>
-#include <linux/i2c-dev.h>
-#include <pigpio.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+
+#include <i2c/smbus.h>
+#include <linux/i2c-dev.h>
+#include <modbus.h>
+#include <pigpio.h>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "pid.h"
 

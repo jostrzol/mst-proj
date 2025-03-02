@@ -14,6 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 include(./dependencies/libgpio.cmake)
 include(./dependencies/pigpio.cmake)
 include(./dependencies/i2c-tools.cmake)
+include(./dependencies/modbus.cmake)
 
 # ===== MAKE TARGETS ==========================================================
 add_subdirectory(1-hello-world)
