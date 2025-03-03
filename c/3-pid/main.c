@@ -2,7 +2,12 @@
 #include <bits/types/siginfo_t.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <i2c/smbus.h>
+#include <linux/i2c-dev.h>
+#include <modbus.h>
 #include <netinet/in.h>
+#include <pigpio.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -12,149 +17,137 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-#include <i2c/smbus.h>
-#include <linux/i2c-dev.h>
-#include <modbus.h>
-#include <pigpio.h>
+/* #include "pid.h" */
+#include "registers.h"
+#include "server.h"
 
-#include "pid.h"
+#define N_CONNECTIONS 5
+#define N_FDS_MAX (1 + N_CONNECTIONS)
 
-const uint64_t READ_RATE = 1000;
-const uint64_t READ_INTERVAL_US = 1e6 / READ_RATE;
-
-const struct pid_settings_t PID_SETTINGS = {
-    .read_interval_us = READ_INTERVAL_US,
-    .revolution_treshold_close = 105,
-    .revolution_treshold_far = 118,
-    .revolution_bins = 10,
-    .revolution_bin_rotate_interval_us = 100 * 1e3,
-    .pwm_channel = 13,
-    .pwm_frequency = 1000.,
-};
-
-const uint8_t NB_CONNECTION = 5;
-
+/* static const uint64_t READ_RATE = 1000; */
+/* static const uint64_t READ_INTERVAL_US = 1e6 / READ_RATE; */
+/**/
+/* static const pid_settings_t PID_SETTINGS = { */
+/*     .read_interval_us = READ_INTERVAL_US, */
+/*     .revolution_treshold_close = 105, */
+/*     .revolution_treshold_far = 118, */
+/*     .revolution_bins = 10, */
+/*     .revolution_bin_rotate_interval_us = 100 * 1e3, */
+/*     .pwm_channel = 13, */
+/*     .pwm_frequency = 1000., */
+/* }; */
+/**/
 static bool do_continue = true;
-static modbus_t *ctx = NULL;
-static modbus_mapping_t *mb_mapping;
 
-static int server_socket = -1;
+static server_t server = {.socket_fd = -1};
+static modbus_mapping_t *registers;
 
-void interrupt_handler(int) {
-  printf("\nGracefully stopping\n");
-  do_continue = false;
-  if (server_socket != -1) {
-    close(server_socket);
-  }
-  modbus_free(ctx);
-  modbus_mapping_free(mb_mapping);
+void interrupt_handler(int)
+{
+    printf("\nGracefully stopping\n");
+    do_continue = false;
+    if (server.socket_fd != -1)
+        server_close(&server);
+    modbus_mapping_free(registers);
+    exit(EXIT_FAILURE);
 }
 const struct sigaction interrupt_sigaction = {
     .sa_handler = &interrupt_handler,
 };
 
-int main(int, char **) {
-  int ret;
+int main(int, char **)
+{
+    int res;
 
-  ret = sigaction(SIGINT, &interrupt_sigaction, NULL);
-  if (ret < 0) {
-    perror("Setting sigaction failed\n");
-    goto fail;
-  }
-
-  ctx = modbus_new_tcp("0.0.0.0", 5502);
-
-  mb_mapping =
-      modbus_mapping_new(MODBUS_MAX_READ_BITS, 0, MODBUS_MAX_READ_REGISTERS, 0);
-  if (mb_mapping == NULL) {
-    fprintf(stderr, "Failed to allocate the mapping: %s\n",
-            modbus_strerror(errno));
-    goto modbus_close;
-  }
-
-  server_socket = modbus_tcp_listen(ctx, NB_CONNECTION);
-  if (server_socket == -1) {
-    fprintf(stderr, "Unable to listen TCP connection\n");
-    goto modbus_mapping_close;
-  }
-
-  fd_set refset;
-  fd_set rdset;
-
-  /* Clear the reference set of socket */
-  FD_ZERO(&refset);
-  /* Add the server socket */
-  FD_SET(server_socket, &refset);
-
-  /* Keep track of the max file descriptor */
-  int fdmax = server_socket;
-
-  for (;;) {
-    rdset = refset;
-    if (select(fdmax + 1, &rdset, NULL, NULL, NULL) == -1) {
-      perror("Server select() failure.");
-      goto modbus_server_close;
+    res = sigaction(SIGINT, &interrupt_sigaction, NULL);
+    if (res < 0) {
+        perror("Setting sigaction failed\n");
+        goto end;
     }
 
-    /* Run through the existing connections looking for data to be
-     * read */
-    for (int master_socket = 0; master_socket <= fdmax; master_socket++) {
-
-      if (!FD_ISSET(master_socket, &rdset)) {
-        continue;
-      }
-
-      if (master_socket == server_socket) {
-        /* A client is asking a new connection */
-        struct sockaddr_in clientaddr;
-        socklen_t addrlen = sizeof(clientaddr);
-        memset(&clientaddr, 0, sizeof(clientaddr));
-        int newfd =
-            accept(server_socket, (struct sockaddr *)&clientaddr, &addrlen);
-        if (newfd == -1) {
-          perror("Server accept() error");
-        } else {
-          FD_SET(newfd, &refset);
-
-          if (newfd > fdmax) {
-            /* Keep track of the maximum */
-            fdmax = newfd;
-          }
-          printf("New connection from %s:%d on socket %d\n",
-                 inet_ntoa(clientaddr.sin_addr), clientaddr.sin_port, newfd);
-        }
-      } else {
-        modbus_set_socket(ctx, master_socket);
-
-        uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
-        int rc = modbus_receive(ctx, query);
-        if (rc > 0) {
-          modbus_reply(ctx, query, rc, mb_mapping);
-        } else if (rc == -1) {
-          /* This example server in ended on connection closing or
-           * any errors. */
-          printf("Connection closed on socket %d\n", master_socket);
-          close(master_socket);
-
-          /* Remove from reference set */
-          FD_CLR(master_socket, &refset);
-
-          if (master_socket == fdmax) {
-            fdmax--;
-          }
-        }
-      }
+    registers = modbus_mapping_new(0, 0, N_REG_HOLDING, N_REG_INPUT);
+    if (registers == NULL) {
+        fprintf(
+            stderr, "Failed to allocate the mapping: %s\n",
+            modbus_strerror(errno)
+        );
+        goto end;
     }
-  }
 
-  return EXIT_SUCCESS;
+    res = server_init(
+        &server,
+        (server_options_t){
+            .n_connections = 5,
+            .registers = registers,
+        }
+    );
+    if (res < 0) {
+        perror("Initializing modbus server failed\n");
+        goto registers_close;
+    }
 
-modbus_server_close:
-  close(server_socket);
-modbus_mapping_close:
-  modbus_mapping_free(mb_mapping);
-modbus_close:
-  modbus_free(ctx);
-fail:
-  return EXIT_FAILURE;
+    struct pollfd poll_fds[N_FDS_MAX] = {
+        {.fd = server.socket_fd, .events = POLL_IN},
+    };
+    size_t n_poll_fds = 1;
+
+    for (;;) {
+        res = poll(poll_fds, n_poll_fds, -1);
+        if (res == -1) {
+            perror("Failed to poll");
+            continue;
+        }
+
+        printf("sockets: %d\n", n_poll_fds);
+        for (size_t i = 0; i < n_poll_fds; ++i) {
+            struct pollfd *poll_fd = &poll_fds[i];
+            int fd = poll_fd->fd;
+
+            printf("socket %d.revents: 0x%02X\n", fd, poll_fd->revents);
+
+            if (poll_fd->revents & (POLLERR | POLLHUP)) {
+                poll_fd->fd = -fd; // mark for removal
+                server_close_fd(&server, fd);
+            }
+            if (poll_fd->revents & POLLERR)
+                fprintf(stderr, "File (socket?) closed unexpectedly\n");
+            if (poll_fd->revents & POLLNVAL)
+                fprintf(stderr, "File (socket?) not open\n");
+            if (poll_fd->revents & POLLIN) {
+                server_result_t result;
+                res = server_handle(&server, fd, &result);
+                if (res != 0) {
+                    fprintf(
+                        stderr, "Failed to handle connection: %s\n",
+                        modbus_strerror(errno)
+                    );
+                }
+
+                // Reflect connection modifications in poll_fds
+                if (result.is_closed)
+                    poll_fd->fd = -fd; // mark for removal
+                if (result.new_connection_fd != -1) {
+                    poll_fds[n_poll_fds++] = (struct pollfd
+                    ){.fd = result.new_connection_fd, .events = POLLIN};
+                }
+            }
+
+            continue;
+        }
+
+        // Remove marked connections
+        size_t i = 0;
+        while (i < n_poll_fds) {
+            if (poll_fds[i].fd < 0)
+                poll_fds[i] = poll_fds[n_poll_fds - 1];
+            else
+                i += 1;
+        }
+    }
+
+    server_close(&server);
+registers_close:
+    modbus_mapping_free(registers);
+end:
+    return EXIT_SUCCESS;
 }
