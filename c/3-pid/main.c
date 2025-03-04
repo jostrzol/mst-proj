@@ -22,8 +22,9 @@
 #include "server.h"
 #include "units.h"
 
+#define N_FDS_SYSTEM 3
 #define N_CONNECTIONS 5
-#define N_FDS_MAX (1 + N_CONNECTIONS)
+#define N_FDS_MAX (N_FDS_SYSTEM + N_CONNECTIONS)
 
 static const uint64_t READ_RATE = 1000;
 static const uint64_t READ_INTERVAL_US = MICRO_PER_1 / READ_RATE;
@@ -89,9 +90,11 @@ int main(int, char **)
     }
 
     struct pollfd poll_fds[N_FDS_MAX] = {
+        {.fd = controller.read_timer_fd, .events = POLL_IN},
+        {.fd = controller.io_timer_fd, .events = POLL_IN},
         {.fd = server.socket_fd, .events = POLL_IN},
     };
-    size_t n_poll_fds = 1;
+    size_t n_poll_fds = N_FDS_SYSTEM;
 
     while (do_continue) {
         res = poll(poll_fds, n_poll_fds, 1000);
@@ -113,6 +116,12 @@ int main(int, char **)
             if (poll_fd->revents & POLLNVAL)
                 fprintf(stderr, "File (socket?) not open\n");
             if (poll_fd->revents & POLLIN) {
+                res = controller_handle(&controller, fd);
+                if (res < 0)
+                    perror("Failed to handle controller timer activation");
+                if (res != 0)
+                    continue; // Handled -- either error or success
+
                 server_result_t result;
                 res = server_handle(&server, fd, &result);
                 if (res != 0) {

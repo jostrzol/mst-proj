@@ -14,6 +14,8 @@
 #include "controller.h"
 #include "units.h"
 
+#define NULL_BUFFER_LEN 128
+
 #define I2C_ADAPTER_NUMBER "1"
 const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
 const uint32_t ADS7830_ADDRESS = 0x48;
@@ -49,12 +51,13 @@ int32_t read_potentiometer_value(int i2c_file)
 
 struct itimerspec interval_from_us(uint64_t us)
 {
+    struct timespec timespec = {
+        .tv_sec = us / MICRO_PER_1,
+        .tv_nsec = (us * NANO_PER_MIRCO) % NANO_PER_1,
+    };
     return (struct itimerspec){
-        .it_interval =
-            {
-                .tv_sec = us / MICRO_PER_1,
-                .tv_nsec = (us * NANO_PER_MIRCO) % NANO_PER_1,
-            },
+        .it_interval = timespec,
+        .it_value = timespec,
     };
 }
 
@@ -67,22 +70,22 @@ int controller_init(controller_t *self, controller_options_t options)
     if (ioctl(i2c_fd, I2C_SLAVE, ADS7830_ADDRESS) != 0)
         goto fail_close_i2c;
 
-    int read_timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+    int read_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
     if (read_timer_fd < 0)
         goto fail_close_i2c;
 
     struct itimerspec read_timerspec =
         interval_from_us(options.read_interval_us);
-    if (timerfd_settime(read_timer_fd, 0, &read_timerspec, 0) != 0)
+    if (timerfd_settime(read_timer_fd, 0, &read_timerspec, NULL) != 0)
         goto fail_close_read_timer;
 
-    int io_timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+    int io_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
     if (io_timer_fd < 0)
         goto fail_close_read_timer;
 
     struct itimerspec io_timerspec =
         interval_from_us(options.revolution_bin_rotate_interval_us);
-    if (timerfd_settime(io_timer_fd, 0, &io_timerspec, 0) != 0)
+    if (timerfd_settime(io_timer_fd, 0, &io_timerspec, NULL) != 0)
         goto fail_close_io_timer;
 
     *self = (controller_t){
@@ -104,21 +107,6 @@ fail:
     return EXIT_FAILURE;
 }
 
-int controller_handle(controller_t *self)
-{
-    int32_t value = read_potentiometer_value(self->read_timer_fd);
-    if (value < 0)
-        return EXIT_FAILURE;
-
-    printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
-
-    const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
-    if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) != 0)
-        return EXIT_FAILURE;
-
-    return EXIT_SUCCESS;
-}
-
 void controller_close(controller_t *self)
 {
     if (close(self->io_timer_fd) != 0)
@@ -127,8 +115,36 @@ void controller_close(controller_t *self)
         perror("Failed to close read timer");
     if (close(self->i2c_fd) != 0)
         perror("Failed to close i2c controller");
-
     if (gpioHardwarePWM(self->options.pwm_channel, 0, 0) != 0)
         perror("Failed to disable PWM");
-    gpioTerminate();
+}
+
+int controller_handle(controller_t *self, int fd)
+{
+    uint8_t null_buffer[NULL_BUFFER_LEN];
+
+    if (fd == self->read_timer_fd) {
+        read(fd, null_buffer, NULL_BUFFER_LEN);
+
+        int32_t value = read_potentiometer_value(self->i2c_fd);
+        if (value < 0)
+            return EXIT_FAILURE;
+
+        printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
+
+        /* const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX; */
+        /* if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) !=
+         * 0) */
+        /*     return EXIT_FAILURE; */
+
+        return 1;
+    } else if (fd == self->io_timer_fd) {
+        read(fd, null_buffer, NULL_BUFFER_LEN);
+
+        // TODO
+
+        return 1;
+    }
+
+    return 0;
 }

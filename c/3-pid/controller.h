@@ -53,3 +53,5 @@ typedef struct {
 int controller_init(controller_t *self, controller_options_t options);
 
 void controller_close(controller_t *self);
+
+int controller_handle(controller_t *self, int fd);
