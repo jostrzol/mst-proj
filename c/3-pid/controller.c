@@ -51,7 +51,7 @@ int32_t read_potentiometer_value(int i2c_file)
 
 struct itimerspec interval_from_us(uint64_t us)
 {
-    struct timespec timespec = {
+    const struct timespec timespec = {
         .tv_sec = us / MICRO_PER_1,
         .tv_nsec = (us * NANO_PER_MIRCO) % NANO_PER_1,
     };
@@ -63,29 +63,34 @@ struct itimerspec interval_from_us(uint64_t us)
 
 int controller_init(controller_t *self, controller_options_t options)
 {
-    int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
+    const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
     if (i2c_fd < 0)
         goto fail;
 
     if (ioctl(i2c_fd, I2C_SLAVE, ADS7830_ADDRESS) != 0)
         goto fail_close_i2c;
 
-    int read_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
+    const int read_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
     if (read_timer_fd < 0)
         goto fail_close_i2c;
 
-    struct itimerspec read_timerspec =
+    const struct itimerspec read_timerspec =
         interval_from_us(options.read_interval_us);
     if (timerfd_settime(read_timer_fd, 0, &read_timerspec, NULL) != 0)
         goto fail_close_read_timer;
 
-    int io_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
+    const int io_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
     if (io_timer_fd < 0)
         goto fail_close_read_timer;
 
-    struct itimerspec io_timerspec =
+    const struct itimerspec io_timerspec =
         interval_from_us(options.revolution_bin_rotate_interval_us);
     if (timerfd_settime(io_timer_fd, 0, &io_timerspec, NULL) != 0)
+        goto fail_close_io_timer;
+
+    if (gpioHardwarePWM(
+            options.pwm_channel, options.pwm_frequency, PI_HW_PWM_RANGE * 0.2
+        ) < 0)
         goto fail_close_io_timer;
 
     *self = (controller_t){
@@ -126,22 +131,32 @@ int controller_handle(controller_t *self, int fd)
     if (fd == self->read_timer_fd) {
         read(fd, null_buffer, NULL_BUFFER_LEN);
 
-        int32_t value = read_potentiometer_value(self->i2c_fd);
+        const int32_t value = read_potentiometer_value(self->i2c_fd);
         if (value < 0)
             return EXIT_FAILURE;
 
-        printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
-
-        /* const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX; */
-        /* if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) !=
-         * 0) */
-        /*     return EXIT_FAILURE; */
+        if (value < self->options.revolution_treshold_close &&
+            !self->is_close) {
+            // gone close
+            self->is_close = true;
+            self->revolutions += 1;
+        } else if (value > self->options.revolution_treshold_far &&
+                   self->is_close) {
+            // gone far
+            self->is_close = false;
+        }
 
         return 1;
     } else if (fd == self->io_timer_fd) {
         read(fd, null_buffer, NULL_BUFFER_LEN);
 
-        // TODO
+        const double frequency =
+            (double)self->revolutions /
+            ((double)self->options.revolution_bin_rotate_interval_us /
+             MICRO_PER_1);
+        self->revolutions = 0;
+
+        printf("frequency: %.2f\n", frequency);
 
         return 1;
     }

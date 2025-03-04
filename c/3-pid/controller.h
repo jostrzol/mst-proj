@@ -48,6 +48,8 @@ typedef struct {
     int i2c_fd;
     int read_timer_fd;
     int io_timer_fd;
+    uint32_t revolutions;
+    bool is_close;
 } controller_t;
 
 int controller_init(controller_t *self, controller_options_t options);
