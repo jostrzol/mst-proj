@@ -46,14 +46,8 @@ void interrupt_handler(int)
 {
     printf("\nGracefully stopping\n");
     do_continue = false;
-    if (server.socket_fd != -1)
-        server_close(&server);
-    modbus_mapping_free(registers);
-    exit(EXIT_FAILURE);
 }
-const struct sigaction interrupt_sigaction = {
-    .sa_handler = &interrupt_handler,
-};
+const struct sigaction interrupt_sigaction = {.sa_handler = &interrupt_handler};
 
 int main(int, char **)
 {
@@ -91,8 +85,8 @@ int main(int, char **)
     };
     size_t n_poll_fds = 1;
 
-    for (;;) {
-        res = poll(poll_fds, n_poll_fds, -1);
+    while (do_continue) {
+        res = poll(poll_fds, n_poll_fds, 1000);
         if (res == -1) {
             perror("Failed to poll");
             continue;
