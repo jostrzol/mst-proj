@@ -98,12 +98,9 @@ int main(int, char **)
             continue;
         }
 
-        printf("sockets: %d\n", n_poll_fds);
         for (size_t i = 0; i < n_poll_fds; ++i) {
             struct pollfd *poll_fd = &poll_fds[i];
             int fd = poll_fd->fd;
-
-            printf("socket %d.revents: 0x%02X\n", fd, poll_fd->revents);
 
             if (poll_fd->revents & (POLLERR | POLLHUP)) {
                 poll_fd->fd = -fd; // mark for removal
@@ -131,15 +128,13 @@ int main(int, char **)
                     ){.fd = result.new_connection_fd, .events = POLLIN};
                 }
             }
-
-            continue;
         }
 
         // Remove marked connections
         size_t i = 0;
         while (i < n_poll_fds) {
             if (poll_fds[i].fd < 0)
-                poll_fds[i] = poll_fds[n_poll_fds - 1];
+                poll_fds[i] = poll_fds[--n_poll_fds];
             else
                 i += 1;
         }

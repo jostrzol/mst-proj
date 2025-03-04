@@ -22,7 +22,7 @@ int server_init(server_t *self, server_options_t options)
     int *connection_fds = malloc(options.n_connections * sizeof(int));
 
     *self = (server_t){
-        .ctx = NULL,
+        .ctx = ctx,
         .registers = options.registers,
         .socket_fd = socket_fd,
         .n_connections_active = 0,
@@ -73,17 +73,10 @@ int server_handle(server_t *self, int fd, server_result_t *result)
         }
     } else {
         // Handle modbus request
-        printf("modbus_set_socket(%d)\n", fd);
-        int res = modbus_set_socket(self->ctx, fd);
-        if (res == -1) {
-            server_close_fd(self, fd);
-            result->is_closed = true;
-            return EXIT_FAILURE;
-        }
+        modbus_set_socket(self->ctx, fd);
 
         uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
         int received = modbus_receive(self->ctx, query);
-        printf("received: %d\n", received);
         if (received == -1) {
             server_close_fd(self, fd);
             result->is_closed = true;
