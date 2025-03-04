@@ -41,4 +41,15 @@ typedef struct {
     uint8_t pwm_channel;
     /// Frequency of the PWM signal.
     uint64_t pwm_frequency;
-} pid_settings_t;
+} controller_options_t;
+
+typedef struct {
+    controller_options_t options;
+    int i2c_fd;
+    int read_timer_fd;
+    int io_timer_fd;
+} controller_t;
+
+int controller_init(controller_t *self, controller_options_t options);
+
+void controller_close(controller_t *self);

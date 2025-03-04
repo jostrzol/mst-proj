@@ -17,67 +17,75 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-/* #include "pid.h" */
+#include "controller.h"
 #include "registers.h"
 #include "server.h"
+#include "units.h"
 
 #define N_CONNECTIONS 5
 #define N_FDS_MAX (1 + N_CONNECTIONS)
 
-/* static const uint64_t READ_RATE = 1000; */
-/* static const uint64_t READ_INTERVAL_US = 1e6 / READ_RATE; */
-/**/
-/* static const pid_settings_t PID_SETTINGS = { */
-/*     .read_interval_us = READ_INTERVAL_US, */
-/*     .revolution_treshold_close = 105, */
-/*     .revolution_treshold_far = 118, */
-/*     .revolution_bins = 10, */
-/*     .revolution_bin_rotate_interval_us = 100 * 1e3, */
-/*     .pwm_channel = 13, */
-/*     .pwm_frequency = 1000., */
-/* }; */
-/**/
-static bool do_continue = true;
+static const uint64_t READ_RATE = 1000;
+static const uint64_t READ_INTERVAL_US = MICRO_PER_1 / READ_RATE;
 
-static server_t server = {.socket_fd = -1};
-static modbus_mapping_t *registers;
+static const controller_options_t CONTROLLER_OPTIONS = {
+    .read_interval_us = READ_INTERVAL_US,
+    .revolution_treshold_close = 105,
+    .revolution_treshold_far = 118,
+    .revolution_bins = 10,
+    .revolution_bin_rotate_interval_us = 100 * 1e3,
+    .pwm_channel = 13,
+    .pwm_frequency = 1000.,
+};
+
+static bool do_continue = true;
 
 void interrupt_handler(int)
 {
     printf("\nGracefully stopping\n");
     do_continue = false;
 }
-const struct sigaction interrupt_sigaction = {.sa_handler = &interrupt_handler};
 
 int main(int, char **)
 {
     int res;
 
-    res = sigaction(SIGINT, &interrupt_sigaction, NULL);
+    res = gpioInitialise();
     if (res < 0) {
-        perror("Setting sigaction failed\n");
+        perror("Failed to initialize gpio\n");
         goto end;
     }
 
-    registers = modbus_mapping_new(0, 0, N_REG_HOLDING, N_REG_INPUT);
+    res = gpioSetSignalFunc(SIGINT, &interrupt_handler);
+    if (res < 0) {
+        perror("Failed to set signal function\n");
+        goto pigpio_close;
+    }
+
+    modbus_mapping_t *registers =
+        modbus_mapping_new(0, 0, N_REG_HOLDING, N_REG_INPUT);
     if (registers == NULL) {
         fprintf(
             stderr, "Failed to allocate the mapping: %s\n",
             modbus_strerror(errno)
         );
-        goto end;
+        goto pigpio_close;
     }
 
+    static server_t server;
     res = server_init(
-        &server,
-        (server_options_t){
-            .n_connections = 5,
-            .registers = registers,
-        }
+        &server, (server_options_t){.n_connections = 5, .registers = registers}
     );
     if (res < 0) {
         perror("Initializing modbus server failed\n");
         goto registers_close;
+    }
+
+    static controller_t controller;
+    res = controller_init(&controller, CONTROLLER_OPTIONS);
+    if (res < 0) {
+        perror("Initializing controller failed\n");
+        goto server_close;
     }
 
     struct pollfd poll_fds[N_FDS_MAX] = {
@@ -87,10 +95,10 @@ int main(int, char **)
 
     while (do_continue) {
         res = poll(poll_fds, n_poll_fds, 1000);
-        if (res == -1) {
+        if (res == -1 && errno != EINTR)
             perror("Failed to poll");
+        if (res <= 0)
             continue;
-        }
 
         for (size_t i = 0; i < n_poll_fds; ++i) {
             struct pollfd *poll_fd = &poll_fds[i];
@@ -134,9 +142,13 @@ int main(int, char **)
         }
     }
 
+    controller_close(&controller);
+server_close:
     server_close(&server);
 registers_close:
     modbus_mapping_free(registers);
+pigpio_close:
+    gpioTerminate();
 end:
     return EXIT_SUCCESS;
 }
