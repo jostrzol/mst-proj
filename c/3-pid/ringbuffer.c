@@ -17,5 +17,6 @@ uint32_t *ringbuffer_back(ringbuffer_t *self) {
 }
 
 void ringbuffer_push(ringbuffer_t *self, uint32_t value) {
-  self->array[++self->tail] = value;
+  self->tail = (self->tail + 1) % self->length;
+  self->array[self->tail] = value;
 }

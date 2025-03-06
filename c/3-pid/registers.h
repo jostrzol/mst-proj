@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include <modbus.h>
 
 enum reg_input {
   // clang-format off
@@ -9,7 +8,7 @@ enum reg_input {
   CONTROL_SIGNAL = 2 * 1,
   // clang-format on
 };
-const size_t N_REG_INPUT = 2;
+#define N_REG_INPUT 2
 
 enum reg_holding {
   // clang-format off
@@ -19,4 +18,8 @@ enum reg_holding {
   DIFFERENTIATION_TIME = 2 * 3,
   // clang-format on
 };
-const size_t N_REG_HOLDING = 4;
+#define N_REG_HOLDING 4
+
+modbus_mapping_t *registers_init();
+
+void registers_free(modbus_mapping_t *self);

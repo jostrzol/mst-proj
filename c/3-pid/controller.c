@@ -89,7 +89,7 @@ int controller_init(controller_t *self, controller_options_t options) {
     goto fail_close_io_timer;
 
   if (gpioHardwarePWM(
-          options.pwm_channel, options.pwm_frequency, PI_HW_PWM_RANGE * 1.0
+          options.pwm_channel, options.pwm_frequency, PI_HW_PWM_RANGE * 0.2
       ) < 0)
     goto fail_close_io_timer;
 
@@ -122,6 +122,7 @@ void controller_close(controller_t *self) {
     perror("Failed to close i2c controller");
   if (gpioHardwarePWM(self->options.pwm_channel, 0, 0) != 0)
     perror("Failed to disable PWM");
+  free(self->registers);
 }
 
 int controller_handle(controller_t *self, int fd) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ringbuffer.h"
+#include <modbus.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -46,10 +47,11 @@ typedef struct {
 
 typedef struct {
   controller_options_t options;
+  ringbuffer_t *revolutions;
+  modbus_mapping_t *registers;
   int i2c_fd;
   int read_timer_fd;
   int io_timer_fd;
-  ringbuffer_t *revolutions;
   bool is_close;
 } controller_t;
 

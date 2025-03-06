@@ -1,21 +1,9 @@
-#include <arpa/inet.h>
-#include <bits/types/siginfo_t.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <i2c/smbus.h>
-#include <linux/i2c-dev.h>
-#include <modbus.h>
-#include <netinet/in.h>
-#include <pigpio.h>
 #include <poll.h>
-#include <signal.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/select.h>
-#include <unistd.h>
+
+#include <pigpio.h>
 
 #include "controller.h"
 #include "registers.h"
@@ -61,8 +49,7 @@ int main(int, char **) {
     goto pigpio_close;
   }
 
-  modbus_mapping_t *registers =
-      modbus_mapping_new(0, 0, N_REG_HOLDING, N_REG_INPUT);
+  modbus_mapping_t *registers = registers_init();
   if (registers == NULL) {
     fprintf(
         stderr, "Failed to allocate the mapping: %s\n", modbus_strerror(errno)
@@ -152,7 +139,7 @@ int main(int, char **) {
 server_close:
   server_close(&server);
 registers_close:
-  modbus_mapping_free(registers);
+  registers_free(registers);
 pigpio_close:
   gpioTerminate();
 end:
