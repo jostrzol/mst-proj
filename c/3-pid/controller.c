@@ -144,7 +144,6 @@ void controller_close(controller_t *self) {
     perror("Failed to close i2c controller");
   if (gpioHardwarePWM(self->options.pwm_channel, 0, 0) != 0)
     perror("Failed to disable PWM");
-  free(self->registers);
 }
 
 int controller_handle(controller_t *self, int fd) {
