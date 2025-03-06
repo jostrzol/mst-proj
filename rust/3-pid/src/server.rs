@@ -28,10 +28,13 @@ impl Service for PidService {
         async move {
             match req {
                 Request::ReadInputRegisters(addr, count) => {
-                    let state = state.lock().await;
-
-                    let range = range_from_addr_count(addr, count)
+                    if count % 2 != 0 {
+                        return Err(ExceptionCode::IllegalDataAddress);
+                    }
+                    let range = range_from_addr_count(addr, count / 2)
                         .ok_or(ExceptionCode::IllegalDataAddress)?;
+
+                    let state = state.lock().await;
                     let floats = state.read_input_registers(range);
                     let data: Vec<_> = floats
                         .iter()

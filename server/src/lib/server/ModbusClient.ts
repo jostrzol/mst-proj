@@ -61,7 +61,10 @@ export class ModbusClient {
 
 				const client = await this.client();
 
-				const result = await client.readInputRegisters(address, count);
+				const result = await client.readInputRegisters(
+					address,
+					count * 2 /* count * sizeof(float) / sizeof(uint16) */,
+				);
 				const receivedAt = result.metrics.receivedAt.valueOf();
 				const buffer = result.response.body.valuesAsBuffer;
 				const floats = [...Array(count)]
