@@ -1,7 +1,6 @@
-#include <bits/types/siginfo_t.h>
 #include <fcntl.h>
+#include <math.h>
 #include <modbus.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -14,10 +13,13 @@
 
 #include "controller.h"
 #include "registers.h"
-#include "ringbuffer.h"
 #include "units.h"
 
 #define NULL_BUFFER_LEN 128
+
+#define PWM_MIN 0.2
+#define PWM_MAX 1.0
+#define LIMIT_MIN_DEADZONE 0.001
 
 #define I2C_ADAPTER_NUMBER "1"
 const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
@@ -78,6 +80,16 @@ float controller_get_holding_register(
   return modbus_get_float_abcd(&registers[address]);
 }
 
+inline float finite_or_zero(float value) { return isfinite(value) ? value : 0; }
+
+float limit(float value, float min, float max) {
+  if (value < LIMIT_MIN_DEADZONE)
+    return 0;
+
+  const float result = value + min;
+  return result < min ? min : (result > max ? max : result);
+}
+
 int controller_init(
     controller_t *self, modbus_mapping_t *registers,
     controller_options_t options
@@ -116,6 +128,7 @@ int controller_init(
       .i2c_fd = i2c_fd,
       .read_timer_fd = read_timer_fd,
       .io_timer_fd = io_timer_fd,
+      .feedback = {.delta = 0, .integration_component = 0},
   };
 
   return EXIT_SUCCESS;
@@ -169,12 +182,12 @@ int controller_handle(controller_t *self, int fd) {
     for (size_t i = 0; i < self->revolutions->length; ++i)
       sum += self->revolutions->array[i];
 
-    const uint64_t all_bins_interval_s =
-        self->options.revolution_bin_rotate_interval_us *
-        self->options.revolution_bins;
+    const float interval_s =
+        (float)self->options.revolution_bin_rotate_interval_us / MICRO_PER_1;
+    const float all_bins_interval_s =
+        interval_s * self->options.revolution_bins;
 
-    const float frequency =
-        (float)sum / ((float)all_bins_interval_s / MICRO_PER_1);
+    const float frequency = (float)sum / all_bins_interval_s;
     ringbuffer_push(self->revolutions, 0);
     printf("frequency: %.2f\n", frequency);
 
@@ -186,33 +199,46 @@ int controller_handle(controller_t *self, int fd) {
         controller_get_holding_register(self, REG_INTEGRATION_TIME);
     const float differentiation_time =
         controller_get_holding_register(self, REG_DIFFERENTIATION_TIME);
-    printf("target_frequency: %.2f\n", target_frequency);
-    printf("proportional_factor: %.2f\n", proportional_factor);
-    printf("integration_time: %.2f\n", integration_time);
-    printf("differentiation_time: %.2f\n", differentiation_time);
 
-    const float duty_cycle = 0.2;
+    const float integration_factor =
+        proportional_factor / integration_time * interval_s;
+    const float differentiation_factor =
+        proportional_factor * differentiation_time / interval_s;
+
+    const float delta = target_frequency - frequency;
+    printf("delta: %.2f\n", delta);
+
+    const float proportional_component = proportional_factor * delta;
+    const float integration_component =
+        self->feedback.integration_component +
+        integration_factor * self->feedback.delta;
+    const float differentiation_component =
+        differentiation_factor * (delta - self->feedback.delta);
+
+    const float control_signal = proportional_component +
+                                 integration_component +
+                                 differentiation_component;
+    printf(
+        "control_signal: %.2f = %.2f + %.2f + %.2f\n", control_signal,
+        proportional_component, integration_component, differentiation_component
+    );
+
+    const float control_signal_limited =
+        limit(control_signal, PWM_MIN, PWM_MAX);
+
+    printf("control_signal_limited: %.2f\n", control_signal_limited);
 
     controller_set_input_register(self, REG_FREQUENCY, frequency);
-    controller_set_input_register(self, REG_CONTROL_SIGNAL, duty_cycle);
+    controller_set_input_register(
+        self, REG_CONTROL_SIGNAL, control_signal_limited
+    );
 
-    controller_set_duty_cycle(self, duty_cycle);
+    controller_set_duty_cycle(self, control_signal_limited);
 
-    printf("holding registers data: <");
-    for (size_t i = 0; i < REG_HOLDING_SIZE_PER_U16; i++)
-      printf("%04X,", self->registers->tab_registers[i]);
-    printf(">\n");
-
-    printf("input registers data: <");
-    for (size_t i = 0; i < REG_INPUT_SIZE_PER_U16; i++)
-      printf("%04X,", self->registers->tab_input_registers[i]);
-    printf(">\n");
-
-    float a = 12.5;
-    printf("12.5: <");
-    for (size_t i = 0; i < sizeof(a); i++)
-      printf("%02X,", ((uint8_t *)(&a))[i]);
-    printf(">\n");
+    self->feedback = (feedback_t){
+        .delta = delta,
+        .integration_component = integration_component,
+    };
 
     return 1;
   }

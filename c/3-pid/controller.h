@@ -46,6 +46,11 @@ typedef struct {
 } controller_options_t;
 
 typedef struct {
+  float delta;
+  float integration_component;
+} feedback_t;
+
+typedef struct {
   ringbuffer_t *revolutions;
   controller_options_t options;
   modbus_mapping_t *registers;
@@ -53,6 +58,7 @@ typedef struct {
   int read_timer_fd;
   int io_timer_fd;
   bool is_close;
+  feedback_t feedback;
 } controller_t;
 
 int controller_init(
