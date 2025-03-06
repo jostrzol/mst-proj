@@ -4,22 +4,22 @@
 #include <stddef.h>
 
 typedef struct {
-    int n_connections;
-    modbus_mapping_t *registers;
+  int n_connections;
+  modbus_mapping_t *registers;
 } server_options_t;
 
 typedef struct {
-    modbus_t *ctx;
-    modbus_mapping_t *registers;
-    int socket_fd;
-    size_t n_connections_active;
-    size_t n_connections_max;
-    int *connection_fds;
+  modbus_t *ctx;
+  modbus_mapping_t *registers;
+  int socket_fd;
+  size_t n_connections_active;
+  size_t n_connections_max;
+  int *connection_fds;
 } server_t;
 
 typedef struct {
-    bool is_closed;
-    int new_connection_fd;
+  bool is_closed;
+  int new_connection_fd;
 } server_result_t;
 
 int server_init(server_t *server, server_options_t options);

@@ -1,8 +1,6 @@
----
 BasedOnStyle: LLVM
-IndentWidth: 4
-BreakBeforeBraces: Linux
-AllowShortIfStatementsOnASingleLine: false
+IndentWidth: 2
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: Never
 IndentCaseLabels: false
 AlignAfterOpenBracket: BlockIndent
----
