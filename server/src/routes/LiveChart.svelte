@@ -192,30 +192,55 @@
 
 	function onclick(e: MouseEvent) {
 		const point = getPoint(e);
-		if (!point) return;
+		if (!point || !isPointInBounds(point)) return;
+
 		props.onclick?.call(null, point);
 	}
 
 	function onmousemove(e: MouseEvent) {
 		const point = getPoint(e);
-		const bounds = getBounds();
+		if (!point || !isPointInBounds(point)) {
+			yLine = undefined;
+			return;
+		}
 
-		if (!point || !bounds) return;
+		yLine = point.y;
+		if ((e.buttons & 1) == 0) return;
+
+		props.onclick?.call(null, clampPointToBounds(point));
+	}
+
+	function onmouseleave(e: MouseEvent) {
+		yLine = undefined;
+		if ((e.buttons & 1) == 0) return;
+
+		const point = getPoint(e);
+		if (!point) return;
+
+		props.onclick?.call(null, clampPointToBounds(point));
+	}
+
+	function clampPointToBounds(point: Point): Point {
+		const bounds = getBounds();
+		if (!bounds) return point;
 
 		const { x, y } = point;
 		const { xMin, xMax, yMin, yMax } = bounds;
 
-		const inRange = x >= xMin && x <= xMax && y >= yMin && y <= yMax;
-		if (!inRange) {
-			yLine = undefined;
-		} else {
-			yLine = y;
-			if ((e.buttons & 1) != 0) props.onclick?.call(null, point);
-		}
+		return {
+			x: x < xMin ? xMin : x > xMax ? xMax : x,
+			y: y < yMin ? yMin : y > yMax ? yMax : y,
+		};
 	}
 
-	function onmouseleave() {
-		yLine = undefined;
+	function isPointInBounds(point: Point): boolean {
+		const bounds = getBounds();
+		if (!bounds) return false;
+
+		const { x, y } = point;
+		const { xMin, xMax, yMin, yMax } = bounds;
+
+		return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
 	}
 
 	function getBounds(): { xMin: number; xMax: number; yMin: number; yMax: number } | undefined {
