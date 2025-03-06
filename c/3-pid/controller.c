@@ -22,11 +22,6 @@
 #define I2C_ADAPTER_NUMBER "1"
 const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
 const uint32_t ADS7830_ADDRESS = 0x48;
-const uint32_t MOTOR_LINE_NUMBER = 13;
-
-const uint64_t PWM_FREQUENCY = 1000;
-const uint64_t READ_RATE = 60;
-const uint64_t SLEEP_DURATION_US = 1e6 / READ_RATE;
 
 // bit    7: single-ended inputs mode
 // bits 6-4: channel selection
@@ -76,11 +71,11 @@ void controller_set_input_register(
   modbus_set_float_badc(value, &registers[address]);
 }
 
-void controller_set_holding_register(
-    controller_t *self, enum reg_holding address, float value
+float controller_get_holding_register(
+    controller_t *self, enum reg_holding address
 ) {
   uint16_t *registers = self->registers->tab_registers;
-  modbus_set_float_badc(value, &registers[address]);
+  return modbus_get_float_abcd(&registers[address]);
 }
 
 int controller_init(
@@ -183,12 +178,41 @@ int controller_handle(controller_t *self, int fd) {
     ringbuffer_push(self->revolutions, 0);
     printf("frequency: %.2f\n", frequency);
 
+    const float target_frequency =
+        controller_get_holding_register(self, REG_TARGET_FREQUENCY);
+    const float proportional_factor =
+        controller_get_holding_register(self, REG_PROPORTIONAL_FACTOR);
+    const float integration_time =
+        controller_get_holding_register(self, REG_INTEGRATION_TIME);
+    const float differentiation_time =
+        controller_get_holding_register(self, REG_DIFFERENTIATION_TIME);
+    printf("target_frequency: %.2f\n", target_frequency);
+    printf("proportional_factor: %.2f\n", proportional_factor);
+    printf("integration_time: %.2f\n", integration_time);
+    printf("differentiation_time: %.2f\n", differentiation_time);
+
     const float duty_cycle = 0.2;
 
     controller_set_input_register(self, REG_FREQUENCY, frequency);
     controller_set_input_register(self, REG_CONTROL_SIGNAL, duty_cycle);
 
     controller_set_duty_cycle(self, duty_cycle);
+
+    printf("holding registers data: <");
+    for (size_t i = 0; i < REG_HOLDING_SIZE_PER_U16; i++)
+      printf("%04X,", self->registers->tab_registers[i]);
+    printf(">\n");
+
+    printf("input registers data: <");
+    for (size_t i = 0; i < REG_INPUT_SIZE_PER_U16; i++)
+      printf("%04X,", self->registers->tab_input_registers[i]);
+    printf(">\n");
+
+    float a = 12.5;
+    printf("12.5: <");
+    for (size_t i = 0; i < sizeof(a); i++)
+      printf("%02X,", ((uint8_t *)(&a))[i]);
+    printf(">\n");
 
     return 1;
   }
