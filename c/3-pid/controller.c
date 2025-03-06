@@ -34,18 +34,23 @@ const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
 #define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
 
 int32_t read_potentiometer_value(int i2c_file) {
-  if (i2c_smbus_write_byte(i2c_file, MAKE_READ_COMMAND(0)) < 0) {
-    perror("writing i2c ADC command failed\n");
+  uint8_t write_value = MAKE_READ_COMMAND(0);
+  uint8_t read_value;
+
+  struct i2c_msg msgs[2] = {
+      // write command
+      {.addr = ADS7830_ADDRESS, .flags = 0, .len = 1, .buf = &write_value},
+      // read data
+      {.addr = ADS7830_ADDRESS, .flags = I2C_M_RD, .len = 1, .buf = &read_value}
+  };
+  const struct i2c_rdwr_ioctl_data data = {.msgs = msgs, .nmsgs = 2};
+
+  if (ioctl(i2c_file, I2C_RDWR, &data) < 0) {
+    perror("i2c read/write ADC command failed\n");
     return -1;
   }
 
-  int32_t value = i2c_smbus_read_byte(i2c_file);
-  if (value < 0) {
-    perror("reading i2c ADC value failed\n");
-    return -1;
-  }
-
-  return value;
+  return read_value;
 }
 
 struct itimerspec interval_from_us(uint64_t us) {
