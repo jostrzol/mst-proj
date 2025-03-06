@@ -46,8 +46,8 @@ typedef struct {
 } controller_options_t;
 
 typedef struct {
-  controller_options_t options;
   ringbuffer_t *revolutions;
+  controller_options_t options;
   modbus_mapping_t *registers;
   int i2c_fd;
   int read_timer_fd;
@@ -55,7 +55,10 @@ typedef struct {
   bool is_close;
 } controller_t;
 
-int controller_init(controller_t *self, controller_options_t options);
+int controller_init(
+    controller_t *self, modbus_mapping_t *registers,
+    controller_options_t options
+);
 
 void controller_close(controller_t *self);
 

@@ -1,5 +1,6 @@
 #include <bits/types/siginfo_t.h>
 #include <fcntl.h>
+#include <modbus.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +13,7 @@
 #include <pigpio.h>
 
 #include "controller.h"
+#include "registers.h"
 #include "ringbuffer.h"
 #include "units.h"
 
@@ -60,7 +62,31 @@ struct itimerspec interval_from_us(uint64_t us) {
   };
 }
 
-int controller_init(controller_t *self, controller_options_t options) {
+int controller_set_duty_cycle(controller_t *self, float value) {
+  return gpioHardwarePWM(
+      self->options.pwm_channel, self->options.pwm_frequency,
+      PI_HW_PWM_RANGE * value
+  );
+}
+
+void controller_set_input_register(
+    controller_t *self, enum reg_input address, float value
+) {
+  uint16_t *registers = self->registers->tab_input_registers;
+  modbus_set_float_badc(value, &registers[address]);
+}
+
+void controller_set_holding_register(
+    controller_t *self, enum reg_holding address, float value
+) {
+  uint16_t *registers = self->registers->tab_registers;
+  modbus_set_float_badc(value, &registers[address]);
+}
+
+int controller_init(
+    controller_t *self, modbus_mapping_t *registers,
+    controller_options_t options
+) {
   ringbuffer_t *revolutions = ringbuffer_alloc(options.revolution_bins);
 
   const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
@@ -88,12 +114,8 @@ int controller_init(controller_t *self, controller_options_t options) {
   if (timerfd_settime(io_timer_fd, 0, &io_timerspec, NULL) != 0)
     goto fail_close_io_timer;
 
-  if (gpioHardwarePWM(
-          options.pwm_channel, options.pwm_frequency, PI_HW_PWM_RANGE * 0.2
-      ) < 0)
-    goto fail_close_io_timer;
-
   *self = (controller_t){
+      .registers = registers,
       .options = options,
       .revolutions = revolutions,
       .i2c_fd = i2c_fd,
@@ -157,12 +179,17 @@ int controller_handle(controller_t *self, int fd) {
         self->options.revolution_bin_rotate_interval_us *
         self->options.revolution_bins;
 
-    const double frequency =
-        (double)sum / ((double)all_bins_interval_s / MICRO_PER_1);
-
+    const float frequency =
+        (float)sum / ((float)all_bins_interval_s / MICRO_PER_1);
     ringbuffer_push(self->revolutions, 0);
-
     printf("frequency: %.2f\n", frequency);
+
+    const float duty_cycle = 0.2;
+
+    controller_set_input_register(self, REG_FREQUENCY, frequency);
+    controller_set_input_register(self, REG_CONTROL_SIGNAL, duty_cycle);
+
+    controller_set_duty_cycle(self, duty_cycle);
 
     return 1;
   }

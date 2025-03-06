@@ -14,6 +14,8 @@
 #define N_CONNECTIONS 5
 #define N_FDS_MAX (N_FDS_SYSTEM + N_CONNECTIONS)
 
+static const server_options_t SERVER_OPTIONS = {.n_connections = N_CONNECTIONS};
+
 static const uint64_t READ_RATE = 1000;
 static const uint64_t READ_INTERVAL_US = MICRO_PER_1 / READ_RATE;
 
@@ -58,16 +60,14 @@ int main(int, char **) {
   }
 
   static server_t server;
-  res = server_init(
-      &server, (server_options_t){.n_connections = 5, .registers = registers}
-  );
+  res = server_init(&server, registers, SERVER_OPTIONS);
   if (res < 0) {
     perror("Initializing modbus server failed\n");
     goto registers_close;
   }
 
   static controller_t controller;
-  res = controller_init(&controller, CONTROLLER_OPTIONS);
+  res = controller_init(&controller, registers, CONTROLLER_OPTIONS);
   if (res < 0) {
     perror("Initializing controller failed\n");
     goto server_close;

@@ -5,7 +5,7 @@
 
 typedef struct {
   int n_connections;
-  modbus_mapping_t *registers;
+
 } server_options_t;
 
 typedef struct {
@@ -22,7 +22,9 @@ typedef struct {
   int new_connection_fd;
 } server_result_t;
 
-int server_init(server_t *server, server_options_t options);
+int server_init(
+    server_t *server, modbus_mapping_t *registers, server_options_t options
+);
 
 void server_close(server_t *server);
 

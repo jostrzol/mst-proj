@@ -7,12 +7,12 @@ modbus_mapping_t *registers_init() {
       // coils
       0, 0,
       // registers
-      N_REG_HOLDING, N_REG_INPUT
+      REG_HOLDING_SIZE_PER_U16, REG_INPUT_SIZE_PER_U16
   );
   if (self == NULL)
     return NULL;
 
-  modbus_set_float_dcba(INFINITY, &self->tab_registers[INTEGRATION_TIME]);
+  modbus_set_float_badc(INFINITY, &self->tab_registers[REG_INTEGRATION_TIME]);
 
   return self;
 }

@@ -7,7 +7,9 @@
 
 #include "server.h"
 
-int server_init(server_t *self, server_options_t options) {
+int server_init(
+    server_t *self, modbus_mapping_t *registers, server_options_t options
+) {
   modbus_t *ctx = modbus_new_tcp("0.0.0.0", 5502);
   if (ctx == NULL)
     return EXIT_FAILURE;
@@ -22,7 +24,7 @@ int server_init(server_t *self, server_options_t options) {
 
   *self = (server_t){
       .ctx = ctx,
-      .registers = options.registers,
+      .registers = registers,
       .socket_fd = socket_fd,
       .n_connections_active = 0,
       .n_connections_max = options.n_connections,
