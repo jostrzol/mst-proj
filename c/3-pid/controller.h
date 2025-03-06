@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ringbuffer.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -48,7 +49,7 @@ typedef struct {
     int i2c_fd;
     int read_timer_fd;
     int io_timer_fd;
-    uint32_t revolutions;
+    ringbuffer_t *revolutions;
     bool is_close;
 } controller_t;
 

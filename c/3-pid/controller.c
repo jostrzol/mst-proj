@@ -12,6 +12,7 @@
 #include <pigpio.h>
 
 #include "controller.h"
+#include "ringbuffer.h"
 #include "units.h"
 
 #define NULL_BUFFER_LEN 128
@@ -63,6 +64,8 @@ struct itimerspec interval_from_us(uint64_t us)
 
 int controller_init(controller_t *self, controller_options_t options)
 {
+    ringbuffer_t *revolutions = ringbuffer_alloc(options.revolution_bins);
+
     const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
     if (i2c_fd < 0)
         goto fail;
@@ -89,12 +92,13 @@ int controller_init(controller_t *self, controller_options_t options)
         goto fail_close_io_timer;
 
     if (gpioHardwarePWM(
-            options.pwm_channel, options.pwm_frequency, PI_HW_PWM_RANGE * 0.2
+            options.pwm_channel, options.pwm_frequency, PI_HW_PWM_RANGE * 1.0
         ) < 0)
         goto fail_close_io_timer;
 
     *self = (controller_t){
         .options = options,
+        .revolutions = revolutions,
         .i2c_fd = i2c_fd,
         .read_timer_fd = read_timer_fd,
         .io_timer_fd = io_timer_fd,
@@ -139,7 +143,7 @@ int controller_handle(controller_t *self, int fd)
             !self->is_close) {
             // gone close
             self->is_close = true;
-            self->revolutions += 1;
+            *ringbuffer_back(self->revolutions) += 1;
         } else if (value > self->options.revolution_treshold_far &&
                    self->is_close) {
             // gone far
@@ -150,11 +154,18 @@ int controller_handle(controller_t *self, int fd)
     } else if (fd == self->io_timer_fd) {
         read(fd, null_buffer, NULL_BUFFER_LEN);
 
+        uint32_t sum = 0;
+        for (size_t i = 0; i < self->revolutions->length; ++i)
+            sum += self->revolutions->array[i];
+
+        const uint64_t all_bins_interval_s =
+            self->options.revolution_bin_rotate_interval_us *
+            self->options.revolution_bins;
+
         const double frequency =
-            (double)self->revolutions /
-            ((double)self->options.revolution_bin_rotate_interval_us /
-             MICRO_PER_1);
-        self->revolutions = 0;
+            (double)sum / ((double)all_bins_interval_s / MICRO_PER_1);
+
+        ringbuffer_push(self->revolutions, 0);
 
         printf("frequency: %.2f\n", frequency);
 
