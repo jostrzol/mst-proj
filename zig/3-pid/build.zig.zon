@@ -1,0 +1,16 @@
+.{
+    .name = "3-pid",
+    .version = "0.0.1",
+    .paths = .{""},
+
+    .dependencies = .{
+        .@"zig-pwm" = .{
+            .url = "https://github.com/jostrzol/zig-pwm/archive/refs/tags/v0.0.1.tar.gz",
+            .hash = "1220d6780c382f09e63ff4d907abedb2ff866925cc05fc64192cfa4b69fc7bccece8",
+        },
+        .@"i2c-tools" = .{
+            .url = "https://www.kernel.org/pub/software/utils/i2c-tools/i2c-tools-4.4.tar.gz",
+            .hash = "12209c4a6de04324366457f4cf518ad4c9d7f77a8ca55e5aa2e26d02ed5d30764fdd",
+        },
+    },
+}

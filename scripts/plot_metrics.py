@@ -17,7 +17,7 @@ class Language(TypedDict):
 
 ANALYSIS_DIR = Path("./analysis/")
 ARTIFACTS_DIR = Path("./artifacts/")
-EXPERIMENTS = ["1-hello-world", "2-motor-controller"]
+EXPERIMENTS = ["1-hello-world", "2-motor-controller", "3-pid"]
 LANGUAGES: list[Language] = [
     {"name": "C", "slug": "c", "color": "cornflowerblue"},
     {"name": "Zig", "slug": "zig", "color": "orange"},
@@ -101,11 +101,13 @@ class FunctionInfos:
 
     @override
     def __repr__(self) -> str:
-        return "\n".join([
-            "FunctionInfos([",
-            *("  " + repr(info) + "," for info in self.infos),
-            "])",
-        ])
+        return "\n".join(
+            [
+                "FunctionInfos([",
+                *("  " + repr(info) + "," for info in self.infos),
+                "])",
+            ]
+        )
 
     @classmethod
     def from_csv(cls, file: Iterable[str]):
