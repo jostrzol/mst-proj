@@ -15,8 +15,6 @@
 #include "registers.h"
 #include "units.h"
 
-#define NULL_BUFFER_LEN 128
-
 #define PWM_MIN 0.2
 #define PWM_MAX 1.0
 #define LIMIT_MIN_DEADZONE 0.001
@@ -160,10 +158,13 @@ void controller_close(controller_t *self) {
 }
 
 int controller_handle(controller_t *self, int fd) {
-  uint8_t null_buffer[NULL_BUFFER_LEN];
+  uint64_t expirations;
 
   if (fd == self->read_timer_fd) {
-    read(fd, null_buffer, NULL_BUFFER_LEN);
+    if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
+      return EXIT_FAILURE;
+    if (expirations > 1)
+      fprintf(stderr, "Skipped %llu ticks (read loop)!\n", expirations - 1);
 
     const int32_t value = read_potentiometer_value(self->i2c_fd);
     if (value < 0)
@@ -181,7 +182,10 @@ int controller_handle(controller_t *self, int fd) {
 
     return 1;
   } else if (fd == self->io_timer_fd) {
-    read(fd, null_buffer, NULL_BUFFER_LEN);
+    if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
+      return EXIT_FAILURE;
+    if (expirations > 1)
+      fprintf(stderr, "Skipped %llu ticks (io loop)!\n", expirations - 1);
 
     uint32_t sum = 0;
     for (size_t i = 0; i < self->revolutions->length; ++i)

@@ -155,7 +155,7 @@ async fn io_loop(
             let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
 
             let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
-            println!("control_signal_limited: {}", control_signal_limited);
+            println!("control_signal_limited: {:.2}", control_signal_limited);
             state.write_input_registers(.., [frequency, control_signal_limited]);
 
             (control_signal_limited, new_feedback)
