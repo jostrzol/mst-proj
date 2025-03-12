@@ -12,5 +12,9 @@
             .url = "https://www.kernel.org/pub/software/utils/i2c-tools/i2c-tools-4.4.tar.gz",
             .hash = "12209c4a6de04324366457f4cf518ad4c9d7f77a8ca55e5aa2e26d02ed5d30764fdd",
         },
+        .modbus = .{
+            .url = "https://github.com/stephane/libmodbus/releases/download/v3.1.11/libmodbus-3.1.11.tar.gz",
+            .hash = "122042f54e9ba12d9dbedbc2831929e731a1adc72471125e6711c192f04cbacd7680",
+        },
     },
 }
