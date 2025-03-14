@@ -18,8 +18,9 @@ pub fn build(b: *std.Build) !void {
     exe.linkLibC();
     exe.linkLibrary(i2c_tools);
     exe.step.dependOn(modbus.step);
-    exe.addIncludePath(modbus.include);
-    exe.addLibraryPath(modbus.lib);
+    exe.addIncludePath(modbus.includedir);
+    exe.addLibraryPath(modbus.libdir);
+    exe.linkSystemLibrary(modbus.libname);
     exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
 
     b.installArtifact(exe);
@@ -54,8 +55,9 @@ fn make_i2c_tools(b: *std.Build, opts: MakeOpts) !*std.Build.Step.Compile {
 
 fn make_modbus(b: *std.Build, opts: MakeOpts) !struct {
     step: *std.Build.Step,
-    include: std.Build.LazyPath,
-    lib: std.Build.LazyPath,
+    includedir: std.Build.LazyPath,
+    libname: []const u8,
+    libdir: std.Build.LazyPath,
 } {
     const src = b.dependency("modbus", .{}).path("libmodbus-3.1.11");
 
@@ -80,7 +82,8 @@ fn make_modbus(b: *std.Build, opts: MakeOpts) !struct {
 
     return .{
         .step = &make.step,
-        .include = write.getDirectory().path(b, "build/include"),
-        .lib = write.getDirectory().path(b, "build/lib/libmodbus.so"),
+        .includedir = write.getDirectory().path(b, "build/include/modbus"),
+        .libname = "modbus",
+        .libdir = write.getDirectory().path(b, "build/lib"),
     };
 }
