@@ -5,7 +5,6 @@
 
 typedef struct {
   int n_connections;
-
 } server_options_t;
 
 typedef struct {
