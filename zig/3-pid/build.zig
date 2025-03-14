@@ -1,18 +1,11 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
-    var arena = std.heap.ArenaAllocator.init(b.allocator);
-    defer arena.deinit();
-
-    const alloc = arena.allocator();
-
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
     const i2c_tools = b.dependency("i2c-tools", .{ .target = target, .optimize = optimize });
-    const modbus = b.dependency("modbus", .{ .target = target, .optimize = optimize })
-        .path("libmodbus-3.1.11");
 
     const i2c_tools_lib = b.addSharedLibrary(.{
         .name = "i2c",
@@ -27,22 +20,7 @@ pub fn build(b: *std.Build) !void {
     i2c_tools_lib.addCSourceFile(.{ .file = i2c_tools.path("lib/smbus.c") });
     i2c_tools_lib.linkLibC();
 
-    const write = b.addWriteFiles();
-    _ = write.addCopyDirectory(modbus, "", .{});
-
-    const configure = b.addSystemCommand(&[_][]const u8{"./configure"});
-    configure.stdio = .{ .check = .{} };
-    configure.addFileInput(write.getDirectory().path(b, "src/modbus-version.h"));
-    const triple = try target.query.zigTriple(alloc);
-    const hostArg = try std.fmt.allocPrint(alloc, "--host={s}", .{triple});
-    configure.addArg(hostArg);
-    configure.addPrefixedDirectoryArg("--prefix=", write.getDirectory().path(b, "build"));
-    configure.setCwd(write.getDirectory());
-    configure.step.dependOn(&write.step);
-
-    const make = b.addSystemCommand(&[_][]const u8{ "make", "install" });
-    make.setCwd(write.getDirectory());
-    make.step.dependOn(&configure.step);
+    const modbus = try make_modbus(b, .{ .target = target });
 
     const exe = b.addExecutable(.{
         .name = "3-pid-zig",
@@ -52,13 +30,47 @@ pub fn build(b: *std.Build) !void {
     });
     exe.linkLibC();
     exe.linkLibrary(i2c_tools_lib);
-    exe.step.dependOn(&make.step);
-    exe.addIncludePath(write.getDirectory().path(b, "build/include"));
-    exe.addLibraryPath(write.getDirectory().path(b, "build/lib/libmodbus.so"));
+    exe.step.dependOn(modbus.step);
+    exe.addIncludePath(modbus.include);
+    exe.addLibraryPath(modbus.lib);
     exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
 
     b.installArtifact(exe);
 
     const check_step = b.step("check", "Check the application");
     check_step.dependOn(&exe.step);
+}
+
+fn make_modbus(b: *std.Build, opts: struct { target: std.Build.ResolvedTarget }) !struct {
+    step: *std.Build.Step,
+    include: std.Build.LazyPath,
+    lib: std.Build.LazyPath,
+} {
+    const src = b.dependency("modbus", .{ .target = opts.target })
+        .path("libmodbus-3.1.11");
+
+    const write = b.addWriteFiles();
+    _ = write.addCopyDirectory(src, "", .{});
+
+    const configure = b.addSystemCommand(&[_][]const u8{"./configure"});
+    configure.stdio = .{ .check = .{} };
+    configure.addFileInput(write.getDirectory().path(b, "src/modbus-version.h"));
+    const triple = try opts.target.query.zigTriple(b.allocator);
+    defer b.allocator.free(triple);
+    const hostArg = try std.fmt.allocPrint(b.allocator, "--host={s}", .{triple});
+    defer b.allocator.free(hostArg);
+    configure.addArg(hostArg);
+    configure.addPrefixedDirectoryArg("--prefix=", write.getDirectory().path(b, "build"));
+    configure.setCwd(write.getDirectory());
+    configure.step.dependOn(&write.step);
+
+    const make = b.addSystemCommand(&[_][]const u8{ "make", "install" });
+    make.setCwd(write.getDirectory());
+    make.step.dependOn(&configure.step);
+
+    return .{
+        .step = &make.step,
+        .include = write.getDirectory().path(b, "build/include"),
+        .lib = write.getDirectory().path(b, "build/lib/libmodbus.so"),
+    };
 }

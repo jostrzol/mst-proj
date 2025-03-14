@@ -6,6 +6,7 @@ const c = @cImport({
     @cInclude("linux/i2c-dev.h");
     @cInclude("i2c/smbus.h");
     @cInclude("sys/ioctl.h");
+    @cInclude("modbus/modbus.h");
 });
 
 const i2c_adapter_number = 1;
