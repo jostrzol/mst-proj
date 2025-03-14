@@ -5,22 +5,9 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
 
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
-    const i2c_tools = b.dependency("i2c-tools", .{ .target = target, .optimize = optimize });
 
-    const i2c_tools_lib = b.addSharedLibrary(.{
-        .name = "i2c",
-        .version = .{ .major = 0, .minor = 1, .patch = 1 },
-        .pic = true,
-        .target = target,
-        .optimize = optimize,
-    });
-    i2c_tools_lib.bundle_compiler_rt = false;
-    i2c_tools_lib.addIncludePath(i2c_tools.path("include"));
-    i2c_tools_lib.installHeadersDirectory(i2c_tools.path("include"), "", .{});
-    i2c_tools_lib.addCSourceFile(.{ .file = i2c_tools.path("lib/smbus.c") });
-    i2c_tools_lib.linkLibC();
-
-    const modbus = try make_modbus(b, .{ .target = target });
+    const i2c_tools = try make_i2c_tools(b, .{ .target = target, .optimize = optimize });
+    const modbus = try make_modbus(b, .{ .target = target, .optimize = optimize });
 
     const exe = b.addExecutable(.{
         .name = "3-pid-zig",
@@ -29,7 +16,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     exe.linkLibC();
-    exe.linkLibrary(i2c_tools_lib);
+    exe.linkLibrary(i2c_tools);
     exe.step.dependOn(modbus.step);
     exe.addIncludePath(modbus.include);
     exe.addLibraryPath(modbus.lib);
@@ -41,13 +28,36 @@ pub fn build(b: *std.Build) !void {
     check_step.dependOn(&exe.step);
 }
 
-fn make_modbus(b: *std.Build, opts: struct { target: std.Build.ResolvedTarget }) !struct {
+const MakeOpts = struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode = .Debug,
+};
+
+fn make_i2c_tools(b: *std.Build, opts: MakeOpts) !*std.Build.Step.Compile {
+    const src = b.dependency("i2c-tools", .{});
+
+    const lib = b.addSharedLibrary(.{
+        .name = "i2c",
+        .version = .{ .major = 0, .minor = 1, .patch = 1 },
+        .pic = true,
+        .target = opts.target,
+        .optimize = opts.optimize,
+    });
+    lib.bundle_compiler_rt = false;
+    lib.addIncludePath(src.path("include"));
+    lib.installHeadersDirectory(src.path("include"), "", .{});
+    lib.addCSourceFile(.{ .file = src.path("lib/smbus.c") });
+    lib.linkLibC();
+
+    return lib;
+}
+
+fn make_modbus(b: *std.Build, opts: MakeOpts) !struct {
     step: *std.Build.Step,
     include: std.Build.LazyPath,
     lib: std.Build.LazyPath,
 } {
-    const src = b.dependency("modbus", .{ .target = opts.target })
-        .path("libmodbus-3.1.11");
+    const src = b.dependency("modbus", .{}).path("libmodbus-3.1.11");
 
     const write = b.addWriteFiles();
     _ = write.addCopyDirectory(src, "", .{});
