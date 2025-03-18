@@ -1,12 +1,15 @@
 const std = @import("std");
 const pwm = @import("pwm");
 
+const Server = @import("Server.zig");
+const Registers = @import("Registers.zig");
+
 const c = @cImport({
     @cInclude("signal.h");
     @cInclude("linux/i2c-dev.h");
     @cInclude("i2c/smbus.h");
     @cInclude("sys/ioctl.h");
-    @cInclude("modbus/modbus.h");
+    @cInclude("modbus.h");
 });
 
 const i2c_adapter_number = 1;
@@ -60,6 +63,9 @@ pub fn main() !void {
         return error.SigactionNotSet;
     }
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
     var chip = try pwm.Chip.init(0);
     defer chip.deinit();
 
@@ -83,6 +89,16 @@ pub fn main() !void {
         .duty_cycle_ratio = 0,
     });
     try channel.enable();
+
+    var registers = try Registers.init();
+    defer registers.deinit();
+
+    var server = try Server.init(
+        allocator,
+        &registers,
+        .{ .n_connections_max = 5 },
+    );
+    defer server.deinit();
 
     while (do_continue) {
         std.time.sleep(sleep_time_ns);
