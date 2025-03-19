@@ -126,13 +126,13 @@ fn make_read_command(comptime channel: u8) u8 {
 
 fn read_potentiometer_value(i2c_file: std.fs.File) ?u8 {
     if (c.i2c_smbus_write_byte(i2c_file.handle, make_read_command(0)) < 0) {
-        std.log.err("writing i2c ADC command failed\n", .{});
+        std.log.err("writing i2c ADC command failed", .{});
         return null;
     }
 
     const value = c.i2c_smbus_read_byte(i2c_file.handle);
     if (value < 0) {
-        std.log.err("reading i2c ADC value failed\n", .{});
+        std.log.err("reading i2c ADC value failed", .{});
         return null;
     }
 

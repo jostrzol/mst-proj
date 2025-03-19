@@ -67,11 +67,15 @@ pub fn deinit(self: *Self) void {
 
 pub const HandleResult = union(enum) {
     accepted: File,
-    handled: void,
+    received: void,
+    closed: void,
     skipped: void,
 };
 
-pub const HandleError = error{ Accept, Receive } || Allocator.Error;
+pub const HandleError = error{
+    Accept,
+    Receive,
+} || Allocator.Error;
 
 pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
     if (fd == self.socket.handle) {
@@ -87,25 +91,30 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         const connection = try self.connections.addOne();
         connection.* = File{ .handle = connection_fd };
 
-        std.log.info("New connection from {s}:{} on socket {}\n", .{
-            c.inet_ntoa(client_address.sin_addr), client_address.sin_port,
+        std.log.info("New connection from {s}:{} on socket {}", .{
+            c.inet_ntoa(client_address.sin_addr),
+            client_address.sin_port,
             connection_fd,
         });
 
         return .{ .accepted = connection.* };
     } else {
         // Handle modbus request
+        errdefer self.close_connection(fd);
+
         if (c.modbus_set_socket(self.ctx, fd) != 0)
             return HandleError.Receive;
 
         var query = std.mem.zeroes([c.MODBUS_TCP_MAX_ADU_LENGTH]u8);
         const received = c.modbus_receive(self.ctx, &query);
         if (received == -1) {
-            self.close_connection(fd);
-            return HandleError.Receive;
-        } else if (received == 0) {
-            return .{ .handled = {} };
+            return switch (std.posix.errno(received)) {
+                .CONNRESET => return .{ .closed = {} },
+                else => HandleError.Receive,
+            };
         }
+        if (received == 0)
+            return .{ .received = {} };
 
         const res = c.modbus_reply(
             self.ctx,
@@ -115,7 +124,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         );
         if (res < 0) return HandleError.Receive;
 
-        return .{ .handled = {} };
+        return .{ .received = {} };
     }
 
     return .{ .skipped = {} };

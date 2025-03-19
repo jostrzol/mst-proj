@@ -75,7 +75,7 @@ pub fn main() !void {
 
     while (do_continue) {
         const n_polled = posix.poll(poll_fds.slice(), 1000) catch |err| {
-            std.log.err("Polling: {}\n", .{err});
+            std.log.err("Polling: {}", .{err});
             continue;
         };
         if (n_polled == 0)
@@ -84,15 +84,15 @@ pub fn main() !void {
         for (poll_fds.slice()) |*poll_fd| {
             const fd = poll_fd.fd;
 
+            if (poll_fd.revents & POLL.ERR != 0)
+                std.log.err("File (socket?) closed unexpectedly", .{});
+            if (poll_fd.revents & POLL.NVAL != 0)
+                std.log.err("File (socket?) not open", .{});
+
             if (poll_fd.revents & (POLL.ERR | POLL.HUP) != 0) {
                 poll_fd.fd = -fd; // mark for removal
                 server.close_connection(fd);
-            }
-            if (poll_fd.revents & POLL.ERR != 0)
-                std.log.err("File (socket?) closed unexpectedly\n", .{});
-            if (poll_fd.revents & POLL.NVAL != 0)
-                std.log.err("File (socket?) not open\n", .{});
-            if (poll_fd.revents & POLL.IN != 0) {
+            } else if (poll_fd.revents & POLL.IN != 0) {
                 // res = controller_handle(&controller, fd);
                 // if (res < 0)
                 // perror("Failed to handle controller timer activation");
@@ -100,9 +100,7 @@ pub fn main() !void {
                 // continue; // Handled -- either error or success
                 //
                 const res = server.handle(fd) catch |err| {
-                    std.log.err("Failed to handle connection: {}\n", .{err});
-                    if (err == error.Receive)
-                        poll_fd.fd = -fd; // mark for removal
+                    std.log.err("Failed to handle connection: {}", .{err});
                     continue;
                 };
 
@@ -111,6 +109,7 @@ pub fn main() !void {
                         const new_pollfd = poll_fds.addOneAssumeCapacity();
                         new_pollfd.* = pollfd_init(file.handle);
                     },
+                    .closed => poll_fd.fd = -fd, // mark for removal
                     else => {},
                 }
             }
@@ -119,9 +118,10 @@ pub fn main() !void {
         // Remove marked connections
         var i: u32 = 0;
         while (i < poll_fds.len) {
-            if (poll_fds.get(i).fd < 0) {
-                const last_fd = poll_fds.pop();
-                if (i < poll_fds.len) poll_fds.set(i, last_fd);
+            const poll_fd = &poll_fds.slice()[i];
+            if (poll_fd.fd < 0) {
+                std.log.info("Closing connection on socket {}", .{-poll_fd.fd});
+                poll_fd.* = poll_fds.pop();
             } else i += 1;
         }
 
