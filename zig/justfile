@@ -1,4 +1,5 @@
-release := "fast"
+release := ""
+#release := "fast"
 
 arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
@@ -31,6 +32,10 @@ _watch PROJECT:
 
 _build PROJECT:
   cd {{PROJECT}} \
-  && zig build -Dtarget={{arch}} -Dcpu={{cpu}} {{ if release != "" {"--release="+release} else {""} }} \
+  && zig build \
+    -Dtarget={{arch}} \
+    -Dcpu={{cpu}} \
+    {{ if release != "" {"--release="+release} else {""} }} \
+    -freference-trace \
   && cp ./zig-out/bin/* ../../artifacts/
 

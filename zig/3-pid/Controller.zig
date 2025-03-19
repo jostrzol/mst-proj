@@ -1,6 +1,7 @@
 const std = @import("std");
 const posix = std.posix;
 const File = std.fs.File;
+const Allocator = std.mem.Allocator;
 
 const Registers = @import("Registers.zig");
 const pwm = @import("pwm");
@@ -17,10 +18,11 @@ const c = @cImport({
 
 const Self = @This();
 
+allocator: Allocator,
 options: Options,
 registers: *Registers,
 i2c_file: File,
-pwm_chip: pwm.Chip,
+pwm_chip: *pwm.Chip,
 pwm_channel: *pwm.Channel,
 
 pub const Options = struct {
@@ -67,7 +69,11 @@ pub const Options = struct {
     pwm_frequency: u64,
 };
 
-pub fn init(registers: *Registers, options: Options) !Self {
+pub fn init(
+    allocator: Allocator,
+    registers: *Registers,
+    options: Options,
+) !Self {
     const i2c_file = try std.fs.openFileAbsolute(
         options.i2c_adapter_path,
         std.fs.File.OpenFlags{ .mode = .read_write },
@@ -78,7 +84,10 @@ pub fn init(registers: *Registers, options: Options) !Self {
         return error.SettingI2cSlave;
     }
 
-    var chip = try pwm.Chip.init(0);
+    var chip = try allocator.create(pwm.Chip);
+    errdefer allocator.destroy(chip);
+
+    chip.* = try pwm.Chip.init(0);
     errdefer chip.deinit();
 
     var channel = try chip.channel(options.pwm_channel);
@@ -91,6 +100,7 @@ pub fn init(registers: *Registers, options: Options) !Self {
     try channel.enable();
 
     return .{
+        .allocator = allocator,
         .options = options,
         .registers = registers,
         .i2c_file = i2c_file,
@@ -100,9 +110,10 @@ pub fn init(registers: *Registers, options: Options) !Self {
 }
 
 pub fn deinit(self: *Self) void {
-    self.i2c_file.close();
     self.pwm_channel.deinit();
     self.pwm_chip.deinit();
+    self.allocator.destroy(self.pwm_chip);
+    self.i2c_file.close();
 }
 
 fn make_read_command(comptime channel: u8) u8 {

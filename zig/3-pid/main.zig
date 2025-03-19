@@ -53,16 +53,16 @@ pub fn main() !void {
     }
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    const alloc = gpa.allocator();
 
     var registers = try Registers.init();
     defer registers.deinit();
 
-    var controller = try Controller.init(&registers, controller_options);
+    var controller = try Controller.init(alloc, &registers, controller_options);
     defer controller.deinit();
 
     var server = try Server.init(
-        allocator,
+        alloc,
         &registers,
         .{ .n_connections_max = 5 },
     );
@@ -120,10 +120,10 @@ pub fn main() !void {
         // Remove marked connections
         var i: u32 = 0;
         while (i < poll_fds.len) {
-            if (poll_fds.get(i).fd < 0)
-                poll_fds.set(i, poll_fds.pop())
-            else
-                i += 1;
+            if (poll_fds.get(i).fd < 0) {
+                const last_fd = poll_fds.pop();
+                if (i < poll_fds.len) poll_fds.set(i, last_fd);
+            } else i += 1;
         }
 
         // std.time.sleep(sleep_time_ns);

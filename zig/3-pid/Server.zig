@@ -92,7 +92,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         const connection = try self.connections.addOne();
         connection.* = File{ .handle = connection_fd };
 
-        std.log.info("New connection from {}:{} on socket {}\n", .{
+        std.log.info("New connection from {s}:{} on socket {}\n", .{
             c.inet_ntoa(client_address.sin_addr), client_address.sin_port,
             connection_fd,
         });
@@ -118,7 +118,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
             received,
             @ptrCast(self.registers.raw),
         );
-        if (res != 0) return HandleError.Receive;
+        if (res < 0) return HandleError.Receive;
 
         return .{ .handled = {} };
     }
