@@ -56,20 +56,19 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
     memset(&client_address, 0, sizeof(client_address));
     int connection_fd =
         accept(fd, (struct sockaddr *)&client_address, &addr_length);
-    if (connection_fd == -1) {
+    if (connection_fd == -1)
       return EXIT_FAILURE;
-    } else {
-      size_t i = self->n_connections_active++;
-      self->connection_fds[i] = connection_fd;
 
-      result->new_connection_fd = connection_fd;
+    size_t i = self->n_connections_active++;
+    self->connection_fds[i] = connection_fd;
 
-      printf(
-          "New connection from %s:%d on socket %d\n",
-          inet_ntoa(client_address.sin_addr), client_address.sin_port,
-          connection_fd
-      );
-    }
+    result->new_connection_fd = connection_fd;
+
+    printf(
+        "New connection from %s:%d on socket %d\n",
+        inet_ntoa(client_address.sin_addr), client_address.sin_port,
+        connection_fd
+    );
   } else {
     // Handle modbus request
     modbus_set_socket(self->ctx, fd);
