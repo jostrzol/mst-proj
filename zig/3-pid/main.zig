@@ -6,12 +6,10 @@ const pwm = @import("pwm");
 
 const Server = @import("Server.zig");
 const Registers = @import("Registers.zig");
+const Controller = @import("Controller.zig");
 
 const c = @cImport({
     @cInclude("signal.h");
-    @cInclude("linux/i2c-dev.h");
-    @cInclude("i2c/smbus.h");
-    @cInclude("sys/ioctl.h");
     @cInclude("string.h");
 });
 
@@ -23,8 +21,20 @@ const ads7830_address: c_int = 0x48;
 const motor_pwm_channel: u8 = 1; // gpio 13
 
 const pwm_frequency: f32 = 1000;
-const refresh_rate: u64 = 60;
-const sleep_time_ns: u64 = std.time.ns_per_ms / refresh_rate;
+const read_rate: u64 = 60;
+const read_interval_us: u64 = std.time.us_per_s / read_rate;
+
+const controller_options: Controller.Options = .{
+    .i2c_adapter_path = i2c_adapter_path,
+    .i2c_address = ads7830_address,
+    .read_interval_us = read_interval_us,
+    .revolution_treshold_close = 105,
+    .revolution_treshold_far = 118,
+    .revolution_bins = 10,
+    .revolution_bin_rotate_interval_us = 100 * std.time.us_per_ms,
+    .pwm_channel = motor_pwm_channel,
+    .pwm_frequency = 1000,
+};
 
 var do_continue = true;
 pub fn interrupt_handler(_: c_int) callconv(.C) void {
@@ -64,6 +74,8 @@ fn read_potentiometer_value(i2c_file: std.fs.File) ?u8 {
 }
 
 pub fn main() !void {
+    std.debug.print("Controlling motor from Zig.\n", .{});
+
     if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0) {
         return error.SigactionNotSet;
     }
@@ -71,32 +83,11 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
-    var chip = try pwm.Chip.init(0);
-    defer chip.deinit();
-
-    const i2c_file = try std.fs.openFileAbsolute(
-        i2c_adapter_path,
-        std.fs.File.OpenFlags{ .mode = .read_write },
-    );
-    defer i2c_file.close();
-
-    if (c.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0) {
-        return error.SettingI2cSlave;
-    }
-
-    std.debug.print("Controlling motor from Zig.\n", .{});
-
-    var channel = try chip.channel(motor_pwm_channel);
-    defer channel.deinit();
-
-    try channel.setParameters(.{
-        .frequency = pwm_frequency,
-        .duty_cycle_ratio = 0,
-    });
-    try channel.enable();
-
     var registers = try Registers.init();
     defer registers.deinit();
+
+    var controller = try Controller.init(&registers, controller_options);
+    defer controller.deinit();
 
     var server = try Server.init(
         allocator,
