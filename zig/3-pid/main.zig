@@ -10,7 +10,6 @@ const Controller = @import("Controller.zig");
 
 const c = @cImport({
     @cInclude("signal.h");
-    @cInclude("string.h");
 });
 
 const n_connections_max = 5;

@@ -9,11 +9,6 @@ const Registers = @import("Registers.zig");
 const c = @cImport({
     @cInclude("modbus.h");
     @cInclude("arpa/inet.h");
-    @cInclude("memory.h");
-    @cInclude("netinet/in.h");
-    @cInclude("stdio.h");
-    @cInclude("stdlib.h");
-    @cInclude("unistd.h");
 });
 
 const Self = @This();

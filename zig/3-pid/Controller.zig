@@ -7,13 +7,8 @@ const Registers = @import("Registers.zig");
 const pwm = @import("pwm");
 
 const c = @cImport({
-    @cInclude("memory.h");
-    @cInclude("stdio.h");
-    @cInclude("stdlib.h");
     @cInclude("sys/ioctl.h");
-    @cInclude("i2c/smbus.h");
     @cInclude("linux/i2c-dev.h");
-    @cInclude("unistd.h");
 });
 
 const Self = @This();
