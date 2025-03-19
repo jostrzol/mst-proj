@@ -1,5 +1,8 @@
 const std = @import("std");
 const posix = std.posix;
+const File = std.fs.File;
+const ArrayList = std.ArrayList;
+const Allocator = std.mem.Allocator;
 
 const Registers = @import("Registers.zig");
 
@@ -17,16 +20,16 @@ const Self = @This();
 
 ctx: *c.modbus_t,
 registers: *Registers,
-socket: std.fs.File,
-connections: std.ArrayList(std.fs.File),
+socket: File,
+connections: ArrayList(File),
 
 const InitError = error{
     ModbusSocketOpen,
     ModbusSocketListen,
-} || std.mem.Allocator.Error;
+} || Allocator.Error;
 
 pub fn init(
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
     registers: *Registers,
     args: struct {
         address: [*:0]const u8 = "0.0.0.0",
@@ -43,10 +46,10 @@ pub fn init(
     const socket_fd = c.modbus_tcp_listen(ctx, 5);
     if (socket_fd == -1)
         return InitError.ModbusSocketListen;
-    const socket = std.fs.File{ .handle = socket_fd };
+    const socket = File{ .handle = socket_fd };
     errdefer socket.close();
 
-    const connections = try std.ArrayList(std.fs.File)
+    const connections = try ArrayList(File)
         .initCapacity(allocator, args.n_connections_max);
     errdefer connections.deinit(allocator);
 
@@ -68,12 +71,12 @@ pub fn deinit(self: *Self) void {
 }
 
 pub const HandleResult = union(enum) {
-    accepted: std.fs.File,
+    accepted: File,
     handled: void,
     skipped: void,
 };
 
-pub const HandleError = error{ Accept, Receive } || std.mem.Allocator.Error;
+pub const HandleError = error{ Accept, Receive } || Allocator.Error;
 
 pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
     if (fd == self.socket.handle) {
@@ -87,7 +90,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
             return HandleError.Accept;
 
         const connection = try self.connections.addOne();
-        connection.* = std.fs.File{ .handle = connection_fd };
+        connection.* = File{ .handle = connection_fd };
 
         std.log.info("New connection from {}:{} on socket {}\n", .{
             c.inet_ntoa(client_address.sin_addr), client_address.sin_port,
