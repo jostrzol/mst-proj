@@ -45,34 +45,6 @@ const interrupt_sigaction = c.struct_sigaction{
     .__sigaction_handler = .{ .sa_handler = &interrupt_handler },
 };
 
-fn make_read_command(comptime channel: u8) u8 {
-    comptime std.debug.assert(channel < 7);
-
-    // bit    7: single-ended inputs mode
-    // bits 6-4: channel selection
-    // bit    3: is internal reference enabled
-    // bit    2: is converter enabled
-    // bits 1-0: unused
-    const default_read_command = 0b10001100;
-
-    return default_read_command & (channel << 4);
-}
-
-fn read_potentiometer_value(i2c_file: std.fs.File) ?u8 {
-    if (c.i2c_smbus_write_byte(i2c_file.handle, make_read_command(0)) < 0) {
-        std.log.err("writing i2c ADC command failed\n", .{});
-        return null;
-    }
-
-    const value = c.i2c_smbus_read_byte(i2c_file.handle);
-    if (value < 0) {
-        std.log.err("reading i2c ADC value failed\n", .{});
-        return null;
-    }
-
-    return @intCast(value);
-}
-
 pub fn main() !void {
     std.debug.print("Controlling motor from Zig.\n", .{});
 
