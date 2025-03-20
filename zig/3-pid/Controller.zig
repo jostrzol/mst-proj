@@ -10,6 +10,7 @@ const pwm = @import("pwm");
 const c = @cImport({
     @cInclude("sys/ioctl.h");
     @cInclude("linux/i2c-dev.h");
+    @cInclude("i2c/smbus.h");
 });
 
 const Self = @This();
@@ -21,6 +22,9 @@ i2c_file: File,
 pwm_chip: *pwm.Chip,
 pwm_channel: *pwm.Channel,
 read_timer: File,
+io_timer: File,
+revolutions: u32 = 0,
+is_close: bool = false,
 
 pub const Options = struct {
     /// Path to I2C adapter that the ADC device is connected to.
@@ -90,18 +94,25 @@ pub fn init(
     var channel = try chip.channel(options.pwm_channel);
     errdefer channel.deinit();
 
-    try channel.setParameters(.{
-        .frequency = options.pwm_frequency,
-        .duty_cycle_ratio = 0,
-    });
-    try channel.enable();
-
     const read_timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
     const read_timer = File{ .handle = read_timer_fd };
     errdefer read_timer.close();
 
     const read_timerspec = timerspec_from_us(options.read_interval_us);
     try posix.timerfd_settime(read_timer_fd, .{}, &read_timerspec, null);
+
+    const io_timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
+    const io_timer = File{ .handle = io_timer_fd };
+    errdefer io_timer.close();
+
+    const io_timerspec = timerspec_from_us(options.revolution_bin_rotate_interval_us);
+    try posix.timerfd_settime(io_timer_fd, .{}, &io_timerspec, null);
+
+    try channel.setParameters(.{
+        .frequency = options.pwm_frequency,
+        .duty_cycle_ratio = 0.3,
+    });
+    try channel.enable();
 
     return .{
         .allocator = allocator,
@@ -111,10 +122,12 @@ pub fn init(
         .pwm_chip = chip,
         .pwm_channel = channel,
         .read_timer = read_timer,
+        .io_timer = io_timer,
     };
 }
 
 pub fn deinit(self: *Self) void {
+    self.io_timer.close();
     self.read_timer.close();
     self.pwm_channel.deinit();
     self.pwm_chip.deinit();
@@ -123,9 +136,11 @@ pub fn deinit(self: *Self) void {
 }
 
 fn timerspec_from_us(interval_us: u64) linux.itimerspec {
+    const s = interval_us / std.time.us_per_s;
+    const ns = (interval_us * std.time.ns_per_us) % std.time.ns_per_s;
     const timespec = linux.timespec{
-        .tv_sec = @truncate(@as(i64, @bitCast(interval_us / std.time.us_per_s))),
-        .tv_nsec = @truncate(@as(i64, @bitCast(interval_us % std.time.us_per_s))),
+        .tv_sec = @truncate(@as(i64, @bitCast(s))),
+        .tv_nsec = @truncate(@as(i64, @bitCast(ns))),
     };
     return .{
         .it_interval = timespec,
@@ -134,13 +149,51 @@ fn timerspec_from_us(interval_us: u64) linux.itimerspec {
 }
 
 pub const HandleResult = enum { handled, skipped };
+pub const HandleError = error{I2cRead} || std.posix.ReadError;
 
-pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
+pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
     if (fd == self.read_timer.handle) {
+        var expirations: u64 = undefined;
+        _ = try self.read_timer.readAll(std.mem.asBytes(&expirations));
+
+        const value = read_potentiometer_value(self) orelse return HandleError.I2cRead;
+
+        switch (self.hystheresis(value)) {
+            .below => if (!self.is_close) {
+                // gone close
+                self.is_close = true;
+                self.revolutions += 1;
+            },
+            .between => {},
+            .above => if (self.is_close) {
+                // gone far
+                self.is_close = false;
+            },
+        }
+
+        return .handled;
+    } else if (fd == self.io_timer.handle) {
+        var expirations: u64 = undefined;
+        _ = try self.io_timer.readAll(std.mem.asBytes(&expirations));
+
+        std.log.info("revolutions: {}", .{self.revolutions});
+        self.revolutions = 0;
+
         return .handled;
     }
 
     return .skipped;
+}
+
+fn read_potentiometer_value(self: *Self) ?u8 {
+    if (c.i2c_smbus_write_byte(self.i2c_file.handle, make_read_command(0)) < 0)
+        return null;
+
+    const value = c.i2c_smbus_read_byte(self.i2c_file.handle);
+    if (value < 0)
+        return null;
+
+    return @intCast(value);
 }
 
 fn make_read_command(comptime channel: u8) u8 {
@@ -156,17 +209,10 @@ fn make_read_command(comptime channel: u8) u8 {
     return default_read_command & (channel << 4);
 }
 
-fn read_potentiometer_value(i2c_file: std.fs.File) ?u8 {
-    if (c.i2c_smbus_write_byte(i2c_file.handle, make_read_command(0)) < 0) {
-        std.log.err("writing i2c ADC command failed", .{});
-        return null;
-    }
+pub const Hysteresis = enum { below, between, above };
 
-    const value = c.i2c_smbus_read_byte(i2c_file.handle);
-    if (value < 0) {
-        std.log.err("reading i2c ADC value failed", .{});
-        return null;
-    }
-
-    return @intCast(value);
+fn hystheresis(self: *Self, value: u8) Hysteresis {
+    if (value < self.options.revolution_treshold_close) return .below;
+    if (value > self.options.revolution_treshold_far) return .above;
+    return .between;
 }

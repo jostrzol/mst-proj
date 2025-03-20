@@ -22,7 +22,7 @@ const ads7830_address: c_int = 0x48;
 const motor_pwm_channel: u8 = 1; // gpio 13
 
 const pwm_frequency: f32 = 1000;
-const read_rate: u64 = 60;
+const read_rate: u64 = 1000;
 const read_interval_us: u64 = std.time.us_per_s / read_rate;
 
 const controller_options: Controller.Options = .{
@@ -74,7 +74,7 @@ pub fn main() !void {
     initial_fds.* = .{
         pollfd_init(server.socket.handle),
         pollfd_init(controller.read_timer.handle),
-        pollfd_init(-1),
+        pollfd_init(controller.io_timer.handle),
     };
 
     while (do_continue) {

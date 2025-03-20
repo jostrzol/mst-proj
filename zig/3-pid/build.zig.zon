@@ -5,8 +5,8 @@
 
     .dependencies = .{
         .@"zig-pwm" = .{
-            .url = "https://github.com/jostrzol/zig-pwm/archive/refs/tags/v0.0.1.tar.gz",
-            .hash = "1220d6780c382f09e63ff4d907abedb2ff866925cc05fc64192cfa4b69fc7bccece8",
+            .url = "https://github.com/jostrzol/zig-pwm/archive/refs/tags/v0.0.2.tar.gz",
+            .hash = "1220b1bd0a93ff101dbf41dde343efe15b8f4d7a3e6c1e6d738b9388c5cd996e7b3e",
         },
         .@"i2c-tools" = .{
             .url = "https://www.kernel.org/pub/software/utils/i2c-tools/i2c-tools-4.4.tar.gz",
