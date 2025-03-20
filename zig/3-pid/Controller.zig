@@ -5,6 +5,7 @@ const File = std.fs.File;
 const Allocator = std.mem.Allocator;
 
 const Registers = @import("Registers.zig");
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const pwm = @import("pwm");
 
 const c = @cImport({
@@ -17,13 +18,13 @@ const Self = @This();
 
 allocator: Allocator,
 options: Options,
+revolutions: RingBuffer(u32),
 registers: *Registers,
 i2c_file: File,
 pwm_chip: *pwm.Chip,
 pwm_channel: *pwm.Channel,
 read_timer: File,
-io_timer: File,
-revolutions: u32 = 0,
+control_timer: File,
 is_close: bool = false,
 
 pub const Options = struct {
@@ -45,25 +46,22 @@ pub const Options = struct {
     ///
     /// [revolution_bins] is the number of bins in the ring buffer.
     revolution_bins: u32,
-    /// Revolutions are binned in a ring buffer based on when they happened.
-    /// More recent revolutions are in the tail of the buffer, while old ones
-    /// are in the head of the buffer (soon to be replaced).
+    /// [control_interval_us] is the interval at which all the following happens:
+    /// * calculating the frequency for the current time window,
+    /// * updating duty cycle,
+    /// * updating duty cycle.
     ///
-    /// [revolution_bin_rotate_interval] is the interval that each of the bins
-    /// correspond to.
+    /// [control_interval_us] also is the interval that each of the bins in the
+    /// time window correspond to.
     ///
-    /// If `revolution_bin_rotate_interval = Duration::from_millis(100)`, then:
+    /// If `control_interval_us = 100 * std.time.us_per_ms`, then:
     /// * the last bin corresponds to range `0..-100 ms` from now,
     /// * the second-to-last bin corresponds to range `-100..-200 ms` from now,
     /// * and so on.
     ///
-    /// In total, frequency will be counted from revolutions in all bins, across
-    /// the total interval of [revolution_bins] *
-    /// [revolution_bin_rotate_interval].
-    ///
-    /// [revolution_bin_rotate_interval] is also the interval at which the
-    /// measured frequency updates, so all the IO happens at this interval too.
-    revolution_bin_rotate_interval_us: u64,
+    /// In total, frequency is counted from revolutions in all bins, across the
+    /// total interval of [revolution_bins] * [control_interval_us].
+    control_interval_us: u64,
     /// Linux PWM channel to use.
     pwm_channel: u8,
     /// Frequency of the PWM signal.
@@ -75,6 +73,9 @@ pub fn init(
     registers: *Registers,
     options: Options,
 ) !Self {
+    var revolutions = try RingBuffer(u32).init(allocator, options.revolution_bins);
+    errdefer revolutions.deinit(allocator);
+
     const i2c_file = try std.fs.openFileAbsolute(
         options.i2c_adapter_path,
         std.fs.File.OpenFlags{ .mode = .read_write },
@@ -101,12 +102,12 @@ pub fn init(
     const read_timerspec = timerspec_from_us(options.read_interval_us);
     try posix.timerfd_settime(read_timer_fd, .{}, &read_timerspec, null);
 
-    const io_timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
-    const io_timer = File{ .handle = io_timer_fd };
-    errdefer io_timer.close();
+    const control_timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
+    const control_timer = File{ .handle = control_timer_fd };
+    errdefer control_timer.close();
 
-    const io_timerspec = timerspec_from_us(options.revolution_bin_rotate_interval_us);
-    try posix.timerfd_settime(io_timer_fd, .{}, &io_timerspec, null);
+    const control_timerspec = timerspec_from_us(options.control_interval_us);
+    try posix.timerfd_settime(control_timer_fd, .{}, &control_timerspec, null);
 
     try channel.setParameters(.{
         .frequency = options.pwm_frequency,
@@ -116,18 +117,20 @@ pub fn init(
 
     return .{
         .allocator = allocator,
+        .revolutions = revolutions,
         .options = options,
         .registers = registers,
         .i2c_file = i2c_file,
         .pwm_chip = chip,
         .pwm_channel = channel,
         .read_timer = read_timer,
-        .io_timer = io_timer,
+        .control_timer = control_timer,
     };
 }
 
 pub fn deinit(self: *Self) void {
-    self.io_timer.close();
+    self.revolutions.deinit(self.allocator);
+    self.control_timer.close();
     self.read_timer.close();
     self.pwm_channel.deinit();
     self.pwm_chip.deinit();
@@ -162,7 +165,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
             .below => if (!self.is_close) {
                 // gone close
                 self.is_close = true;
-                self.revolutions += 1;
+                self.revolutions.back().* += 1;
             },
             .between => {},
             .above => if (self.is_close) {
@@ -172,12 +175,13 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         }
 
         return .handled;
-    } else if (fd == self.io_timer.handle) {
+    } else if (fd == self.control_timer.handle) {
         var expirations: u64 = undefined;
-        _ = try self.io_timer.readAll(std.mem.asBytes(&expirations));
+        _ = try self.control_timer.readAll(std.mem.asBytes(&expirations));
 
-        std.log.info("revolutions: {}", .{self.revolutions});
-        self.revolutions = 0;
+        const freq = self.frequency();
+        try self.revolutions.push(0);
+        std.log.debug("frequency: {d:.2} Hz", .{freq});
 
         return .handled;
     }
@@ -209,10 +213,23 @@ fn make_read_command(comptime channel: u8) u8 {
     return default_read_command & (channel << 4);
 }
 
-pub const Hysteresis = enum { below, between, above };
+const Hysteresis = enum { below, between, above };
 
 fn hystheresis(self: *Self, value: u8) Hysteresis {
     if (value < self.options.revolution_treshold_close) return .below;
     if (value > self.options.revolution_treshold_far) return .above;
     return .between;
+}
+
+fn frequency(self: *Self) f32 {
+    var sum: u32 = 0;
+    for (self.revolutions.items) |value|
+        sum += value;
+
+    const interval_s =
+        @as(f32, @floatFromInt(self.options.control_interval_us)) / std.time.us_per_s;
+    const all_bins_interval_s: f32 =
+        interval_s * @as(f32, @floatFromInt(self.options.revolution_bins));
+
+    return @as(f32, @floatFromInt(sum)) / all_bins_interval_s;
 }

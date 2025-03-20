@@ -120,7 +120,7 @@ int controller_init(
     goto fail_close_read_timer;
 
   const struct itimerspec io_timerspec =
-      interval_from_us(options.revolution_bin_rotate_interval_us);
+      interval_from_us(options.control_interval_us);
   if (timerfd_settime(io_timer_fd, 0, &io_timerspec, NULL) != 0)
     goto fail_close_io_timer;
 
@@ -192,7 +192,7 @@ int controller_handle(controller_t *self, int fd) {
       sum += self->revolutions->array[i];
 
     const float interval_s =
-        (float)self->options.revolution_bin_rotate_interval_us / MICRO_PER_1;
+        (float)self->options.control_interval_us / MICRO_PER_1;
     const float all_bins_interval_s =
         interval_s * self->options.revolution_bins;
 

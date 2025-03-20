@@ -20,25 +20,22 @@ typedef struct {
   ///
   /// [revolution_bins] is the number of bins in the ring buffer.
   size_t revolution_bins;
-  /// Revolutions are binned in a ring buffer based on when they happened.
-  /// More recent revolutions are in the tail of the buffer, while old ones
-  /// are in the head of the buffer (soon to be replaced).
+  /// [control_interval_us] is the interval at which all the following happens:
+  /// * calculating the frequency for the current time window,
+  /// * updating duty cycle,
+  /// * updating duty cycle.
   ///
-  /// [revolution_bin_rotate_interval] is the interval that each of the bins
-  /// correspond to.
+  /// [control_interval_us] also is the interval that each of the bins in the
+  /// time window correspond to.
   ///
-  /// If `revolution_bin_rotate_interval = Duration::from_millis(100)`, then:
+  /// If `control_interval_us = 100_000_000`, then:
   /// * the last bin corresponds to range `0..-100 ms` from now,
   /// * the second-to-last bin corresponds to range `-100..-200 ms` from now,
   /// * and so on.
   ///
-  /// In total, frequency will be counted from revolutions in all bins, across
-  /// the total interval of [revolution_bins] *
-  /// [revolution_bin_rotate_interval].
-  ///
-  /// [revolution_bin_rotate_interval] is also the interval at which the
-  /// measured frequency updates, so all the IO happens at this interval too.
-  uint64_t revolution_bin_rotate_interval_us;
+  /// In total, frequency is counted from revolutions in all bins, across the
+  /// total interval of [revolution_bins] * [control_interval_us].
+  uint64_t control_interval_us;
   /// Linux PWM channel to use.
   uint8_t pwm_channel;
   /// Frequency of the PWM signal.

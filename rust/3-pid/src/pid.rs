@@ -29,23 +29,22 @@ pub struct PidSettings {
     ///
     /// [revolution_bins] is the number of bins in the ring buffer.
     pub revolution_bins: usize,
-    /// Revolutions are binned in a ring buffer based on when they happened. More recent
-    /// revolutions are in the tail of the buffer, while old ones are in the head of the buffer
-    /// (soon to be replaced).
+    /// [control_interval] is the interval at which all the following happens:
+    /// * calculating the frequency for the current time window,
+    /// * updating duty cycle,
+    /// * updating duty cycle.
     ///
-    /// [revolution_bin_rotate_interval] is the interval that each of the bins correspond to.
+    /// [control_interval] also is the interval that each of the bins in the
+    /// time window correspond to.
     ///
-    /// If `revolution_bin_rotate_interval = Duration::from_millis(100)`, then:
+    /// If `control_interval = Duration::from_ms(100)`, then:
     /// * the last bin corresponds to range `0..-100 ms` from now,
     /// * the second-to-last bin corresponds to range `-100..-200 ms` from now,
     /// * and so on.
     ///
-    /// In total, frequency will be counted from revolutions in all bins, across the total interval
-    /// of [revolution_bins] * [revolution_bin_rotate_interval].
-    ///
-    /// [revolution_bin_rotate_interval] is also the interval at which the measured frequency updates,
-    /// so all the IO happens at this interval too.
-    pub revolution_bin_rotate_interval: Duration,
+    /// In total, frequency is counted from revolutions in all bins, across the
+    /// total interval of [revolution_bins] * [control_interval].
+    pub control_interval: Duration,
     /// Linux PWM channel to use.
     pub pwm_channel: pwm::Channel,
     /// Frequency of the PWM signal.
@@ -132,7 +131,7 @@ async fn io_loop(
     pwm: Pwm,
     state: Arc<Mutex<State>>,
 ) -> ! {
-    let interval_duration = settings.revolution_bin_rotate_interval;
+    let interval_duration = settings.control_interval;
     let interval_duration_s = interval_duration.as_secs_f32();
     let all_bins_interval_s = interval_duration_s * settings.revolution_bins as f32;
 

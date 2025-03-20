@@ -32,7 +32,7 @@ const controller_options: Controller.Options = .{
     .revolution_treshold_close = 105,
     .revolution_treshold_far = 118,
     .revolution_bins = 10,
-    .revolution_bin_rotate_interval_us = 100 * std.time.us_per_ms,
+    .control_interval_us = 100 * std.time.us_per_ms,
     .pwm_channel = motor_pwm_channel,
     .pwm_frequency = 1000,
 };
@@ -74,7 +74,7 @@ pub fn main() !void {
     initial_fds.* = .{
         pollfd_init(server.socket.handle),
         pollfd_init(controller.read_timer.handle),
-        pollfd_init(controller.io_timer.handle),
+        pollfd_init(controller.control_timer.handle),
     };
 
     while (do_continue) {

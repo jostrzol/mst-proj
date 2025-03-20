@@ -24,7 +24,7 @@ static const controller_options_t CONTROLLER_OPTIONS = {
     .revolution_treshold_close = 105,
     .revolution_treshold_far = 118,
     .revolution_bins = 10,
-    .revolution_bin_rotate_interval_us = 100 * 1e3,
+    .control_interval_us = 100 * 1e3,
     .pwm_channel = 13,
     .pwm_frequency = 1000.,
 };

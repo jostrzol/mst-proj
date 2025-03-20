@@ -26,7 +26,7 @@ const PID_SETTINGS: PidSettings = PidSettings {
     revolution_treshold_close: 105,
     revolution_treshold_far: 118,
     revolution_bins: 10,
-    revolution_bin_rotate_interval: Duration::from_millis(100),
+    control_interval: Duration::from_millis(100),
     pwm_channel: pwm::Channel::Pwm1,
     pwm_frequency: 1000.,
 };
