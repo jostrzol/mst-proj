@@ -12,7 +12,9 @@ const c = @cImport({
     @cInclude("signal.h");
 });
 
+const n_fds_system = 3;
 const n_connections_max = 5;
+const n_fds = n_fds_system + n_connections_max;
 
 const i2c_adapter_number = 1;
 const i2c_adapter_path = std.fmt.comptimePrint("/dev/i2c-{}", .{i2c_adapter_number});
@@ -68,9 +70,11 @@ pub fn main() !void {
     defer server.deinit();
 
     var poll_fds = try std.BoundedArray(posix.pollfd, n_connections_max).init(0);
-    const initial_fds = try poll_fds.addManyAsArray(1);
+    const initial_fds = try poll_fds.addManyAsArray(n_fds_system);
     initial_fds.* = .{
         pollfd_init(server.socket.handle),
+        pollfd_init(controller.read_timer.handle),
+        pollfd_init(-1),
     };
 
     while (do_continue) {
@@ -93,18 +97,19 @@ pub fn main() !void {
                 poll_fd.fd = -fd; // mark for removal
                 server.close_connection(fd);
             } else if (poll_fd.revents & POLL.IN != 0) {
-                // res = controller_handle(&controller, fd);
-                // if (res < 0)
-                // perror("Failed to handle controller timer activation");
-                // if (res != 0)
-                // continue; // Handled -- either error or success
-                //
-                const res = server.handle(fd) catch |err| {
+                const controller_res = controller.handle(fd) catch |err| {
+                    std.log.err("Failed to handle controller timer activation: {}", .{err});
+                    continue;
+                };
+                if (controller_res == .handled)
+                    continue;
+
+                const server_res = server.handle(fd) catch |err| {
                     std.log.err("Failed to handle connection: {}", .{err});
                     continue;
                 };
 
-                switch (res) {
+                switch (server_res) {
                     .accepted => |file| {
                         const new_pollfd = poll_fds.addOneAssumeCapacity();
                         new_pollfd.* = pollfd_init(file.handle);

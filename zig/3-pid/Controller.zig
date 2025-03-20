@@ -1,5 +1,6 @@
 const std = @import("std");
 const posix = std.posix;
+const linux = std.os.linux;
 const File = std.fs.File;
 const Allocator = std.mem.Allocator;
 
@@ -19,6 +20,7 @@ registers: *Registers,
 i2c_file: File,
 pwm_chip: *pwm.Chip,
 pwm_channel: *pwm.Channel,
+read_timer: File,
 
 pub const Options = struct {
     /// Path to I2C adapter that the ADC device is connected to.
@@ -94,6 +96,13 @@ pub fn init(
     });
     try channel.enable();
 
+    const read_timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
+    const read_timer = File{ .handle = read_timer_fd };
+    errdefer read_timer.close();
+
+    const read_timerspec = timerspec_from_us(options.read_interval_us);
+    try posix.timerfd_settime(read_timer_fd, .{}, &read_timerspec, null);
+
     return .{
         .allocator = allocator,
         .options = options,
@@ -101,14 +110,37 @@ pub fn init(
         .i2c_file = i2c_file,
         .pwm_chip = chip,
         .pwm_channel = channel,
+        .read_timer = read_timer,
     };
 }
 
 pub fn deinit(self: *Self) void {
+    self.read_timer.close();
     self.pwm_channel.deinit();
     self.pwm_chip.deinit();
     self.allocator.destroy(self.pwm_chip);
     self.i2c_file.close();
+}
+
+fn timerspec_from_us(interval_us: u64) linux.itimerspec {
+    const timespec = linux.timespec{
+        .tv_sec = @truncate(@as(i64, @bitCast(interval_us / std.time.us_per_s))),
+        .tv_nsec = @truncate(@as(i64, @bitCast(interval_us % std.time.us_per_s))),
+    };
+    return .{
+        .it_interval = timespec,
+        .it_value = timespec,
+    };
+}
+
+pub const HandleResult = enum { handled, skipped };
+
+pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
+    if (fd == self.read_timer.handle) {
+        return .handled;
+    }
+
+    return .skipped;
 }
 
 fn make_read_command(comptime channel: u8) u8 {
