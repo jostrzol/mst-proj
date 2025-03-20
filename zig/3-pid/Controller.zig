@@ -183,6 +183,12 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         try self.revolutions.push(0);
         std.log.debug("frequency: {d:.2} Hz", .{freq});
 
+        const control_params = self.get_control_params();
+        inline for (std.meta.fields(ControlParams)) |field| {
+            const value = @field(control_params, field.name);
+            std.log.debug("{s}: {d:.2}", .{ field.name, value });
+        }
+
         return .handled;
     }
 
@@ -232,4 +238,21 @@ fn frequency(self: *Self) f32 {
         interval_s * @as(f32, @floatFromInt(self.options.revolution_bins));
 
     return @as(f32, @floatFromInt(sum)) / all_bins_interval_s;
+}
+
+pub const ControlParams = struct {
+    target_frequency: f32,
+    proportional_factor: f32,
+    integration_time: f32,
+    differentiation_time: f32,
+};
+
+fn get_control_params(self: *Self) ControlParams {
+    const H = Registers.Holding;
+    return .{
+        .target_frequency = self.registers.get_holding(H.target_frequency),
+        .proportional_factor = self.registers.get_holding(H.proportional_factor),
+        .integration_time = self.registers.get_holding(H.integration_time),
+        .differentiation_time = self.registers.get_holding(H.differentiation_time),
+    };
 }
