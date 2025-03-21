@@ -42,35 +42,42 @@ int main(int, char **) {
   res = gpioInitialise();
   if (res < 0) {
     perror("Failed to initialize gpio\n");
-    goto end;
+    return EXIT_FAILURE;
   }
 
   res = gpioSetSignalFunc(SIGINT, &interrupt_handler);
   if (res < 0) {
     perror("Failed to set signal function\n");
-    goto pigpio_close;
+    gpioTerminate();
+    return EXIT_FAILURE;
   }
 
   modbus_mapping_t *registers = registers_init();
   if (registers == NULL) {
     fprintf(
-        stderr, "Failed to allocate the mapping: %s\n", modbus_strerror(errno)
+        stderr, "Failed to initialize registers: %s\n", modbus_strerror(errno)
     );
-    goto pigpio_close;
+    gpioTerminate();
+    return EXIT_FAILURE;
   }
 
   static server_t server;
   res = server_init(&server, registers, SERVER_OPTIONS);
   if (res < 0) {
     perror("Initializing modbus server failed\n");
-    goto registers_close;
+    registers_free(registers);
+    gpioTerminate();
+    return EXIT_FAILURE;
   }
 
   static controller_t controller;
   res = controller_init(&controller, registers, CONTROLLER_OPTIONS);
   if (res < 0) {
     perror("Initializing controller failed\n");
-    goto server_close;
+    server_close(&server);
+    registers_free(registers);
+    gpioTerminate();
+    return EXIT_FAILURE;
   }
 
   struct pollfd poll_fds[N_FDS_MAX] = {
@@ -136,12 +143,8 @@ int main(int, char **) {
   }
 
   controller_close(&controller);
-server_close:
   server_close(&server);
-registers_close:
   registers_free(registers);
-pigpio_close:
   gpioTerminate();
-end:
   return EXIT_SUCCESS;
 }

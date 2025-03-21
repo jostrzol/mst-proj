@@ -162,32 +162,51 @@ int controller_init(
     controller_t *self, modbus_mapping_t *registers,
     controller_options_t options
 ) {
+  int res = 0;
   ringbuffer_t *revolutions = ringbuffer_alloc(options.revolution_bins);
 
   const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
-  if (i2c_fd < 0)
-    goto fail;
+  if (i2c_fd < 0) {
+    return EXIT_FAILURE;
+  }
 
-  if (ioctl(i2c_fd, I2C_SLAVE, ADS7830_ADDRESS) != 0)
-    goto fail_close_i2c;
+  res = ioctl(i2c_fd, I2C_SLAVE, ADS7830_ADDRESS);
+  if (res != 0) {
+    close(i2c_fd);
+    return EXIT_FAILURE;
+  }
 
   const int read_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
-  if (read_timer_fd < 0)
-    goto fail_close_i2c;
+  if (read_timer_fd < 0) {
+    close(i2c_fd);
+    return EXIT_FAILURE;
+  }
 
   const struct itimerspec read_timerspec =
       interval_from_us(options.read_interval_us);
-  if (timerfd_settime(read_timer_fd, 0, &read_timerspec, NULL) != 0)
-    goto fail_close_read_timer;
+  res = timerfd_settime(read_timer_fd, 0, &read_timerspec, NULL) != 0;
+  if (res) {
+    close(read_timer_fd);
+    close(i2c_fd);
+    return EXIT_FAILURE;
+  }
 
   const int io_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
-  if (io_timer_fd < 0)
-    goto fail_close_read_timer;
+  if (io_timer_fd < 0) {
+    close(read_timer_fd);
+    close(i2c_fd);
+    return EXIT_FAILURE;
+  }
 
   const struct itimerspec io_timerspec =
       interval_from_us(options.control_interval_us);
-  if (timerfd_settime(io_timer_fd, 0, &io_timerspec, NULL) != 0)
-    goto fail_close_io_timer;
+  res = timerfd_settime(io_timer_fd, 0, &io_timerspec, NULL);
+  if (res != 0) {
+    close(io_timer_fd);
+    close(read_timer_fd);
+    close(i2c_fd);
+    return EXIT_FAILURE;
+  }
 
   *self = (controller_t){
       .registers = registers,
@@ -200,15 +219,6 @@ int controller_init(
   };
 
   return EXIT_SUCCESS;
-
-fail_close_io_timer:
-  close(io_timer_fd);
-fail_close_read_timer:
-  close(read_timer_fd);
-fail_close_i2c:
-  close(i2c_fd);
-fail:
-  return EXIT_FAILURE;
 }
 
 void controller_close(controller_t *self) {
