@@ -16,6 +16,10 @@ const c = @cImport({
 
 const Self = @This();
 
+const pwm_min = 0.2;
+const pwm_max = 1.0;
+const limit_min_deadzone = 0.001;
+
 allocator: Allocator,
 options: Options,
 revolutions: RingBuffer(u32),
@@ -26,6 +30,7 @@ pwm_channel: *pwm.Channel,
 read_timer: File,
 control_timer: File,
 is_close: bool = false,
+feedback: Feedback = .{ .delta = 0, .integration_component = 0 },
 
 pub const Options = struct {
     /// Path to I2C adapter that the ADC device is connected to.
@@ -67,6 +72,8 @@ pub const Options = struct {
     /// Frequency of the PWM signal.
     pwm_frequency: u64,
 };
+
+const Feedback = struct { delta: f32, integration_component: f32 };
 
 pub fn init(
     allocator: Allocator,
@@ -152,16 +159,15 @@ fn timerspec_from_us(interval_us: u64) linux.itimerspec {
 }
 
 pub const HandleResult = enum { handled, skipped };
-pub const HandleError = error{I2cRead} || std.posix.ReadError;
 
-pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
+pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
     if (fd == self.read_timer.handle) {
         var expirations: u64 = undefined;
         _ = try self.read_timer.readAll(std.mem.asBytes(&expirations));
 
-        const value = read_potentiometer_value(self) orelse return HandleError.I2cRead;
+        const value = read_potentiometer_value(self) orelse return error.I2cRead;
 
-        switch (self.hystheresis(value)) {
+        switch (self.get_hystheresis(value)) {
             .below => if (!self.is_close) {
                 // gone close
                 self.is_close = true;
@@ -179,15 +185,28 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         var expirations: u64 = undefined;
         _ = try self.control_timer.readAll(std.mem.asBytes(&expirations));
 
-        const freq = self.frequency();
+        const frequency = self.calculate_frequency();
         try self.revolutions.push(0);
-        std.log.debug("frequency: {d:.2} Hz", .{freq});
+        std.log.debug("frequency: {d:.2} Hz", .{frequency});
 
-        const control_params = self.get_control_params();
-        inline for (std.meta.fields(ControlParams)) |field| {
-            const value = @field(control_params, field.name);
-            std.log.debug("{s}: {d:.2}", .{ field.name, value });
-        }
+        const control_params = self.read_control_params();
+        // inline for (std.meta.fields(ControlParams)) |field| {
+        //     const value = @field(control_params, field.name);
+        //     std.log.debug("{s}: {d:.2}", .{ field.name, value });
+        // }
+
+        const control = self.calculate_control(&control_params, frequency);
+
+        const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
+
+        try self.pwm_channel.setParameters(.{
+            .frequency = null,
+            .duty_cycle_ratio = control_signal_limited,
+        });
+
+        self.write_status(frequency, control_signal_limited);
+
+        self.feedback = control.feedback;
 
         return .handled;
     }
@@ -221,13 +240,13 @@ fn make_read_command(comptime channel: u8) u8 {
 
 const Hysteresis = enum { below, between, above };
 
-fn hystheresis(self: *Self, value: u8) Hysteresis {
+fn get_hystheresis(self: *Self, value: u8) Hysteresis {
     if (value < self.options.revolution_treshold_close) return .below;
     if (value > self.options.revolution_treshold_far) return .above;
     return .between;
 }
 
-fn frequency(self: *Self) f32 {
+fn calculate_frequency(self: *Self) f32 {
     var sum: u32 = 0;
     for (self.revolutions.items) |value|
         sum += value;
@@ -247,7 +266,7 @@ pub const ControlParams = struct {
     differentiation_time: f32,
 };
 
-fn get_control_params(self: *Self) ControlParams {
+fn read_control_params(self: *Self) ControlParams {
     const H = Registers.Holding;
     return .{
         .target_frequency = self.registers.get_holding(H.target_frequency),
@@ -255,4 +274,64 @@ fn get_control_params(self: *Self) ControlParams {
         .integration_time = self.registers.get_holding(H.integration_time),
         .differentiation_time = self.registers.get_holding(H.differentiation_time),
     };
+}
+
+fn calculate_control(
+    self: *const Self,
+    params: *const ControlParams,
+    frequency: f32,
+) struct { signal: f32, feedback: Feedback } {
+    const interval_s =
+        @as(f32, @floatFromInt(self.options.control_interval_us)) / std.time.us_per_s;
+
+    const integration_factor: f32 =
+        params.proportional_factor / params.integration_time * interval_s;
+    const differentiation_factor: f32 =
+        params.proportional_factor * params.differentiation_time / interval_s;
+
+    const delta: f32 = params.target_frequency - frequency;
+    std.log.info("delta: {d:.2}", .{delta});
+
+    const proportional_component: f32 = params.proportional_factor * delta;
+    const integration_component: f32 =
+        self.feedback.integration_component +
+        integration_factor * self.feedback.delta;
+    const differentiation_component: f32 =
+        differentiation_factor * (delta - self.feedback.delta);
+
+    const control_signal: f32 = proportional_component +
+        integration_component +
+        differentiation_component;
+
+    std.log.info("control_signal: {d:.2} = {d:.2} + {d:.2} + {d:.2}", .{
+        control_signal,
+        proportional_component,
+        integration_component,
+        differentiation_component,
+    });
+
+    return .{
+        .signal = control_signal,
+        .feedback = .{
+            .delta = delta,
+            .integration_component = integration_component,
+        },
+    };
+}
+
+fn finite_or_zero(value: f32) f32 {
+    return if (std.math.isFinite(value)) 0 else value;
+}
+
+fn limit(value: f32, min: f32, max: f32) f32 {
+    if (value < limit_min_deadzone)
+        return 0;
+
+    const result = value + min;
+    return if (result < min) min else if (result > max) max else result;
+}
+
+fn write_status(self: *Self, frequency: f32, control_signal: f32) void {
+    self.registers.set_input(Registers.Input.frequency, frequency);
+    self.registers.set_input(Registers.Input.control_signal, control_signal);
 }

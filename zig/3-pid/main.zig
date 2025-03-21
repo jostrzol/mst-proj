@@ -129,19 +129,6 @@ pub fn main() !void {
                 poll_fd.* = poll_fds.pop();
             } else i += 1;
         }
-
-        // std.time.sleep(sleep_time_ns);
-        //
-        // const value = read_potentiometer_value(i2c_file) orelse continue;
-        // const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
-        // std.debug.print("selected duty cycle: {d:.2}\n", .{duty_cycle});
-        //
-        // channel.setParameters(.{
-        //     .frequency = null,
-        //     .duty_cycle_ratio = duty_cycle,
-        // }) catch |err| {
-        //     std.debug.print("error updating duty cycle: {}\n", .{err});
-        // };
     }
 }
 

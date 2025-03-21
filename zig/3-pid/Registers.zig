@@ -11,7 +11,7 @@ pub const Input = enum(u16) {
     frequency,
     control_signal,
 
-    pub fn address(self: Holding) u16 {
+    pub fn address(self: Input) u16 {
         return @intFromEnum(self) * 2;
     }
 

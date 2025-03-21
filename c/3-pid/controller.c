@@ -83,7 +83,7 @@ float controller_get_holding_register(
   return modbus_get_float_abcd(&registers[address]);
 }
 
-inline float finite_or_zero(float value) { return isfinite(value) ? value : 0; }
+float finite_or_zero(float value) { return isfinite(value) ? value : 0; }
 
 float limit(float value, float min, float max) {
   if (value < LIMIT_MIN_DEADZONE)
@@ -245,8 +245,8 @@ int controller_handle(controller_t *self, int fd) {
     controller_set_duty_cycle(self, control_signal_limited);
 
     self->feedback = (feedback_t){
-        .delta = delta,
-        .integration_component = integration_component,
+        .delta = finite_or_zero(delta),
+        .integration_component = finite_or_zero(integration_component),
     };
 
     return 1;
