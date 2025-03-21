@@ -53,23 +53,26 @@ int32_t read_potentiometer_value(int i2c_file) {
 int main(int, char **) {
   if (gpioInitialise() < 0) {
     perror("pigpio initialization failed\n");
-    goto end;
+    return EXIT_FAILURE;
   }
 
   if (gpioSetSignalFunc(SIGINT, interrupt_handler)) {
     perror("Setting sigaction failed\n");
-    goto close_pigpio;
+    gpioTerminate();
+    return EXIT_FAILURE;
   }
 
   int i2c_file = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_file < 0) {
     perror("opening i2c adapter failed\n");
-    goto close_pigpio;
+    gpioTerminate();
+    return EXIT_FAILURE;
   }
 
   if (ioctl(i2c_file, I2C_SLAVE, ADS7830_ADDRESS) < 0) {
     perror("assigning i2c adapter address failed\n");
-    goto close_pigpio;
+    gpioTerminate();
+    return EXIT_FAILURE;
   }
 
   printf("Controlling motor from C.\n");
@@ -90,8 +93,6 @@ int main(int, char **) {
   if (gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0))
     perror("Disabling PWM failed\n");
 
-close_pigpio:
   gpioTerminate();
-end:
   return EXIT_SUCCESS;
 }
