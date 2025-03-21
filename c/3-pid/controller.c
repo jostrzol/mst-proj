@@ -69,20 +69,6 @@ int controller_set_duty_cycle(controller_t *self, float value) {
   );
 }
 
-void controller_set_input_register(
-    controller_t *self, enum reg_input address, float value
-) {
-  uint16_t *registers = self->registers->tab_input_registers;
-  modbus_set_float_badc(value, &registers[address]);
-}
-
-float controller_get_holding_register(
-    controller_t *self, enum reg_holding address
-) {
-  uint16_t *registers = self->registers->tab_registers;
-  return modbus_get_float_abcd(&registers[address]);
-}
-
 float finite_or_zero(float value) { return isfinite(value) ? value : 0; }
 
 float limit(float value, float min, float max) {
@@ -91,6 +77,85 @@ float limit(float value, float min, float max) {
 
   const float result = value + min;
   return result < min ? min : (result > max ? max : result);
+}
+
+float calculate_frequency(controller_t *self) {
+  uint32_t sum = 0;
+  for (size_t i = 0; i < self->revolutions->length; ++i)
+    sum += self->revolutions->array[i];
+
+  const float interval_s =
+      (float)self->options.control_interval_us / MICRO_PER_1;
+  const float all_bins_interval_s = interval_s * self->options.revolution_bins;
+
+  return (float)sum / all_bins_interval_s;
+}
+
+typedef struct {
+  float target_frequency;
+  float proportional_factor;
+  float integration_time;
+  float differentiation_time;
+} control_params_t;
+
+control_params_t read_control_params(controller_t *self) {
+  uint16_t *registers = self->registers->tab_registers;
+  return (control_params_t){
+      .target_frequency =
+          modbus_get_float_abcd(&registers[REG_TARGET_FREQUENCY]),
+      .proportional_factor =
+          modbus_get_float_abcd(&registers[REG_PROPORTIONAL_FACTOR]),
+      .integration_time =
+          modbus_get_float_abcd(&registers[REG_INTEGRATION_TIME]),
+      .differentiation_time =
+          modbus_get_float_abcd(&registers[REG_DIFFERENTIATION_TIME]),
+  };
+}
+
+typedef struct {
+  float signal;
+  feedback_t feedback;
+} control_t;
+
+control_t calculate_control(
+    controller_t *self, control_params_t const *params, float frequency
+) {
+  const float interval_s =
+      (float)self->options.control_interval_us / MICRO_PER_1;
+
+  const float integration_factor =
+      params->proportional_factor / params->integration_time * interval_s;
+  const float differentiation_factor =
+      params->proportional_factor * params->differentiation_time / interval_s;
+
+  const float delta = params->target_frequency - frequency;
+  printf("delta: %.2f\n", delta);
+
+  const float proportional_component = params->proportional_factor * delta;
+  const float integration_component = self->feedback.integration_component +
+                                      integration_factor * self->feedback.delta;
+  const float differentiation_component =
+      differentiation_factor * (delta - self->feedback.delta);
+
+  const float control_signal = proportional_component + integration_component +
+                               differentiation_component;
+  printf(
+      "control_signal: %.2f = %.2f + %.2f + %.2f\n", control_signal,
+      proportional_component, integration_component, differentiation_component
+  );
+
+  return (control_t
+  ){.signal = control_signal,
+    .feedback = {
+        .delta = finite_or_zero(delta),
+        .integration_component = finite_or_zero(integration_component),
+    }};
+}
+
+void write_state(controller_t *self, float frequency, float control_signal) {
+  uint16_t *registers = self->registers->tab_input_registers;
+  modbus_set_float_badc(frequency, &registers[REG_FREQUENCY]);
+  modbus_set_float_badc(control_signal, &registers[REG_CONTROL_SIGNAL]);
 }
 
 int controller_init(
@@ -163,8 +228,6 @@ int controller_handle(controller_t *self, int fd) {
   if (fd == self->read_timer_fd) {
     if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
       return EXIT_FAILURE;
-    if (expirations > 1)
-      fprintf(stderr, "Skipped %llu ticks (read loop)!\n", expirations - 1);
 
     const int32_t value = read_potentiometer_value(self->i2c_fd);
     if (value < 0)
@@ -184,70 +247,24 @@ int controller_handle(controller_t *self, int fd) {
   } else if (fd == self->io_timer_fd) {
     if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
       return EXIT_FAILURE;
-    if (expirations > 1)
-      fprintf(stderr, "Skipped %llu ticks (io loop)!\n", expirations - 1);
 
-    uint32_t sum = 0;
-    for (size_t i = 0; i < self->revolutions->length; ++i)
-      sum += self->revolutions->array[i];
-
-    const float interval_s =
-        (float)self->options.control_interval_us / MICRO_PER_1;
-    const float all_bins_interval_s =
-        interval_s * self->options.revolution_bins;
-
-    const float frequency = (float)sum / all_bins_interval_s;
+    const float frequency = calculate_frequency(self);
     ringbuffer_push(self->revolutions, 0);
     printf("frequency: %.2f\n", frequency);
 
-    const float target_frequency =
-        controller_get_holding_register(self, REG_TARGET_FREQUENCY);
-    const float proportional_factor =
-        controller_get_holding_register(self, REG_PROPORTIONAL_FACTOR);
-    const float integration_time =
-        controller_get_holding_register(self, REG_INTEGRATION_TIME);
-    const float differentiation_time =
-        controller_get_holding_register(self, REG_DIFFERENTIATION_TIME);
+    const control_params_t control_params = read_control_params(self);
 
-    const float integration_factor =
-        proportional_factor / integration_time * interval_s;
-    const float differentiation_factor =
-        proportional_factor * differentiation_time / interval_s;
-
-    const float delta = target_frequency - frequency;
-    printf("delta: %.2f\n", delta);
-
-    const float proportional_component = proportional_factor * delta;
-    const float integration_component =
-        self->feedback.integration_component +
-        integration_factor * self->feedback.delta;
-    const float differentiation_component =
-        differentiation_factor * (delta - self->feedback.delta);
-
-    const float control_signal = proportional_component +
-                                 integration_component +
-                                 differentiation_component;
-    printf(
-        "control_signal: %.2f = %.2f + %.2f + %.2f\n", control_signal,
-        proportional_component, integration_component, differentiation_component
-    );
+    const control_t control =
+        calculate_control(self, &control_params, frequency);
 
     const float control_signal_limited =
-        limit(control_signal, PWM_MIN, PWM_MAX);
-
+        limit(control.signal, PWM_MIN, PWM_MAX);
     printf("control_signal_limited: %.2f\n", control_signal_limited);
 
-    controller_set_input_register(self, REG_FREQUENCY, frequency);
-    controller_set_input_register(
-        self, REG_CONTROL_SIGNAL, control_signal_limited
-    );
-
+    write_state(self, frequency, control_signal_limited);
     controller_set_duty_cycle(self, control_signal_limited);
 
-    self->feedback = (feedback_t){
-        .delta = finite_or_zero(delta),
-        .integration_component = finite_or_zero(integration_component),
-    };
+    self->feedback = control.feedback;
 
     return 1;
   }
