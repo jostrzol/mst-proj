@@ -4,14 +4,14 @@
 #![feature(iter_array_chunks)]
 #![feature(range_into_bounds)]
 
-mod pid;
+mod controller;
 mod server;
 mod state;
 
 use std::{sync::Arc, time::Duration};
 
 use async_mutex::Mutex;
-use pid::{run_pid, PidSettings};
+use controller::{run_controller, ControllerSettings};
 use rppal::pwm;
 use server::serve;
 use state::State;
@@ -21,7 +21,7 @@ const READ_RATE: u128 = 1000;
 const READ_INTERVAL: Duration =
     Duration::from_nanos((Duration::SECOND.as_nanos() / READ_RATE) as u64);
 
-const PID_SETTINGS: PidSettings = PidSettings {
+const CONTROLLER_SETTINGS: ControllerSettings = ControllerSettings {
     read_interval: READ_INTERVAL,
     revolution_treshold_close: 105,
     revolution_treshold_far: 118,
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(_) => unreachable!(),
             err => err,
         },
-        result = run_pid(PID_SETTINGS, state) => match result {
+        result = run_controller(CONTROLLER_SETTINGS, state) => match result {
             Ok(_) => unreachable!(),
             err => err,
         },

@@ -15,7 +15,7 @@ const PWM_MAX: f32 = 1.0;
 
 const LIMIT_MIN_DEADZONE: f32 = 0.001;
 
-pub struct PidSettings {
+pub struct ControllerSettings {
     /// Interval between ADC reads.
     pub read_interval: Duration,
     /// When ADC reads below this signal, the state is set to `close` to the motor magnet. If the
@@ -74,8 +74,8 @@ const fn make_read_command(channel: u8) -> u8 {
     DEFAULT_READ_COMMAND & (channel << 4)
 }
 
-pub async fn run_pid(
-    settings: PidSettings,
+pub async fn run_controller(
+    settings: ControllerSettings,
     state: Arc<Mutex<State>>,
 ) -> Result<(), Box<dyn Error>> {
     let mut i2c = I2c::new()?;
@@ -96,7 +96,7 @@ pub async fn run_pid(
 }
 
 async fn read_loop(
-    settings: &PidSettings,
+    settings: &ControllerSettings,
     revolutions: &RefCell<impl RingBuffer<u32>>,
     i2c: &mut I2c,
 ) -> ! {
@@ -126,7 +126,7 @@ async fn read_loop(
 }
 
 async fn io_loop(
-    settings: &PidSettings,
+    settings: &ControllerSettings,
     revolutions: &RefCell<impl RingBuffer<u32>>,
     pwm: Pwm,
     state: Arc<Mutex<State>>,
@@ -138,7 +138,7 @@ async fn io_loop(
     let mut interval = interval(interval_duration);
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-    let mut feedback = PidFeedback::default();
+    let mut feedback = Feedback::default();
 
     loop {
         interval.tick().await;
@@ -150,7 +150,7 @@ async fn io_loop(
         let (control_signal, new_feedback) = {
             let mut state = state.lock().await;
 
-            let calculator = PidCalculator::from_state(&state, interval_duration_s);
+            let calculator = ControlCalculator::from_state(&state, interval_duration_s);
             let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
 
             let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
@@ -169,15 +169,15 @@ async fn io_loop(
     }
 }
 
-struct PidCalculator {
+struct ControlCalculator {
     target_frequency: f32,
     proportional_factor: f32,
     integration_factor: f32,
     differentiation_factor: f32,
 }
 
-impl PidCalculator {
-    fn from_state(state: &State, interval_duration_s: f32) -> PidCalculator {
+impl ControlCalculator {
+    fn from_state(state: &State, interval_duration_s: f32) -> ControlCalculator {
         let registers = state.read_holding_registers(..);
 
         #[rustfmt::skip]
@@ -192,7 +192,7 @@ impl PidCalculator {
         let differentiation_factor =
             proportional_factor * differentiation_time / interval_duration_s;
 
-        PidCalculator {
+        ControlCalculator {
             target_frequency,
             proportional_factor,
             integration_factor,
@@ -200,7 +200,7 @@ impl PidCalculator {
         }
     }
 
-    fn calculate(&self, frequency: f32, feedback: &PidFeedback) -> (f32, PidFeedback) {
+    fn calculate(&self, frequency: f32, feedback: &Feedback) -> (f32, Feedback) {
         let delta = self.target_frequency - frequency;
 
         let proportional_component = self.proportional_factor * delta;
@@ -220,7 +220,7 @@ impl PidCalculator {
             differentiation_component
         );
 
-        let new_feedback = PidFeedback {
+        let new_feedback = Feedback {
             delta: finite_or_zero(delta),
             integration_component: finite_or_zero(integration_component),
         };
@@ -229,7 +229,7 @@ impl PidCalculator {
 }
 
 #[derive(Default)]
-struct PidFeedback {
+struct Feedback {
     delta: f32,
     integration_component: f32,
 }
