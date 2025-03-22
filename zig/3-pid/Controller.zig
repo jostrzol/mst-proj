@@ -215,14 +215,22 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
 }
 
 fn read_potentiometer_value(self: *Self) ?u8 {
-    if (c.i2c_smbus_write_byte(self.i2c_file.handle, make_read_command(0)) < 0)
+    var write_value = make_read_command(0);
+    var read_value: u8 = undefined;
+
+    const addr = self.options.i2c_address;
+    var msgs = [_]c.i2c_msg{
+        // write command
+        .{ .addr = addr, .flags = 0, .len = 1, .buf = &write_value },
+        // read data
+        .{ .addr = addr, .flags = c.I2C_M_RD, .len = 1, .buf = &read_value },
+    };
+    var data = c.i2c_rdwr_ioctl_data{ .msgs = &msgs, .nmsgs = 2 };
+
+    if (linux.ioctl(self.i2c_file.handle, c.I2C_RDWR, @intFromPtr(&data)) < 0)
         return null;
 
-    const value = c.i2c_smbus_read_byte(self.i2c_file.handle);
-    if (value < 0)
-        return null;
-
-    return @intCast(value);
+    return read_value;
 }
 
 fn make_read_command(comptime channel: u8) u8 {

@@ -1,4 +1,6 @@
 const std = @import("std");
+const linux = std.os.linux;
+
 const pwm = @import("pwm");
 
 const c = @cImport({
@@ -40,18 +42,21 @@ fn make_read_command(comptime channel: u8) u8 {
 }
 
 fn read_potentiometer_value(i2c_file: std.fs.File) ?u8 {
-    if (c.i2c_smbus_write_byte(i2c_file.handle, make_read_command(0)) < 0) {
-        std.log.err("writing i2c ADC command failed\n", .{});
-        return null;
-    }
+    var write_value = make_read_command(0);
+    var read_value: u8 = undefined;
 
-    const value = c.i2c_smbus_read_byte(i2c_file.handle);
-    if (value < 0) {
-        std.log.err("reading i2c ADC value failed\n", .{});
-        return null;
-    }
+    var msgs = [_]c.i2c_msg{
+        // write command
+        .{ .addr = ads7830_address, .flags = 0, .len = 1, .buf = &write_value },
+        // read data
+        .{ .addr = ads7830_address, .flags = c.I2C_M_RD, .len = 1, .buf = &read_value },
+    };
+    var data = c.i2c_rdwr_ioctl_data{ .msgs = &msgs, .nmsgs = 2 };
 
-    return @intCast(value);
+    if (linux.ioctl(i2c_file.handle, c.I2C_RDWR, @intFromPtr(&data)) < 0)
+        return null;
+
+    return read_value;
 }
 
 pub fn main() !void {
@@ -68,7 +73,7 @@ pub fn main() !void {
     );
     defer i2c_file.close();
 
-    if (c.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0) {
+    if (linux.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0) {
         return error.SettingI2cSlave;
     }
 
