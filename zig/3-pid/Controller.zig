@@ -89,9 +89,8 @@ pub fn init(
     );
     errdefer i2c_file.close();
 
-    if (c.ioctl(i2c_file.handle, c.I2C_SLAVE, options.i2c_address) < 0) {
+    if (linux.ioctl(i2c_file.handle, c.I2C_SLAVE, options.i2c_address) < 0)
         return error.SettingI2cSlave;
-    }
 
     var chip = try allocator.create(pwm.Chip);
     errdefer allocator.destroy(chip);

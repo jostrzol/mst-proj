@@ -72,30 +72,19 @@ pub const HandleResult = union(enum) {
     skipped: void,
 };
 
-pub const HandleError = error{
-    Accept,
-    Receive,
-} || Allocator.Error;
+pub const HandleError = error{Receive} || Allocator.Error || posix.AcceptError;
 
 pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
     if (fd == self.socket.handle) {
         // Create new connection
-        var client_address: c.sockaddr_in = std.mem.zeroes(c.sockaddr_in);
-        var addr_length: c.socklen_t = @sizeOf(@TypeOf(client_address));
+        var client_address = std.net.Address.initIp4(.{ 0, 0, 0, 0 }, 0);
+        var addr_length = client_address.getOsSockLen();
 
-        const connection_fd =
-            c.accept(fd, @ptrCast(&client_address), &addr_length);
-        if (connection_fd == -1)
-            return HandleError.Accept;
-
+        const connection_fd = try posix.accept(fd, &client_address.any, &addr_length, 0);
         const connection = try self.connections.addOne();
         connection.* = File{ .handle = connection_fd };
 
-        std.log.info("New connection from {s}:{} on socket {}", .{
-            c.inet_ntoa(client_address.sin_addr),
-            client_address.sin_port,
-            connection_fd,
-        });
+        std.log.info("New connection from {} on socket {}", .{ client_address, connection_fd });
 
         return .{ .accepted = connection.* };
     } else {

@@ -60,9 +60,8 @@ fn read_potentiometer_value(i2c_file: std.fs.File) ?u8 {
 }
 
 pub fn main() !void {
-    if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0) {
+    if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0)
         return error.SigactionNotSet;
-    }
 
     var chip = try pwm.Chip.init(0);
     defer chip.deinit();
@@ -73,9 +72,8 @@ pub fn main() !void {
     );
     defer i2c_file.close();
 
-    if (linux.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0) {
+    if (linux.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0)
         return error.SettingI2cSlave;
-    }
 
     std.debug.print("Controlling motor from Zig.\n", .{});
 
