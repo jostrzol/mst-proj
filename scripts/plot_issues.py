@@ -9,6 +9,7 @@ from pathlib import Path
 
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
+from matplotlib.ticker import PercentFormatter
 
 ANALYSIS_DIR = Path("./analysis/")
 ANALYSIS_SRC_DIR = Path("./analysis-src/")
@@ -53,10 +54,13 @@ def main():
     ax_it = iter(rest_axs)
     for tag, ys, ax in zip(tags, n_questions_per_tag, ax_it):
         ax.set_title(f"Tag: {tag}")
-        ax.set_ylabel("Część")
-        ys_percent = [y / total for y, total in zip(ys, totals)]
+
+        ys_percent = [y / total * 100 for y, total in zip(ys, totals)]
         ax.bar(names, ys_percent, facecolor=colors, edgecolor="black")
         add_bar_texts(ax, ys_percent, ys)
+
+        ax.set_ylabel("Część")
+        ax.yaxis.set_major_formatter(PercentFormatter(decimals=2))
 
     for ax in ax_it:
         ax.remove()
