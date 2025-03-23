@@ -91,7 +91,7 @@ pub async fn run_controller(
 
     tokio::select! {
         _ = read_loop(&settings, &revolutions, &mut i2c) => unreachable!(),
-        _ = io_loop(&settings, &revolutions, pwm, state) => unreachable!(),
+        _ = control_loop(&settings, &revolutions, pwm, state) => unreachable!(),
     }
 }
 
@@ -125,7 +125,7 @@ async fn read_loop(
     }
 }
 
-async fn io_loop(
+async fn control_loop(
     settings: &ControllerSettings,
     revolutions: &RefCell<impl RingBuffer<u32>>,
     pwm: Pwm,
