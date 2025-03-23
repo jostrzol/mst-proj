@@ -114,6 +114,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "dmc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-mutex",
+ "ctrlc",
+ "num-derive",
+ "num-traits",
+ "ringbuffer",
+ "rppal",
+ "tokio",
+ "tokio-modbus",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

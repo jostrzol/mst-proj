@@ -1,12 +1,13 @@
 arch := "arm-unknown-linux-gnueabihf"
 artifacts_dir := "../artifacts/"
 
-build-all: helloworld-build motorcontroller-build pid-build
+build-all: helloworld-build motorcontroller-build pid-build dmc-build
 
 watch-all:
   just helloworld-watch \
   & just motorcontroller-watch \
   & just pid-watch \
+  & just dmc-watch \
   & wait
 
 clean:
@@ -20,6 +21,9 @@ motorcontroller-watch: (_watch "2" "motor-controller")
 
 pid-build: (_build "3" "pid")
 pid-watch: (_watch "3" "pid")
+
+dmc-build: (_build "4" "dmc")
+dmc-watch: (_watch "4" "dmc")
 
 _watch NUM PACKAGE:
   watchexec --postpone --wrap-process session --verbose \

@@ -1,0 +1,17 @@
+[package]
+name = "dmc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ctrlc = "3.4.4"
+rppal = "0.18.0"
+tokio-modbus = { version = "*", default-features = false, features = [
+  "tcp-server",
+] }
+tokio = { version = "1.43.0", features = ["full"] }
+anyhow = "1.0.95"
+ringbuffer = "0.15.0"
+async-mutex = "1.4.0"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
