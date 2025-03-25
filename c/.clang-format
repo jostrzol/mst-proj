@@ -4,3 +4,17 @@ BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: Never
 IndentCaseLabels: false
 AlignAfterOpenBracket: BlockIndent
+
+---
+If:
+  PathMatch: /1-blinky-rm/.*
+
+CompileFlags:
+  CompilationDatabase: /1-blinky-rm/build/
+
+---
+If:
+  PathMatch: [/1-blinky/.*, /2-motor-controller, /3-pid]
+
+CompileFlags:
+  CompilationDatabase: /build/
