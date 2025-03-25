@@ -1,10 +1,10 @@
 arch := "arm-unknown-linux-gnueabihf"
 artifacts_dir := "../artifacts/"
 
-build-all: helloworld-build motorcontroller-build pid-build dmc-build
+build-all: blinky-build motorcontroller-build pid-build dmc-build
 
 watch-all:
-  just helloworld-watch \
+  just blinky-watch \
   & just motorcontroller-watch \
   & just pid-watch \
   & just dmc-watch \
@@ -13,8 +13,8 @@ watch-all:
 clean:
   rm -rf ./target
 
-helloworld-build: (_build "1" "hello-world")
-helloworld-watch: (_watch "1" "hello-world")
+blinky-build: (_build "1" "blinky")
+blinky-watch: (_watch "1" "blinky")
 
 motorcontroller-build: (_build "2" "motor-controller")
 motorcontroller-watch: (_watch "2" "motor-controller")

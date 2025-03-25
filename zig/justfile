@@ -5,10 +5,10 @@ arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
 artifacts_dir := "../artifacts/"
 
-build-all: helloworld-build motorcontroller-build pid-build
+build-all: blinky-build motorcontroller-build pid-build
 
 watch-all:
-  just helloworld-watch \
+  just blinky-watch \
   & just motorcontroller-watch \
   & just pid-watch \
   & wait
@@ -16,8 +16,8 @@ watch-all:
 clean:
   rm -rf ./*/{.zig-cache,zig-out}
 
-helloworld-build: (_build "1-hello-world")
-helloworld-watch: (_watch "1-hello-world")
+blinky-build: (_build "1-blinky")
+blinky-watch: (_watch "1-blinky")
 
 motorcontroller-build: (_build "2-motor-controller")
 motorcontroller-watch: (_watch "2-motor-controller")

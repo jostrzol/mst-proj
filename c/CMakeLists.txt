@@ -19,6 +19,6 @@ include(./dependencies/i2c-tools.cmake)
 include(./dependencies/modbus.cmake)
 
 # ===== MAKE TARGETS ==========================================================
-add_subdirectory(1-hello-world)
+add_subdirectory(1-blinky)
 add_subdirectory(2-motor-controller)
 add_subdirectory(3-pid)

@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "1-hello-world-zig",
+        .name = "1-blinky-zig",
         .root_source_file = b.path("./main.zig"),
         .target = target,
         .optimize = optimize,
