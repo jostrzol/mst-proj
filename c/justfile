@@ -17,7 +17,7 @@ blinky-watch: (_watch "1-blinky")
 
 blinky-rm-build: (_build-rm "1-blinky-rm")
 blinky-rm-watch: (_watch-rm "1-blinky-rm")
-blinky-rm-flash: (_flash-rm "1-blinky-rm")
+blinky-rm-cmd *CMD: (_cmd-rm "1-blinky-rm" CMD)
 
 motorcontroller-build: (_build "2-motor-controller")
 motorcontroller-watch: (_watch "2-motor-controller")
@@ -42,8 +42,8 @@ _watch-rm PROJECT:
   -e c,h -w ./{{PROJECT}}/main --on-busy-update=restart \
   -- just _build-rm \"{{PROJECT}}\"
 
-_build-rm PROJECT:
+_build-rm PROJECT: (_cmd-rm PROJECT "build")
   cd {{PROJECT}} && idf.py build
 
-_flash-rm PROJECT:
-  cd {{PROJECT}} && idf.py flash monitor
+_cmd-rm PROJECT *CMD:
+  cd {{PROJECT}} && idf.py {{CMD}}
