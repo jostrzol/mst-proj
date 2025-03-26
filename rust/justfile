@@ -1,10 +1,11 @@
 arch := "arm-unknown-linux-gnueabihf"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build motorcontroller-build pid-build dmc-build
+build-all: blinky-build blinky-bm-build motorcontroller-build pid-build dmc-build
 
 watch-all:
   just blinky-watch \
+  & just blinky-bm-watch \
   & just motorcontroller-watch \
   & just pid-watch \
   & just dmc-watch \
@@ -15,6 +16,10 @@ clean:
 
 blinky-build: (_build "1" "blinky")
 blinky-watch: (_watch "1" "blinky")
+
+blinky-bm-build: (_build-bm "1" "blinky-bm")
+blinky-bm-watch: (_watch-bm "1" "blinky-bm")
+blinky-bm-flash: (_run-bm "1" "blinky-bm")
 
 motorcontroller-build: (_build "2" "motor-controller")
 motorcontroller-watch: (_watch "2" "motor-controller")
@@ -34,3 +39,13 @@ _build NUM PACKAGE:
   cross build --package {{PACKAGE}} --release --target={{arch}} \
   && cp ./target/{{arch}}/release/{{PACKAGE}} ../artifacts/{{NUM}}-{{PACKAGE}}-rust
 
+_watch-bm NUM PACKAGE:
+  watchexec --postpone --wrap-process session --verbose \
+  -e rs,toml -w ./{{NUM}}-{{PACKAGE}} --on-busy-update=restart \
+  -- just _build-bm \"{{NUM}}\" \"{{PACKAGE}}\"
+
+_build-bm NUM PACKAGE:
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build
+
+_run-bm NUM PACKAGE:
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo run

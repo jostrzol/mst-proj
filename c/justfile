@@ -17,6 +17,7 @@ blinky-watch: (_watch "1-blinky")
 
 blinky-bm-build: (_build-bm "1-blinky-bm")
 blinky-bm-watch: (_watch-bm "1-blinky-bm")
+blinky-bm-flash: (_cmd-bm "1-blinky-bm" "flash" "monitor")
 blinky-bm-cmd *CMD: (_cmd-bm "1-blinky-bm" CMD)
 
 motorcontroller-build: (_build "2-motor-controller")
