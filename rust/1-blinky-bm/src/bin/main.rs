@@ -1,15 +1,3 @@
-//! GPIO interrupt
-//!
-//! This prints "Interrupt" when the boot button is pressed.
-//! It also blinks an LED like the blinky example.
-//!
-//! The following wiring is assumed:
-//! - LED => GPIO2
-//! - BUTTON => GPIO0 (ESP32, ESP32-S2, ESP32-S3) / GPIO9
-
-//% CHIPS: esp32 esp32c2 esp32c3 esp32c6 esp32h2 esp32s2 esp32s3
-//% FEATURES: esp-hal/unstable
-
 #![no_std]
 #![no_main]
 

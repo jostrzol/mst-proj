@@ -13,6 +13,15 @@ return {
 					"--query-driver=/home/ogurczak/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc*",
 				},
 			},
+			rust_analyzer = {
+				settings = {
+					["rust-analyzer"] = {
+						cargo = {
+							allTargets = false,
+						},
+					},
+				},
+			},
 		},
 	},
 }
