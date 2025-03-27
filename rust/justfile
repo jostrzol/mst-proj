@@ -1,12 +1,12 @@
 arch := "arm-unknown-linux-gnueabihf"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build blinky-bm-build motorcontroller-build pid-build dmc-build
+build-all: blinky-build blinky-bm-build motor-build pid-build dmc-build
 
 watch-all:
   just blinky-watch \
   & just blinky-bm-watch \
-  & just motorcontroller-watch \
+  & just motor-watch \
   & just pid-watch \
   & just dmc-watch \
   & wait
@@ -21,8 +21,8 @@ blinky-bm-build: (_build-bm "1" "blinky-bm")
 blinky-bm-watch: (_watch-bm "1" "blinky-bm")
 blinky-bm-flash: (_run-bm "1" "blinky-bm")
 
-motorcontroller-build: (_build "2" "motor-controller")
-motorcontroller-watch: (_watch "2" "motor-controller")
+motor-build: (_build "2" "motor")
+motor-watch: (_watch "2" "motor")
 
 pid-build: (_build "3" "pid")
 pid-watch: (_watch "3" "pid")
@@ -32,7 +32,7 @@ dmc-watch: (_watch "4" "dmc")
 
 _watch NUM PACKAGE:
   watchexec --postpone --wrap-process session --verbose \
-  -e rs -w ./{{NUM}}-{{PACKAGE}}/src --on-busy-update=restart \
+  -e rs,toml -w ./{{NUM}}-{{PACKAGE}} --on-busy-update=restart \
   -- just _build \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build NUM PACKAGE:

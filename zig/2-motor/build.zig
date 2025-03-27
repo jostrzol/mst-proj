@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
     i2c_tools_lib.linkLibC();
 
     const exe = b.addExecutable(.{
-        .name = "2-motor-controller-zig",
+        .name = "2-motor-zig",
         .root_source_file = b.path("./main.zig"),
         .target = target,
         .optimize = optimize,

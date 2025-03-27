@@ -1,5 +1,5 @@
 .{
-    .name = "2-motor-controller",
+    .name = "2-motor",
     .version = "0.0.1",
     .paths = .{""},
 

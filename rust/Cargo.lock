@@ -261,7 +261,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "motor-controller"
+name = "motor"
 version = "0.1.0"
 dependencies = [
  "ctrlc",

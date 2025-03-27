@@ -1,11 +1,11 @@
 artifacts_dir := "../artifacts"
 
-build-all: blinky-build blinky-bm-build motorcontroller-build pid-build
+build-all: blinky-build blinky-bm-build motor-build pid-build
 
 watch-all:
   just blinky-watch \
   & just blinky-bm-watch \
-  & just motorcontroller-watch \
+  & just motor-watch \
   & just pid-watch \
   & wait
 
@@ -20,8 +20,8 @@ blinky-bm-watch: (_watch-bm "1-blinky-bm")
 blinky-bm-flash: (_cmd-bm "1-blinky-bm" "flash" "monitor")
 blinky-bm-cmd *CMD: (_cmd-bm "1-blinky-bm" CMD)
 
-motorcontroller-build: (_build "2-motor-controller")
-motorcontroller-watch: (_watch "2-motor-controller")
+motor-build: (_build "2-motor")
+motor-watch: (_watch "2-motor")
 
 pid-build: (_build "3-pid")
 pid-watch: (_watch "3-pid")
