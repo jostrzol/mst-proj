@@ -8,7 +8,8 @@
 static const char TAG[] = "blinky";
 
 static const uint32_t BLINK_GPIO = 5;
-static const uint32_t BLINK_PERIOD = 500;
+static const uint32_t PERIOD_MS = 1000;
+static const uint32_t SLEEP_DURATION_MS = PERIOD_MS / 2;
 
 void app_main(void) {
   ESP_LOGI(TAG, "Blinking an LED from C");
@@ -23,6 +24,6 @@ void app_main(void) {
 
     gpio_set_level(BLINK_GPIO, led_state);
     led_state = !led_state;
-    vTaskDelay(BLINK_PERIOD / portTICK_PERIOD_MS);
+    vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
   }
 }
