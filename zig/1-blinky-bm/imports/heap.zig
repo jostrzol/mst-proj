@@ -17,6 +17,7 @@ pub const HeapCapsAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = remap,
                 .free = free,
             },
         };
@@ -43,9 +44,9 @@ pub const HeapCapsAllocator = struct {
         return sys.esp_get_free_internal_heap_size();
     }
 
-    fn alloc(ctx: *anyopaque, len: usize, log2_ptr_align: u8, _: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, _: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
-        std.debug.assert(log2_ptr_align <= comptime std.math.log2_int(
+        std.debug.assert(alignment.toByteUnits() <= comptime std.math.log2_int(
             usize,
             @alignOf(std.c.max_align_t),
         ));
@@ -57,7 +58,7 @@ pub const HeapCapsAllocator = struct {
         ));
     }
 
-    fn resize(_: *anyopaque, buf: []u8, _: u8, new_len: usize, _: usize) bool {
+    fn resize(_: *anyopaque, buf: []u8, _: std.mem.Alignment, new_len: usize, _: usize) bool {
         if (new_len <= buf.len)
             return true;
 
@@ -68,7 +69,13 @@ pub const HeapCapsAllocator = struct {
         return false;
     }
 
-    fn free(_: *anyopaque, buf: []u8, _: u8, _: usize) void {
+    fn remap(ctx: *anyopaque, buf: []u8, _: std.mem.Alignment, new_len: usize, _: usize) ?[*]u8 {
+        const self: *Self = @ptrCast(@alignCast(ctx));
+        const result = sys.heap_caps_realloc(buf.ptr, new_len, @intFromEnum(self.caps));
+        return @ptrCast(result);
+    }
+
+    fn free(_: *anyopaque, buf: []u8, _: std.mem.Alignment, _: usize) void {
         std.debug.assert(sys.heap_caps_check_integrity_all(true));
         sys.heap_caps_free(buf.ptr);
     }

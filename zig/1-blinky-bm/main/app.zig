@@ -11,8 +11,9 @@ export fn app_main() callconv(.C) void {
     // idf.heap.MultiHeapAllocator
     // idf.heap.vPortAllocator
 
-    var heap = idf.heap.HeapCapsAllocator.init(.MALLOC_CAP_8BIT);
-    var arena = std.heap.ArenaAllocator.init(heap.allocator());
+    // var heap = idf.heap.HeapCapsAllocator.init(.MALLOC_CAP_8BIT);
+    // var arena = std.heap.ArenaAllocator.init(heap.allocator());
+    var arena = std.heap.ArenaAllocator.init(std.heap.raw_c_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
@@ -34,21 +35,21 @@ export fn app_main() callconv(.C) void {
         \\
     , .{idf.Version.get().toString(allocator)});
 
-    idf.ESP_LOG(
-        allocator,
-        tag,
-        \\[Memory Info]
-        \\* Total: {d}
-        \\* Free: {d}
-        \\* Minimum: {d}
-        \\
-    ,
-        .{
-            heap.totalSize(),
-            heap.freeSize(),
-            heap.minimumFreeSize(),
-        },
-    );
+    // idf.ESP_LOG(
+    //     allocator,
+    //     tag,
+    //     \\[Memory Info]
+    //     \\* Total: {d}
+    //     \\* Free: {d}
+    //     \\* Minimum: {d}
+    //     \\
+    // ,
+    //     .{
+    //         heap.totalSize(),
+    //         heap.freeSize(),
+    //         heap.minimumFreeSize(),
+    //     },
+    // );
 
     idf.ESP_LOG(
         allocator,
@@ -62,8 +63,8 @@ export fn app_main() callconv(.C) void {
 
     arraylist(allocator) catch unreachable;
 
-    if (builtin.mode == .Debug)
-        heap.dump();
+    // if (builtin.mode == .Debug)
+    //     heap.dump();
 
     // FreeRTOS Tasks
     if (idf.xTaskCreate(foo, "foo", 1024 * 3, null, 1, null) == 0) {

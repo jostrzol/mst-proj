@@ -83,10 +83,9 @@ fn includeDeps(b: *std.Build, lib: *std.Build.Step.Compile) !void {
 }
 
 pub fn searched_idf_libs(b: *std.Build, lib: *std.Build.Step.Compile) !void {
-    var dir = try std.fs.cwd().openDir("../build", .{
-        .iterate = true,
-    });
+    var dir = try b.build_root.handle.openDir(".", .{ .iterate = true });
     defer dir.close();
+
     var walker = try dir.walk(b.allocator);
     defer walker.deinit();
 
@@ -97,9 +96,7 @@ pub fn searched_idf_libs(b: *std.Build, lib: *std.Build.Step.Compile) !void {
                 break true;
         } else false;
         if (lib_ext) {
-            const src_path = std.fs.path.dirname(@src().file) orelse b.pathResolve(&.{".."});
-            const cwd_path = b.pathJoin(&.{ src_path, "build", b.dupe(entry.path) });
-            const lib_file: std.Build.LazyPath = .{ .cwd_relative = cwd_path };
+            const lib_file = b.path(entry.path);
             lib.addObjectFile(lib_file);
         }
     }

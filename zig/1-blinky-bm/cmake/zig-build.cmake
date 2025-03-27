@@ -37,8 +37,8 @@ else()
     message(FATAL_ERROR "Unsupported platform")
 endif()
 
-if(NOT EXISTS "${CMAKE_BINARY_DIR}/zig-relsafe-espressif-${TARGET_ARCH}-${TARGET_PLATFORM}-baseline")
-    file(DOWNLOAD "https://github.com/kassane/zig-espressif-bootstrap/releases/download/0.14.0-xtensa-dev/zig-relsafe-espressif-${TARGET_ARCH}-${TARGET_PLATFORM}-baseline.${EXT}"
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/zig-relsafe-${TARGET_ARCH}-${TARGET_PLATFORM}-baseline")
+    file(DOWNLOAD "https://github.com/kassane/zig-espressif-bootstrap/releases/download/0.14.0-xtensa/zig-relsafe-${TARGET_ARCH}-${TARGET_PLATFORM}-baseline.${EXT}"
         "${CMAKE_BINARY_DIR}/zig.${EXT}")
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -54,7 +54,7 @@ if(NOT EXISTS "${CMAKE_BINARY_DIR}/zig-relsafe-espressif-${TARGET_ARCH}-${TARGET
 else()
     message(STATUS "Zig already downloaded. Skipping zig install.")
 endif()
-set(ZIG_INSTALL ${CMAKE_BINARY_DIR}/zig-relsafe-espressif-${TARGET_ARCH}-${TARGET_PLATFORM}-baseline)
+set(ZIG_INSTALL ${CMAKE_BINARY_DIR}/zig-relsafe-${TARGET_ARCH}-${TARGET_PLATFORM}-baseline)
 
 if(CONFIG_IDF_TARGET_ARCH_RISCV)
     set(ZIG_TARGET "riscv32-freestanding-none")
@@ -100,9 +100,9 @@ add_custom_target(zig_build
     --cache-dir ${CMAKE_BINARY_DIR}/../.zig-cache
     --prefix ${CMAKE_BINARY_DIR}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libapp_zig.a
+    BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libblinky.a
     VERBATIM)
 
-add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libapp_zig.a)
+add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libblinky.a)
 add_dependencies(zig zig_build)
-target_link_libraries(${COMPONENT_LIB} PRIVATE ${CMAKE_BINARY_DIR}/lib/libapp_zig.a)
+target_link_libraries(${COMPONENT_LIB} PRIVATE ${CMAKE_BINARY_DIR}/lib/libblinky.a)
