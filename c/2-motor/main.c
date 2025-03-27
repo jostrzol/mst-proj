@@ -51,6 +51,8 @@ int32_t read_potentiometer_value(int i2c_file) {
 }
 
 int main(int, char **) {
+  printf("Controlling motor from C\n");
+
   if (gpioInitialise() < 0) {
     perror("pigpio initialization failed\n");
     return EXIT_FAILURE;
@@ -74,8 +76,6 @@ int main(int, char **) {
     gpioTerminate();
     return EXIT_FAILURE;
   }
-
-  printf("Controlling motor from C.\n");
 
   while (do_continue) {
     usleep(SLEEP_DURATION_US);
