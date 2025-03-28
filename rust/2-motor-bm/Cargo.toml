@@ -2,11 +2,11 @@
 
 [package]
 edition = "2021"
-name = "blinky-bm"
+name = "motor-bm"
 version = "0.1.0"
 
 [[bin]]
-name = "1-blinky-bm"
+name = "2-motor-bm"
 path = "./src/bin/main.rs"
 
 [dependencies]

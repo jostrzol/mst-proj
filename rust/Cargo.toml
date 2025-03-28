@@ -1,3 +1,2 @@
 [workspace]
 members = ["1-blinky", "2-motor", "3-pid", "4-dmc"]
-exclude = ["1-blinky-bm"]

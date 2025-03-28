@@ -1,12 +1,13 @@
 arch := "arm-unknown-linux-gnueabihf"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build blinky-bm-build motor-build pid-build dmc-build
+build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build dmc-build
 
 watch-all:
   just blinky-watch \
   & just blinky-bm-watch \
   & just motor-watch \
+  & just motor-bm-watch \
   & just pid-watch \
   & just dmc-watch \
   & wait
@@ -23,6 +24,10 @@ blinky-bm-flash: (_run-bm "1" "blinky-bm")
 
 motor-build: (_build "2" "motor")
 motor-watch: (_watch "2" "motor")
+
+motor-bm-build: (_build-bm "2" "motor-bm")
+motor-bm-watch: (_watch-bm "2" "motor-bm")
+motor-bm-flash: (_run-bm "2" "motor-bm")
 
 pid-build: (_build "3" "pid")
 pid-watch: (_watch "3" "pid")
