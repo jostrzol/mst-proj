@@ -5,7 +5,6 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
-#include "freertos/task.h"
 #include "hal/adc_types.h"
 #include "hal/ledc_types.h"
 #include "sdkconfig.h" // IWYU pragma: keep

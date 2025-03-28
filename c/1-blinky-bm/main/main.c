@@ -2,8 +2,7 @@
 #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
-#include "freertos/task.h"
-#include "sdkconfig.h" // IWYU pragma: keep
+#include "sdkconfig.h"         // IWYU pragma: keep
 
 static const char TAG[] = "blinky";
 
