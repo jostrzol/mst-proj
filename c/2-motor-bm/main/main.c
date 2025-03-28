@@ -32,7 +32,7 @@ static const uint32_t ADC_BUF_SIZE = ADC_FRAMES_PER_BUF * ADC_FRAME_SIZE;
 static const uint32_t ADC_READ_TIMEOUT = 1000 / ADC_FREQUENCY * 2;
 static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
 
-static const uint32_t PWM_DUTY_MAX = (1 << LEDC_TIMER_13_BIT) - 1;
+static const uint32_t PWM_DUTY_MAX = (1 << PWM_DUTY_RESOLUTION) - 1;
 
 void app_main(void) {
   esp_err_t err;
@@ -100,7 +100,7 @@ void app_main(void) {
     const uint32_t n_reads = bytes_read / SOC_ADC_DIGI_DATA_BYTES_PER_CONV;
     const uint16_t last_value = buf[n_reads - 1].type1.data;
     const float value_normalized = (float)last_value / ADC_MAX_VALUE;
-    ESP_LOGI(TAG, "value: %f", value_normalized);
+    ESP_LOGI(TAG, "selected duty cycle: %f", value_normalized);
 
     const uint32_t duty_cycle = value_normalized * PWM_DUTY_MAX;
 

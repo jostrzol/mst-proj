@@ -39,7 +39,7 @@ const fn make_read_command(channel: u8) -> u8 {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("Controlling motor from Rust.");
+    println!("Controlling motor from Rust");
 
     let mut i2c = I2c::new()?;
     i2c.set_slave_address(0x48)?;
