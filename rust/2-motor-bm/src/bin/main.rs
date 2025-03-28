@@ -3,13 +3,14 @@
 
 use esp_backtrace as _;
 use esp_hal::{
+    analog::adc::{Adc, AdcConfig, AdcPin, Attenuation, Resolution},
     delay::Delay,
     ledc::{
         channel::{self, ChannelHW, ChannelIFace},
         timer::{self, TimerIFace},
         LSGlobalClkSource, Ledc, LowSpeed,
     },
-    main,
+    main, peripherals,
     time::Rate,
 };
 use esp_println::println;
@@ -35,6 +36,11 @@ fn main_impl() -> Result<(), MainError> {
 
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let motor = peripherals.GPIO5;
+    let input = peripherals.GPIO32;
+
+    let mut adc_config = AdcConfig::<peripherals::ADC1>::new();
+    let input_adc = adc_config.enable_pin(input, Attenuation::_2p5dB);
+    let adc = Adc::new(peripherals.ADC1, adc_config);
 
     let mut ledc = Ledc::new(peripherals.LEDC);
     ledc.set_global_slow_clock(LSGlobalClkSource::APBClk);
