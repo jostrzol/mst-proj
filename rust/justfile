@@ -37,7 +37,8 @@ dmc-watch: (_watch "4" "dmc")
 
 _watch NUM PACKAGE:
   watchexec --postpone --wrap-process session --verbose \
-  -e rs,toml -w ./{{NUM}}-{{PACKAGE}} --on-busy-update=restart \
+  -e rs,toml -w ./{{NUM}}-{{PACKAGE}} \
+  --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build NUM PACKAGE:
@@ -46,7 +47,8 @@ _build NUM PACKAGE:
 
 _watch-bm NUM PACKAGE:
   watchexec --postpone --wrap-process session --verbose \
-  -e rs,toml -w ./{{NUM}}-{{PACKAGE}} --on-busy-update=restart \
+  -e rs,toml -w ./{{NUM}}-{{PACKAGE}} \
+  --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build-bm \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build-bm NUM PACKAGE:

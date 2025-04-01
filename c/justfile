@@ -34,7 +34,8 @@ pid-watch: (_watch "3-pid")
 
 _watch PROJECT:
   watchexec --postpone --wrap-process session --verbose \
-  -e c,h -w ./{{PROJECT}} --on-busy-update=restart \
+  -e c,h -w ./{{PROJECT}} \
+  --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build \"{{PROJECT}}\"
 
 _build PROJECT:
@@ -45,7 +46,8 @@ _build PROJECT:
 
 _watch-bm PROJECT:
   watchexec --postpone --wrap-process session --verbose \
-  -e c,h -w ./{{PROJECT}}/main --on-busy-update=restart \
+  -e c,h -w ./{{PROJECT}}/main \
+  --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build-bm \"{{PROJECT}}\"
 
 _build-bm PROJECT: (_cmd-bm PROJECT "build")
