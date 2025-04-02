@@ -5,12 +5,13 @@ arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build blinky-bm-build motor-build pid-build
+build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build
 
 watch-all:
   just blinky-watch \
   & just blinky-bm-watch \
   & just motor-watch \
+  & just motor-bm-watch \
   & just pid-watch \
   & wait
 
@@ -27,6 +28,12 @@ blinky-bm-cmd *CMD: (_cmd-bm "1-blinky-bm" CMD)
 
 motor-build: (_build "2-motor")
 motor-watch: (_watch "2-motor")
+
+motor-bm-build: (_build-bm "2-motor-bm")
+motor-bm-watch: (_watch-bm "2-motor-bm")
+motor-bm-flash: (_cmd-bm "2-motor-bm" "flash" "monitor")
+motor-bm-cmd *CMD: (_cmd-bm "2-motor-bm" CMD)
+
 
 pid-build: (_build "3-pid")
 pid-watch: (_watch "3-pid")
