@@ -4,8 +4,7 @@ use esp_idf_hal::ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::{
     adc::{
-        self,
-        attenuation::DB_11,
+        self, attenuation,
         oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver},
     },
     units::FromValueType,
@@ -29,7 +28,7 @@ fn main() -> anyhow::Result<()> {
 
     let adc = AdcDriver::new(peripherals.adc1)?;
     let adc_config = AdcChannelConfig {
-        attenuation: DB_11,
+        attenuation: attenuation::DB_11,
         resolution: adc::Resolution::Resolution9Bit,
         calibration: Calibration::None,
     };

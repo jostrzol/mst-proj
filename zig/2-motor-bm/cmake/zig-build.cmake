@@ -87,9 +87,14 @@ else()
 endif()
 
 set(include_dirs $<TARGET_PROPERTY:${COMPONENT_LIB},INCLUDE_DIRECTORIES> ${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES})
+
+add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/include_dirs.txt
+    COMMAND ${CMAKE_COMMAND} -E env printf "${include_dirs}" >  ${CMAKE_BINARY_DIR}/include_dirs.txt
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    VERBATIM)
+
 add_custom_target(zig_build
     COMMAND ${CMAKE_COMMAND} -E env
-    "INCLUDE_DIRS=${include_dirs}"
     ${ZIG_INSTALL}/zig build
     --build-file ${BUILD_PATH}/build.zig
     -Doptimize=${ZIG_BUILD_TYPE}
@@ -99,6 +104,7 @@ add_custom_target(zig_build
     --prominent-compile-errors
     --cache-dir ${CMAKE_BINARY_DIR}/../.zig-cache
     --prefix ${CMAKE_BINARY_DIR}
+    DEPENDS ${CMAKE_BINARY_DIR}/include_dirs.txt
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libmotor.a
     VERBATIM)
