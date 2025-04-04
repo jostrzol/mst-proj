@@ -1,9 +1,10 @@
-# Language unspecific 
+# Not language specific 
 /analysis/
 /artifacts/
 /.nlsp-settings/
 /.venv/
 /.cache/
+managed_components
 
 # C
 /c/build/
