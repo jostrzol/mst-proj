@@ -14,22 +14,22 @@ pub const Unit = struct {
 
     pub fn channel(
         self: Unit,
-        _channel: c.adc_channel_t,
+        id: c.adc_channel_t,
         config: *const c.adc_oneshot_chan_cfg_t,
     ) idf.esp_error!Channel {
-        const err = c.adc_oneshot_config_channel(self.handle, _channel, config);
+        const err = c.adc_oneshot_config_channel(self.handle, id, config);
         try c.espCheckError(err);
-        return .{ .unit = self, .handle = _channel };
+        return .{ .unit = self, .id = id };
     }
 };
 
 pub const Channel = struct {
     unit: Unit,
-    handle: c.adc_channel_t,
+    id: c.adc_channel_t,
 
     pub fn read(self: *const Channel) idf.esp_error!u16 {
         var value: c_int = undefined;
-        try c.espCheckError(c.adc_oneshot_read(self.unit.handle, self.handle, &value));
+        try c.espCheckError(c.adc_oneshot_read(self.unit.handle, self.id, &value));
         return @as(u16, @intCast(value));
     }
 };
