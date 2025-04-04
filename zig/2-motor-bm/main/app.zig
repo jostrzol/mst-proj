@@ -2,9 +2,17 @@ const std = @import("std");
 const builtin = @import("builtin");
 const idf = @import("esp_idf");
 
-const c = @import("c.zig").c;
-const adc = @import("adc.zig");
+const c = @import("c.zig");
 usingnamespace @import("comptime-rt.zig");
+
+const adc = @import("adc.zig");
+const pwm = @import("pwm.zig");
+
+const adc_bitwidth = c.ADC_BITWIDTH_9;
+const adc_max = (1 << adc_bitwidth) - 1;
+
+const pwm_bitwidth = c.LEDC_TIMER_13_BIT;
+const pwm_max = (1 << pwm_bitwidth) - 1;
 
 fn main() !void {
     log.info("Controlling motor from Zig", .{});
@@ -14,18 +22,29 @@ fn main() !void {
     const adc_unit = try adc.Unit.init(c.ADC_UNIT_1);
     const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
         .atten = c.ADC_ATTEN_DB_12,
-        .bitwidth = c.ADC_BITWIDTH_9,
+        .bitwidth = adc_bitwidth,
     });
+
+    const pwm_timer = try pwm.Timer.init(&.{
+        .speed_mode = c.LEDC_LOW_SPEED_MODE,
+        .duty_resolution = c.LEDC_TIMER_13_BIT,
+        .timer_num = c.LEDC_TIMER_0,
+        .freq_hz = 1000,
+        .clk_cfg = c.LEDC_AUTO_CLK,
+    });
+    const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
 
     while (true) {
         const value = try adc_channel.read();
 
-        const value_normalized = @as(f32, @floatFromInt(value)) / @as(f32, @floatFromInt((1 << 9) - 1));
-        log.info("selected duty cycle: {d:.2} = {} / {}", .{
-            value_normalized,
-            value,
-            ((1 << 9) - 1),
-        });
+        const value_normalized = @as(f32, @floatFromInt(value)) / @as(f32, @floatFromInt(adc_max));
+        log.info(
+            "selected duty cycle: {d:.2} = {} / {}",
+            .{ value_normalized, value, adc_max },
+        );
+
+        const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
+        try pwm_channel.set_duty_cycle(duty_cycle);
 
         idf.vTaskDelay(1);
     }
