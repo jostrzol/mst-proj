@@ -13,18 +13,17 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    const modules = idf_wrapped_modules(b);
-    lib.root_module.addImport("esp_idf", modules.idf);
+    const idf = idf_wrapped_modules(b);
+    lib.root_module.addImport("esp_idf", idf);
     lib.linkLibC(); // stubs for libc
 
-    try includeDeps(b, lib, modules.cmodules);
+    try includeDeps(b, lib);
     b.installArtifact(lib);
 }
 
 fn includeDeps(
     b: *std.Build,
     lib: *std.Build.Step.Compile,
-    cmodules: []const *std.Build.Module,
 ) !void {
     const build_path = b.path("build").getPath3(b, null);
     const include_dirs_file = try build_path.openFile("include_dirs.txt", .{});
@@ -36,9 +35,6 @@ fn includeDeps(
         var it_inc = std.mem.tokenizeAny(u8, include_dirs, ";");
         while (it_inc.next()) |dir| {
             lib.addIncludePath(abs(dir));
-            _ = cmodules;
-            // for (cmodules) |mod| mod.addIncludePath(abs(dir));
-            // if (it_inc.index == 0) cmodules[0].addIncludePath(abs(dir));
         }
     }
 
@@ -120,9 +116,7 @@ pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.Compile, idf_pat
     }
 }
 
-pub fn idf_wrapped_modules(
-    b: *std.Build,
-) struct { idf: *std.Build.Module, cmodules: []const *std.Build.Module } {
+pub fn idf_wrapped_modules(b: *std.Build) *std.Build.Module {
     const src_path = std.fs.path.dirname(@src().file) orelse b.pathResolve(&.{"."});
     const sys = b.addModule("sys", .{
         .root_source_file = b.path(b.pathJoin(&.{
@@ -466,19 +460,6 @@ pub fn idf_wrapped_modules(
             },
         },
     });
-    const adc = b.addModule("adc", .{
-        .root_source_file = b.path(b.pathJoin(&.{
-            src_path,
-            "imports",
-            "adc.zig",
-        })),
-        .imports = &.{
-            .{
-                .name = "error",
-                .module = errors,
-            },
-        },
-    });
     const idf = b.addModule("esp_idf", .{
         .root_source_file = b.path(b.pathJoin(&.{
             src_path,
@@ -578,13 +559,9 @@ pub fn idf_wrapped_modules(
                 .name = "pulse",
                 .module = pcnt,
             },
-            .{
-                .name = "adc",
-                .module = adc,
-            },
         },
     });
-    return .{ .idf = idf, .cmodules = &.{adc} };
+    return idf;
 }
 
 // Targets config

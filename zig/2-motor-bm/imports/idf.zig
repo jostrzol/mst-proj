@@ -21,4 +21,3 @@ pub const spi = @import("spi");
 pub const uart = @import("uart");
 pub usingnamespace @import("ver");
 pub const wifi = @import("wifi");
-pub const adc = @import("adc");
