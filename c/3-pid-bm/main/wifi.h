@@ -6,5 +6,5 @@ typedef struct {
   esp_netif_t *netif;
 } my_wifi_t;
 
-void my_wifi_init(my_wifi_t *self);
+esp_err_t my_wifi_init(my_wifi_t *self);
 void my_wifi_deinit(my_wifi_t *self);

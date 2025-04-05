@@ -8,8 +8,10 @@
 */
 #include <string.h>
 
+#include "esp_err.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_modbus_common.h"
 #include "esp_wifi.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
@@ -65,7 +67,10 @@ static void event_handler(
   }
 }
 
-void my_wifi_init(my_wifi_t *self) {
+esp_err_t my_wifi_init(my_wifi_t *self) {
+  esp_err_t err;
+
+  // Init
   s_wifi_event_group = xEventGroupCreate();
 
   ESP_ERROR_CHECK(esp_netif_init());
@@ -73,17 +78,32 @@ void my_wifi_init(my_wifi_t *self) {
   self->netif = esp_netif_create_default_wifi_sta();
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-  ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+  err = esp_wifi_init(&cfg);
+  MB_RETURN_ON_FALSE(
+      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
+      "esp_wifi_init fail, returns(0x%x).", (int)err
+  );
 
+  // Handlers
   esp_event_handler_instance_t instance_any_id;
-  esp_event_handler_instance_t instance_got_ip;
-  ESP_ERROR_CHECK(esp_event_handler_instance_register(
+  err = esp_event_handler_instance_register(
       WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, &instance_any_id
-  ));
-  ESP_ERROR_CHECK(esp_event_handler_instance_register(
-      IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip
-  ));
+  );
+  MB_RETURN_ON_FALSE(
+      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
+      "esp_event_handler_instance_register fail, returns(0x%x).", (int)err
+  );
 
+  esp_event_handler_instance_t instance_got_ip;
+  err = esp_event_handler_instance_register(
+      IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip
+  );
+  MB_RETURN_ON_FALSE(
+      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
+      "esp_event_handler_instance_register fail, returns(0x%x).", (int)err
+  );
+
+  // Config
   wifi_config_t wifi_config = {
       .sta =
           {
@@ -94,11 +114,21 @@ void my_wifi_init(my_wifi_t *self) {
               .sae_h2e_identifier = "",
           },
   };
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-  ESP_ERROR_CHECK(esp_wifi_start());
-
-  ESP_LOGI(TAG, "wifi_init_sta finished.");
+  err = esp_wifi_set_mode(WIFI_MODE_STA);
+  MB_RETURN_ON_FALSE(
+      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
+      "esp_wifi_set_mode fail, returns(0x%x).", (int)err
+  );
+  err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+  MB_RETURN_ON_FALSE(
+      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
+      "esp_wifi_set_config fail, returns(0x%x).", (int)err
+  );
+  err = esp_wifi_start();
+  MB_RETURN_ON_FALSE(
+      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
+      "esp_wifi_start fail, returns(0x%x).", (int)err
+  );
 
   /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or
    * connection failed for the maximum number of re-tries (WIFI_FAIL_BIT). The
@@ -123,6 +153,8 @@ void my_wifi_init(my_wifi_t *self) {
   } else {
     ESP_LOGE(TAG, "UNEXPECTED EVENT");
   }
+
+  return ESP_OK;
 }
 
 void my_wifi_deinit(my_wifi_t *self) {
