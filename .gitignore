@@ -4,7 +4,6 @@
 /.nlsp-settings/
 /.venv/
 /.cache/
-managed_components
 
 # C
 /c/build/
@@ -18,3 +17,7 @@ managed_components
 # Zig
 /zig/**/.zig-cache
 /zig/**/zig-out
+
+# esp-idf
+managed_components
+sdkconfig
