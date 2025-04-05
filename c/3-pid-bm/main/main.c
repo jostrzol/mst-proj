@@ -95,12 +95,12 @@ static esp_err_t init_services(my_wifi_t *wifi) {
   }
   MB_RETURN_ON_FALSE(
       (result == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "nvs_flash_init fail, returns(0x%x).", (int)result
+      "nvs_flash_init fail (0x%x).", (int)result
   );
   result = esp_event_loop_create_default();
   MB_RETURN_ON_FALSE(
       (result == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "esp_event_loop_create_default fail, returns(0x%x).", (int)result
+      "esp_event_loop_create_default fail (0x%x).", (int)result
   );
 
   // Start mdns service and register device
@@ -109,13 +109,13 @@ static esp_err_t init_services(my_wifi_t *wifi) {
   result = my_wifi_init(wifi);
   MB_RETURN_ON_FALSE(
       (result == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "esp_wifi_set_ps fail, returns(0x%x).", (int)result
+      "esp_wifi_set_ps fail (0x%x).", (int)result
   );
 
   result = esp_wifi_set_ps(WIFI_PS_NONE);
   MB_RETURN_ON_FALSE(
       (result == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "esp_wifi_set_ps fail, returns(0x%x).", (int)result
+      "esp_wifi_set_ps fail (0x%x).", (int)result
   );
   return ESP_OK;
 }
@@ -127,17 +127,17 @@ static esp_err_t destroy_services(my_wifi_t *wifi) {
   err = esp_event_loop_delete_default();
   MB_RETURN_ON_FALSE(
       (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "esp_event_loop_delete_default fail, returns(0x%x).", (int)err
+      "esp_event_loop_delete_default fail (0x%x).", (int)err
   );
   err = esp_netif_deinit();
   MB_RETURN_ON_FALSE(
       (err == ESP_OK || err == ESP_ERR_NOT_SUPPORTED), ESP_ERR_INVALID_STATE,
-      TAG, "esp_netif_deinit fail, returns(0x%x).", (int)err
+      TAG, "esp_netif_deinit fail (0x%x).", (int)err
   );
   err = nvs_flash_deinit();
   MB_RETURN_ON_FALSE(
       (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "nvs_flash_deinit fail, returns(0x%x).", (int)err
+      "nvs_flash_deinit fail (0x%x).", (int)err
   );
   stop_mdns_service();
   return err;
@@ -158,19 +158,19 @@ static esp_err_t slave_init(mb_communication_info_t *comm_info, regs_t *regs) {
   err = mbc_slave_setup((void *)comm_info);
   MB_RETURN_ON_FALSE(
       (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "mbc_slave_setup fail, returns(0x%x).", (int)err
+      "mbc_slave_setup fail (0x%x).", (int)err
   );
 
   err = regs_init(regs);
   MB_RETURN_ON_FALSE(
-      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "regs_init fail, returns(0x%x).", (int)err
+      (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG, "regs_init fail (0x%x).",
+      (int)err
   );
 
   err = mbc_slave_start();
   MB_RETURN_ON_FALSE(
       (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "mbc_slave_start fail, returns(0x%x).", (int)err
+      "mbc_slave_start fail (0x%x).", (int)err
   );
   vTaskDelay(5);
   return err;
@@ -180,7 +180,7 @@ static esp_err_t slave_destroy(void) {
   esp_err_t err = mbc_slave_destroy();
   MB_RETURN_ON_FALSE(
       (err == ESP_OK), ESP_ERR_INVALID_STATE, TAG,
-      "mbc_slave_destroy fail, returns(0x%x).", (int)err
+      "mbc_slave_destroy fail (0x%x).", (int)err
   );
   return err;
 }
