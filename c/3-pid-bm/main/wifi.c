@@ -66,7 +66,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   err = esp_netif_init();
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_netif_init fail (0x%x)", (int)err);
-    return ESP_ERR_INVALID_STATE;
+    return err;
   }
 
   self->netif = esp_netif_create_default_wifi_sta();
@@ -76,7 +76,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_init fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
-    return ESP_ERR_INVALID_STATE;
+    return err;
   }
 
   // Handlers
@@ -88,7 +88,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
     ESP_LOGE(TAG, "esp_event_handler_instance_register fail (0x%x)", (int)err);
     esp_netif_destroy_default_wifi(self->netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
-    return ESP_ERR_INVALID_STATE;
+    return err;
   }
 
   esp_event_handler_instance_t instance_got_ip;
@@ -99,7 +99,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
     ESP_LOGE(TAG, "esp_event_handler_instance_register fail (0x%x)", (int)err);
     esp_netif_destroy_default_wifi(self->netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
-    return ESP_ERR_INVALID_STATE;
+    return err;
   }
 
   // Config
@@ -118,21 +118,21 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
     ESP_LOGE(TAG, "esp_wifi_set_mode fail (0x%x)", (int)err);
     esp_netif_destroy_default_wifi(self->netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
-    return ESP_ERR_INVALID_STATE;
+    return err;
   }
   err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_set_config fail (0x%x)", (int)err);
     esp_netif_destroy_default_wifi(self->netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
-    return ESP_ERR_INVALID_STATE;
+    return err;
   }
   err = esp_wifi_start();
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_start fail (0x%x)", (int)err);
     esp_netif_destroy_default_wifi(self->netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
-    return ESP_ERR_INVALID_STATE;
+    return err;
   }
 
   /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or
