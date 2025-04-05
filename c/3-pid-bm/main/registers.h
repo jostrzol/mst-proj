@@ -1,7 +1,5 @@
 #pragma once
 
-#include "esp_err.h"
-
 typedef struct {
   float frequency;
   float control_signal;
@@ -19,4 +17,4 @@ typedef struct {
   regs_holding_t holding;
 } regs_t;
 
-esp_err_t regs_init(regs_t *self);
+regs_t regs_create();
