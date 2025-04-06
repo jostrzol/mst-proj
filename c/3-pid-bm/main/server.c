@@ -82,7 +82,7 @@ void server_deinit(server_t *self) {
   ESP_ERROR_CHECK_WITHOUT_ABORT(mbc_slave_destroy());
 }
 
-void server_loop(server_t *self) {
+void server_loop(void *params) {
   mb_param_info_t reg_info;
 
   ESP_LOGI(TAG, "Listening for modbus requests...");

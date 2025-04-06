@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include "FreeRTOSConfig.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
@@ -39,20 +40,32 @@ void app_main(void) {
   }
 
   controller_t controller;
-  err = controller_init(&controller);
+  err = controller_init(
+      &controller,
+      (controller_opts_t){
+          .frequency = 1000,
+          .revolution_treshold_close = 0.36,
+          .revolution_treshold_far = 0.40,
+          .revolution_bins = 10,
+          .reads_per_bin = 100,
+      }
+  );
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "server_init fail (0x%x)", err);
+    ESP_LOGE(TAG, "controller_init fail (0x%x)", err);
     server_deinit(&server);
     services_deinit(&services);
     abort();
   }
 
   StaticTask_t read_task_buf;
-  TaskHandle_t read_task = xTaskCreateStatic(
+  TaskHandle_t read_task = xTaskCreateStaticPinnedToCore(
       controller_read_loop, "READ_LOOP", STACK_SIZE, &controller,
-      tskIDLE_PRIORITY, read_stack, &read_task_buf
+      configMAX_PRIORITIES - 1, read_stack, &read_task_buf, 1
   );
-  server_loop(&server);
+
+  while (true)
+    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
+  /* controller_read_loop(&controller); */
 
   vTaskDelete(read_task);
 

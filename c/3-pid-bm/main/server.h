@@ -15,4 +15,4 @@ typedef struct {
 esp_err_t server_init(server_t *self, server_opts_t *opts);
 void server_deinit(server_t *self);
 
-void server_loop(server_t *self);
+void server_loop(void *params);
