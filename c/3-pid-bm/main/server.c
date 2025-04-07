@@ -1,4 +1,5 @@
 #include "server.h"
+#include "esp_modbus_common.h"
 #include "esp_modbus_slave.h"
 
 #define SERVER_PORT_NUMBER (5502)
@@ -93,6 +94,9 @@ void server_loop(void *params) {
     ESP_ERROR_CHECK_WITHOUT_ABORT(
         mbc_slave_get_param_info(&reg_info, SERVER_PAR_INFO_GET_TOUT)
     );
+
+    if (reg_info.type & MB_READ_MASK)
+      continue; // Don't log reads
 
     const char *rw_str = (reg_info.type & MB_READ_MASK) ? "READ" : "WRITE";
     const char *type_str;

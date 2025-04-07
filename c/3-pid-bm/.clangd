@@ -2,6 +2,7 @@ CompileFlags:
   CompilationDatabase: build/
   Add:
     [
+      -Wmissing-field-initializers,
       -ferror-limit=0,
       -isysroot=/home/ogurczak/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf,
     ]

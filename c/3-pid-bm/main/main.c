@@ -28,7 +28,8 @@ void app_main(void) {
     abort();
   }
 
-  regs_t regs = regs_create();
+  regs_t regs;
+  regs_init(&regs);
 
   server_t server;
   server_opts_t server_opts = {.regs = &regs, .netif = services.wifi.netif};
@@ -41,7 +42,7 @@ void app_main(void) {
 
   controller_t controller;
   err = controller_init(
-      &controller,
+      &controller, &regs,
       (controller_opts_t){
           .frequency = 1000,
           .revolution_treshold_close = 0.36,
@@ -63,9 +64,22 @@ void app_main(void) {
       configMAX_PRIORITIES - 1, read_stack, &read_task_buf, 1
   );
 
-  while (true)
-    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
-  /* controller_read_loop(&controller); */
+  /* char *task_list_buffer = malloc(1024); // Make sure this is big enough */
+  /**/
+  /* if (task_list_buffer) { */
+  /*   vTaskList(task_list_buffer); // Fills the buffer with task info */
+  /*   ESP_LOGI( */
+  /*       "TASKS", "\nTask Name\tStatus\tPrio\tStack\tNum\n%s",
+   * task_list_buffer */
+  /*   ); */
+  /*   free(task_list_buffer); */
+  /* } else { */
+  /*   ESP_LOGE("TASKS", "Failed to allocate memory for task list"); */
+  /* } */
+
+  server_loop(&server);
+  /* while (true) */
+  /*   vTaskDelay(10 * 1000 / portTICK_PERIOD_MS); */
 
   vTaskDelete(read_task);
 
