@@ -13,7 +13,8 @@
 #include "services.h"
 
 #define STACK_SIZE (4096)
-StackType_t read_stack[STACK_SIZE];
+StackType_t controller_stack[STACK_SIZE];
+StackType_t server_stack[STACK_SIZE];
 
 static const char *TAG = "pid";
 
@@ -58,10 +59,16 @@ void app_main(void) {
     abort();
   }
 
-  StaticTask_t read_task_buf;
-  TaskHandle_t read_task = xTaskCreateStaticPinnedToCore(
-      controller_read_loop, "READ_LOOP", STACK_SIZE, &controller,
-      configMAX_PRIORITIES - 1, read_stack, &read_task_buf, 1
+  StaticTask_t controller_task_buf;
+  TaskHandle_t controller_task = xTaskCreateStaticPinnedToCore(
+      controller_loop, "CONTROLLER_LOOP", STACK_SIZE, &controller,
+      configMAX_PRIORITIES - 1, controller_stack, &controller_task_buf, 1
+  );
+
+  StaticTask_t server_task_buf;
+  TaskHandle_t server_task = xTaskCreateStaticPinnedToCore(
+      server_loop, "SERVER_LOOP", STACK_SIZE, &server, 2, server_stack,
+      &server_task_buf, 1
   );
 
   /* char *task_list_buffer = malloc(1024); // Make sure this is big enough */
@@ -77,11 +84,12 @@ void app_main(void) {
   /*   ESP_LOGE("TASKS", "Failed to allocate memory for task list"); */
   /* } */
 
-  server_loop(&server);
-  /* while (true) */
-  /*   vTaskDelay(10 * 1000 / portTICK_PERIOD_MS); */
+  /* server_loop(&server); */
+  while (true)
+    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
 
-  vTaskDelete(read_task);
+  vTaskDelete(server_task);
+  vTaskDelete(controller_task);
 
   controller_deinit(&controller);
   server_deinit(&server);

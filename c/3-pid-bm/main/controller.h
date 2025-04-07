@@ -45,4 +45,4 @@ esp_err_t
 controller_init(controller_t *self, regs_t *regs, controller_opts_t opts);
 void controller_deinit(controller_t *self);
 
-void controller_read_loop(void *params);
+void controller_loop(void *params);

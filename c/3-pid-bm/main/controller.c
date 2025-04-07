@@ -314,7 +314,7 @@ void write_state(controller_t *self, float frequency, float control_signal) {
   mb_set_float_cdab(&input->control_signal, control_signal);
 }
 
-void controller_read_loop(void *params) {
+void controller_loop(void *params) {
   esp_err_t err;
   controller_t *self = params;
 
