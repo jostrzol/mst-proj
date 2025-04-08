@@ -5,9 +5,9 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "freertos/idf_additions.h"
+#include "portmacro.h"
 
 #include "controller.h"
-#include "portmacro.h"
 #include "registers.h"
 #include "server.h"
 #include "services.h"
@@ -71,20 +71,6 @@ void app_main(void) {
       &server_task_buf, 1
   );
 
-  /* char *task_list_buffer = malloc(1024); // Make sure this is big enough */
-  /**/
-  /* if (task_list_buffer) { */
-  /*   vTaskList(task_list_buffer); // Fills the buffer with task info */
-  /*   ESP_LOGI( */
-  /*       "TASKS", "\nTask Name\tStatus\tPrio\tStack\tNum\n%s",
-   * task_list_buffer */
-  /*   ); */
-  /*   free(task_list_buffer); */
-  /* } else { */
-  /*   ESP_LOGE("TASKS", "Failed to allocate memory for task list"); */
-  /* } */
-
-  /* server_loop(&server); */
   while (true)
     vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
 
