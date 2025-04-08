@@ -9,7 +9,7 @@ resolver = "2"
 rust-version = "1.77"
 
 [[bin]]
-name = "2-pid-bm"
+name = "3-pid-bm"
 path = "src/main.rs"
 harness = false      # do not use the built in cargo test harness -> resolve rust-analyzer errors
 
@@ -34,6 +34,7 @@ esp-idf-svc = { version = "0.51", features = [
 ] }
 esp-idf-hal = { version = "0.45.2" }
 anyhow = "1.0.97"
+embedded-svc = "0.28.1"
 
 [build-dependencies]
 embuild = "0.33"

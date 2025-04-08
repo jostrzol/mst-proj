@@ -1,64 +1,63 @@
-use esp_idf_hal::adc::oneshot::config::Calibration;
-use esp_idf_hal::delay::Delay;
-use esp_idf_hal::ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver};
-use esp_idf_hal::peripherals::Peripherals;
-use esp_idf_hal::{
-    adc::{
-        self, attenuation,
-        oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver},
-    },
-    units::FromValueType,
-};
+use core::convert::TryInto;
 
-const FREQUENCY: u32 = 100;
-const SLEEP_DURATION_MS: u32 = 1000 / FREQUENCY;
+use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 
-const ADC_BITWIDTH: u16 = 9;
-const ADC_MAX_VALUE: u16 = (1 << ADC_BITWIDTH) - 1;
+use esp_idf_svc::hal::prelude::Peripherals;
+use esp_idf_svc::log::EspLogger;
+use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
+use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 
-const PWM_FREQUENCY: u32 = 1000;
+use log::info;
+
+const SSID: &str = env!("WIFI_SSID");
+const PASSWORD: &str = env!("WIFI_PASS");
 
 fn main() -> anyhow::Result<()> {
-    esp_idf_hal::sys::link_patches();
-    esp_idf_svc::log::EspLogger::initialize_default();
-
-    log::info!("Controlling motor from Rust");
+    esp_idf_svc::sys::link_patches();
+    EspLogger::initialize_default();
 
     let peripherals = Peripherals::take()?;
+    let sys_loop = EspSystemEventLoop::take()?;
+    let nvs = EspDefaultNvsPartition::take()?;
 
-    let adc = AdcDriver::new(peripherals.adc1)?;
-    let adc_config = AdcChannelConfig {
-        attenuation: attenuation::DB_11,
-        resolution: adc::Resolution::Resolution9Bit,
-        calibration: Calibration::None,
-    };
-    let mut adc_pin = AdcChannelDriver::new(&adc, peripherals.pins.gpio32, &adc_config)?;
-
-    let timer_driver = LedcTimerDriver::new(
-        peripherals.ledc.timer0,
-        &TimerConfig::default().frequency(PWM_FREQUENCY.Hz()),
+    let mut wifi = BlockingWifi::wrap(
+        EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs))?,
+        sys_loop,
     )?;
-    let mut driver = LedcDriver::new(
-        peripherals.ledc.channel0,
-        timer_driver,
-        peripherals.pins.gpio5,
-    )?;
-    let max_duty_cycle = driver.get_max_duty();
 
-    let delay = Delay::default();
-    loop {
-        let value = adc.read_raw(&mut adc_pin)?;
-        let value_normalized = value as f32 / ADC_MAX_VALUE as f32;
-        println!(
-            "selected duty cycle: {:.2} = {} / {}",
-            value_normalized, value, ADC_MAX_VALUE
-        );
+    connect_wifi(&mut wifi)?;
 
-        let duty_cycle = value_normalized * max_duty_cycle as f32;
-        if let Err(err) = driver.set_duty(duty_cycle as u32) {
-            eprintln!("Setting duty cycle: {}", err)
-        };
+    let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
 
-        delay.delay_ms(SLEEP_DURATION_MS);
-    }
+    info!("Wifi DHCP info: {:?}", ip_info);
+
+    info!("Shutting down in 5s...");
+
+    std::thread::sleep(core::time::Duration::from_secs(5));
+
+    Ok(())
+}
+
+fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>) -> anyhow::Result<()> {
+    let wifi_configuration: Configuration = Configuration::Client(ClientConfiguration {
+        ssid: SSID.try_into().unwrap(),
+        bssid: None,
+        auth_method: AuthMethod::WPA2Personal,
+        password: PASSWORD.try_into().unwrap(),
+        channel: None,
+        ..Default::default()
+    });
+
+    wifi.set_configuration(&wifi_configuration)?;
+
+    wifi.start()?;
+    info!("Wifi started");
+
+    wifi.connect()?;
+    info!("Wifi connected");
+
+    wifi.wait_netif_up()?;
+    info!("Wifi netif up");
+
+    Ok(())
 }
