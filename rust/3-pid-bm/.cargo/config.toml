@@ -4,7 +4,14 @@ target = "xtensa-esp32-espidf"
 [target.xtensa-esp32-espidf]
 linker = "ldproxy"
 runner = "espflash flash --monitor"
-rustflags = ["--cfg", "espidf_time64", "--cfg", "esp_idf_comp_esp_adc_enabled"]
+rustflags = [
+  "--cfg",
+  "espidf_time64",
+  "--cfg",
+  "esp_idf_comp_esp_adc_enabled",
+  "--cfg",
+  "esp_idf_comp_espressif__mdns_enabled",
+]
 
 [unstable]
 build-std = ["std", "panic_abort"]
