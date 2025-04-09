@@ -4,13 +4,15 @@ use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 
 use esp_idf_hal::modem::Modem;
 use esp_idf_svc::mdns::EspMdns;
+use esp_idf_svc::netif::EspNetif;
 use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 use log::info;
 
 pub struct Services<'a> {
-    #[allow(dead_code)] // it holds resources
     wifi: BlockingWifi<EspWifi<'a>>,
+    #[allow(dead_code)] // For resource allocation
+    mdns: EspMdns,
 }
 
 impl<'a> Services<'a> {
@@ -34,7 +36,7 @@ impl<'a> Services<'a> {
 
         Self::connect_wifi(&mut wifi, ssid, password)?;
 
-        Ok(Services { wifi })
+        Ok(Services { wifi, mdns })
     }
 
     fn connect_wifi(
@@ -63,5 +65,9 @@ impl<'a> Services<'a> {
         info!("Wifi netif up");
 
         Ok(())
+    }
+
+    pub fn netif(&self) -> &EspNetif {
+        self.wifi.wifi().sta_netif()
     }
 }

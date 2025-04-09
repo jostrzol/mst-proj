@@ -35,9 +35,15 @@ esp-idf-svc = { version = "0.51", features = [
 esp-idf-hal = { version = "0.45.2" }
 anyhow = "1.0.97"
 embedded-svc = "0.28.1"
+esp-idf-sys = "0.36.1"
 
 [build-dependencies]
 embuild = "0.33"
 
 [[package.metadata.esp-idf-sys.extra_components]]
 remote_component = { name = "espressif/mdns", version = "1.2" }
+
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "espressif/esp-modbus", version = "1.0" }
+bindings_header = "modbus.h"
+bindings_module = "modbus"

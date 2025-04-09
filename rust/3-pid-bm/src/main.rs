@@ -1,9 +1,11 @@
+mod server;
 mod services;
 
 use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::log::EspLogger;
 
 use log::info;
+use server::Server;
 use services::Services;
 
 const SSID: &str = env!("WIFI_SSID");
@@ -14,11 +16,12 @@ fn main() -> anyhow::Result<()> {
     EspLogger::initialize_default();
 
     let peripherals = Peripherals::take()?;
-    let _ = Services::new(peripherals.modem, SSID, PASSWORD)?;
+    let services = Services::new(peripherals.modem, SSID, PASSWORD)?;
+    let _server = Server::new(services.netif());
 
-    info!("Shutting down in 5s...");
+    info!("Controlling motor using PID from Rust");
 
-    std::thread::sleep(core::time::Duration::from_secs(5));
-
-    Ok(())
+    loop {
+        std::thread::sleep(core::time::Duration::from_secs(5));
+    }
 }
