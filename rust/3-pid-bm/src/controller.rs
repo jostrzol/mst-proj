@@ -99,19 +99,25 @@ where
     }
 
     pub fn iteration(&mut self) -> anyhow::Result<()> {
+        let value = self.read_adc()?;
+        info!("selected duty cycle: {:.2}", value);
+
+        let duty_cycle = value * self.ledc_max_duty as f32;
+        self.update_duty_cycle(duty_cycle)?;
+
+        Ok(())
+    }
+
+    fn read_adc(&mut self) -> Result<f32, anyhow::Error> {
         let value = self
             .hal
-            .with_mut(|mut fields| fields.adc_driver.read_raw(&mut fields.adc_channel_driver))?;
-        let value_normalized = value as f32 / ADC_MAX_VALUE as f32;
-        info!(
-            "selected duty cycle: {:.2} = {} / {}",
-            value_normalized, value, ADC_MAX_VALUE
-        );
+            .with_adc_channel_driver_mut(|mut adc| adc.read_raw())?;
+        Ok(value as f32 / ADC_MAX_VALUE as f32)
+    }
 
-        let duty_cycle = value_normalized * self.ledc_max_duty as f32;
+    fn update_duty_cycle(&mut self, duty_cycle: f32) -> Result<(), anyhow::Error> {
         self.hal
             .with_ledc_driver_mut(|ledc| ledc.set_duty(duty_cycle as u32))?;
-
         Ok(())
     }
 }
