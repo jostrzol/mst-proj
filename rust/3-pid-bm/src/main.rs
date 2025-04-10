@@ -55,7 +55,8 @@ fn main() -> anyhow::Result<()> {
         ..Default::default()
     }
     .set()?;
-    let controller_thread = std::thread::Builder::new().spawn(move || controller.run())?;
+    let controller_thread = std::thread::Builder::new()
+        .spawn(move || controller.run().expect("Failed to run controller"))?;
 
     info!("Controlling motor using PID from Rust");
 
