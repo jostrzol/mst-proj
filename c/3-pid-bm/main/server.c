@@ -13,6 +13,9 @@
 #define MB_WRITE_MASK (MB_EVENT_HOLDING_REG_WR | MB_EVENT_COILS_WR)
 #define MB_READ_WRITE_MASK (MB_READ_MASK | MB_WRITE_MASK)
 
+#define MB_HOLDING_MASK (MB_EVENT_HOLDING_REG_WR | MB_EVENT_HOLDING_REG_RD)
+#define MB_INPUT_MASK (MB_EVENT_INPUT_REG_RD)
+
 static const char TAG[] = "server";
 
 esp_err_t server_init(server_t *self, server_opts_t *opts) {
@@ -99,11 +102,11 @@ void server_loop(void *params) {
       continue; // Don't log reads
 
     const char *rw_str = (reg_info.type & MB_READ_MASK) ? "READ" : "WRITE";
-    const char *type_str;
 
-    if (reg_info.type & (MB_EVENT_HOLDING_REG_WR | MB_EVENT_HOLDING_REG_RD)) {
+    const char *type_str;
+    if (reg_info.type & MB_HOLDING_MASK) {
       type_str = "HOLDING";
-    } else if (reg_info.type & MB_EVENT_INPUT_REG_RD) {
+    } else if (reg_info.type & MB_INPUT_MASK) {
       type_str = "INPUT";
     } else {
       type_str = "UNKNOWN";

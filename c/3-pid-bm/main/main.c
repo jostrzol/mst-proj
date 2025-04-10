@@ -68,7 +68,7 @@ void app_main(void) {
   StaticTask_t server_task_buf;
   TaskHandle_t server_task = xTaskCreateStaticPinnedToCore(
       server_loop, "SERVER_LOOP", STACK_SIZE, &server, 2, server_stack,
-      &server_task_buf, 1
+      &server_task_buf, 0
   );
 
   while (true)
