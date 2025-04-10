@@ -1,3 +1,6 @@
+#![feature(variant_count)]
+
+mod registers;
 mod server;
 mod services;
 
@@ -5,6 +8,7 @@ use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::log::EspLogger;
 
 use log::info;
+use registers::Registers;
 use server::Server;
 use services::Services;
 
@@ -17,7 +21,8 @@ fn main() -> anyhow::Result<()> {
 
     let peripherals = Peripherals::take()?;
     let services = Services::new(peripherals.modem, SSID, PASSWORD)?;
-    let _server = Server::new(services.netif());
+    let registers = Registers::new();
+    let _server = Server::new(services.netif(), &registers);
 
     info!("Controlling motor using PID from Rust");
 

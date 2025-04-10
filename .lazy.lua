@@ -19,6 +19,11 @@ return {
 						cargo = {
 							allTargets = false,
 						},
+						server = {
+							extraEnv = {
+								-- RUSTUP_TOOLCHAIN = "esp",
+							},
+						},
 					},
 				},
 			},
