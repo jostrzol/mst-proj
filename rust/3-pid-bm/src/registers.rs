@@ -18,57 +18,32 @@ pub enum HoldingRegister {
 }
 
 #[repr(C)]
-#[derive(Default, Clone, Copy)]
-pub struct FloatCDAB {
-    raw: [u8; 4],
-}
-
-impl From<FloatCDAB> for f32 {
-    fn from(val: FloatCDAB) -> Self {
-        let [c, d, a, b] = val.raw;
-        Self::from_be_bytes([a, b, c, d])
-    }
-}
-
-impl From<f32> for FloatCDAB {
-    fn from(value: f32) -> Self {
-        let [a, b, c, d]: [u8; 4] = value.to_be_bytes();
-        FloatCDAB { raw: [c, d, a, b] }
-    }
-}
-
-#[repr(C)]
 pub struct Registers {
-    pub input: [FloatCDAB; variant_count::<InputRegister>()],
-    pub holding: [FloatCDAB; variant_count::<HoldingRegister>()],
+    pub input: [f32; variant_count::<InputRegister>()],
+    pub holding: [f32; variant_count::<HoldingRegister>()],
 }
 
 impl Registers {
     pub fn new() -> Self {
         Self {
             input: Default::default(),
-            holding: [
-                Default::default(),
-                Default::default(),
-                f32::INFINITY.into(),
-                Default::default(),
-            ],
+            holding: [0., 0., f32::INFINITY, 0.],
         }
     }
 
     pub fn read_input(&self, register: InputRegister) -> f32 {
-        self.input[register.to_usize().unwrap()].into()
+        self.input[register.to_usize().unwrap()]
     }
 
     pub fn write_input(&mut self, register: InputRegister, value: f32) {
-        self.input[register.to_usize().unwrap()] = value.into();
+        self.input[register.to_usize().unwrap()] = value;
     }
 
     pub fn read_holding(&self, register: HoldingRegister) -> f32 {
-        self.holding[register.to_usize().unwrap()].into()
+        self.holding[register.to_usize().unwrap()]
     }
 
     pub fn write_holding(&mut self, register: HoldingRegister, value: f32) {
-        self.holding[register.to_usize().unwrap()] = value.into()
+        self.holding[register.to_usize().unwrap()] = value;
     }
 }

@@ -10,7 +10,7 @@ use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::log::EspLogger;
 
 use log::info;
-use registers::Registers;
+use registers::{HoldingRegister, Registers};
 use server::Server;
 use services::Services;
 

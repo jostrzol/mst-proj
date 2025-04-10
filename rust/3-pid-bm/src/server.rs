@@ -3,6 +3,7 @@ use std::mem::MaybeUninit;
 use std::ptr;
 
 use esp_idf_svc::netif::EspNetif;
+use esp_idf_sys::esp;
 use esp_idf_sys::modbus::{
     mb_communication_info_t, mb_communication_info_t__bindgen_ty_2,
     mb_event_group_t_MB_EVENT_COILS_RD, mb_event_group_t_MB_EVENT_COILS_WR,
@@ -13,7 +14,6 @@ use esp_idf_sys::modbus::{
     mbc_slave_check_event, mbc_slave_destroy, mbc_slave_get_param_info, mbc_slave_init_tcp,
     mbc_slave_set_descriptor, mbc_slave_setup, mbc_slave_start,
 };
-use esp_idf_sys::{esp, EspError};
 use log::{error, info};
 
 use crate::registers::Registers;
