@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use esp_idf_hal::adc::oneshot::config::Calibration;
 use esp_idf_hal::adc::Adc;
 use esp_idf_hal::gpio::{ADCPin, OutputPin};
@@ -14,6 +16,7 @@ use esp_idf_hal::{
 
 use log::{error, info};
 use ouroboros::self_referencing;
+use ringbuffer::{AllocRingBuffer, RingBuffer};
 
 const FREQUENCY: u64 = 100;
 const SLEEP_DURATION_MS: u64 = 1000 / FREQUENCY;
@@ -43,6 +46,19 @@ where
 {
     hal: ControllerHal<'a, TAdc, TAdcPin>,
     ledc_max_duty: u32,
+    interval_rotate_once_s: f32,
+    interval_rotate_all_s: f32,
+    revolutions: AllocRingBuffer<u32>,
+    is_close: bool,
+    opts: ControllerOpts,
+}
+
+pub struct ControllerOpts {
+    pub frequency: u64,
+    pub revolution_treshold_close: f32,
+    pub revolution_treshold_far: f32,
+    pub revolution_bins: usize,
+    pub reads_per_bin: usize,
 }
 
 impl<'a, TAdc, TAdcPin> Controller<'a, TAdc, TAdcPin>
@@ -56,6 +72,7 @@ where
         ledc_timer: impl Peripheral<P = TLedcTimer> + 'a,
         ledc_pin: impl Peripheral<P = TLedcPin> + 'a,
         ledc_channel: impl Peripheral<P = TLedcChannel> + 'a,
+        opts: ControllerOpts,
     ) -> anyhow::Result<Self>
     where
         TLedcTimer: LedcTimer + 'a,
@@ -85,25 +102,52 @@ where
         }
         .try_build()?;
 
-        Ok(Self { hal, ledc_max_duty })
+        let mut revolutions = AllocRingBuffer::<u32>::new(opts.revolution_bins);
+        revolutions.fill_default();
+
+        let interval_rotate_once_s: f32 = 1. / opts.frequency as f32 * opts.reads_per_bin as f32;
+        let interval_rotate_all_s: f32 = interval_rotate_once_s * opts.revolution_bins as f32;
+
+        Ok(Self {
+            hal,
+            ledc_max_duty,
+            interval_rotate_once_s,
+            interval_rotate_all_s,
+            revolutions,
+            is_close: false,
+            opts,
+        })
     }
 
     pub fn run(&mut self) {
-        loop {
-            if let Err(err) = self.iteration() {
-                error!("Error while running controller loop iteration: {}", err);
-            }
+        // TODO: remove
+        self.update_duty_cycle(0.15).unwrap();
 
-            std::thread::sleep(core::time::Duration::from_millis(SLEEP_DURATION_MS));
+        loop {
+            for _ in 0..self.opts.reads_per_bin {
+                std::thread::sleep(core::time::Duration::from_millis(1));
+
+                if let Err(err) = self.read_phase() {
+                    error!("Error while running controller read phase: {}", err);
+                }
+            }
+            if let Err(err) = self.control_phase() {
+                error!("Error while running controller control phase: {}", err);
+            }
         }
     }
 
-    pub fn iteration(&mut self) -> anyhow::Result<()> {
+    pub fn read_phase(&mut self) -> anyhow::Result<()> {
         let value = self.read_adc()?;
-        info!("selected duty cycle: {:.2}", value);
 
-        let duty_cycle = value * self.ledc_max_duty as f32;
-        self.update_duty_cycle(duty_cycle)?;
+        if value < self.opts.revolution_treshold_close && !self.is_close {
+            // gone close
+            self.is_close = true;
+            *self.revolutions.back_mut().expect("Revolutions empty") += 1;
+        } else if value > self.opts.revolution_treshold_far && self.is_close {
+            // gone far
+            self.is_close = false;
+        }
 
         Ok(())
     }
@@ -115,7 +159,22 @@ where
         Ok(value as f32 / ADC_MAX_VALUE as f32)
     }
 
-    fn update_duty_cycle(&mut self, duty_cycle: f32) -> Result<(), anyhow::Error> {
+    pub fn control_phase(&mut self) -> anyhow::Result<()> {
+        let frequency = self.calculate_frequency();
+        self.revolutions.push(0);
+
+        info!("frequency: {}", frequency);
+
+        Ok(())
+    }
+
+    fn calculate_frequency(&self) -> f32 {
+        let sum: u32 = self.revolutions.iter().sum();
+        sum as f32 / self.interval_rotate_all_s
+    }
+
+    fn update_duty_cycle(&mut self, value: f32) -> Result<(), anyhow::Error> {
+        let duty_cycle = value * self.ledc_max_duty as f32;
         self.hal
             .with_ledc_driver_mut(|ledc| ledc.set_duty(duty_cycle as u32))?;
         Ok(())

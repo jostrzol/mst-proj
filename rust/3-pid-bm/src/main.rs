@@ -5,7 +5,7 @@ mod registers;
 mod server;
 mod services;
 
-use controller::Controller;
+use controller::{Controller, ControllerOpts};
 use esp_idf_hal::cpu::Core;
 use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_svc::hal::prelude::Peripherals;
@@ -35,6 +35,13 @@ fn main() -> anyhow::Result<()> {
         peripherals.ledc.timer0,
         peripherals.pins.gpio5,
         peripherals.ledc.channel0,
+        ControllerOpts {
+            frequency: 1000,
+            revolution_treshold_close: 0.36,
+            revolution_treshold_far: 0.40,
+            revolution_bins: 10,
+            reads_per_bin: 100,
+        },
     )?;
 
     ThreadSpawnConfiguration {

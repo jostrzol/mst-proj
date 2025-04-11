@@ -39,6 +39,7 @@ esp-idf-sys = "0.36.1"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 ouroboros = "0.18.5"
+ringbuffer = "0.15.0"
 
 [build-dependencies]
 embuild = "0.33"
