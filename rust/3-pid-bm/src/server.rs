@@ -84,7 +84,7 @@ impl Server {
         Ok(Server {})
     }
 
-    pub fn run(&self) {
+    pub fn run(&self) -> anyhow::Result<()> {
         info!("Listening for modbus requests...");
 
         loop {

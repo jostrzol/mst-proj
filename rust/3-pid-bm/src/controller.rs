@@ -1,11 +1,16 @@
+use std::num::NonZeroU32;
+use std::thread;
 use std::time::Duration;
 
 use esp_idf_hal::adc::oneshot::config::Calibration;
 use esp_idf_hal::adc::Adc;
+use esp_idf_hal::delay;
 use esp_idf_hal::gpio::{ADCPin, OutputPin};
-use esp_idf_hal::ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver};
+use esp_idf_hal::ledc::{self, LedcDriver, LedcTimerDriver};
 use esp_idf_hal::ledc::{LedcChannel, LedcTimer};
 use esp_idf_hal::peripheral::Peripheral;
+use esp_idf_hal::task::notification::Notification;
+use esp_idf_hal::timer::{self, Timer, TimerDriver};
 use esp_idf_hal::{
     adc::{
         self, attenuation,
@@ -18,8 +23,8 @@ use log::{error, info};
 use ouroboros::self_referencing;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
-const FREQUENCY: u64 = 100;
-const SLEEP_DURATION_MS: u64 = 1000 / FREQUENCY;
+type LedcTimerConfig = ledc::config::TimerConfig;
+type TimerConfig = timer::config::Config;
 
 const ADC_BITWIDTH: u16 = 9;
 const ADC_MAX_VALUE: u16 = (1 << ADC_BITWIDTH) - 1;
@@ -32,25 +37,12 @@ where
     TAdc: Adc,
     TAdcPin: ADCPin<Adc = TAdc>,
 {
-    adc_driver: AdcDriver<'a, TAdc>,
-    #[borrows(adc_driver)]
+    adc: AdcDriver<'a, TAdc>,
+    #[borrows(adc)]
     #[covariant]
-    adc_channel_driver: AdcChannelDriver<'a, TAdcPin, &'this AdcDriver<'a, TAdc>>,
-    ledc_driver: LedcDriver<'a>,
-}
-
-pub struct Controller<'a, TAdc, TAdcPin>
-where
-    TAdc: Adc,
-    TAdcPin: ADCPin<Adc = TAdc>,
-{
-    hal: ControllerHal<'a, TAdc, TAdcPin>,
-    ledc_max_duty: u32,
-    interval_rotate_once_s: f32,
-    interval_rotate_all_s: f32,
-    revolutions: AllocRingBuffer<u32>,
-    is_close: bool,
-    opts: ControllerOpts,
+    adc_channel: AdcChannelDriver<'a, TAdcPin, &'this AdcDriver<'a, TAdc>>,
+    ledc: LedcDriver<'a>,
+    timer: TimerDriver<'a>,
 }
 
 pub struct ControllerOpts {
@@ -61,23 +53,51 @@ pub struct ControllerOpts {
     pub reads_per_bin: usize,
 }
 
+pub struct Controller<'a, TAdc, TAdcPin>
+where
+    TAdc: Adc,
+    TAdcPin: ADCPin<Adc = TAdc>,
+{
+    hal: ControllerHal<'a, TAdc, TAdcPin>,
+    notification: Notification,
+    ledc_max_duty: u32,
+    interval_rotate_once_s: f32,
+    interval_rotate_all_s: f32,
+    revolutions: AllocRingBuffer<u32>,
+    is_close: bool,
+    opts: ControllerOpts,
+}
+
+impl<'a, TAdc, TAdcPin> Drop for Controller<'a, TAdc, TAdcPin>
+where
+    TAdc: Adc,
+    TAdcPin: ADCPin<Adc = TAdc>,
+{
+    fn drop(&mut self) {
+        self.hal
+            .with_timer_mut(|timer| timer.unsubscribe().expect("Cannot unsubscribe"));
+    }
+}
+
 impl<'a, TAdc, TAdcPin> Controller<'a, TAdc, TAdcPin>
 where
     TAdc: Adc,
     TAdcPin: ADCPin<Adc = TAdc>,
 {
-    pub fn new<TLedcPin, TLedcChannel, TLedcTimer>(
+    pub fn new<TLedcPin, TLedcChannel, TLedcTimer, TTimer>(
         adc: impl Peripheral<P = TAdc> + 'a,
         adc_pin: impl Peripheral<P = TAdcPin> + 'a,
         ledc_timer: impl Peripheral<P = TLedcTimer> + 'a,
         ledc_pin: impl Peripheral<P = TLedcPin> + 'a,
         ledc_channel: impl Peripheral<P = TLedcChannel> + 'a,
+        timer: impl Peripheral<P = TTimer> + 'a,
         opts: ControllerOpts,
     ) -> anyhow::Result<Self>
     where
         TLedcTimer: LedcTimer + 'a,
         TLedcPin: OutputPin,
         TLedcChannel: LedcChannel<SpeedMode = TLedcTimer::SpeedMode>,
+        TTimer: Timer,
     {
         let adc_driver = AdcDriver::new(adc)?;
         let adc_config = AdcChannelConfig {
@@ -86,19 +106,31 @@ where
             calibration: Calibration::None,
         };
 
-        let ledc_timer_driver = LedcTimerDriver::new(
-            ledc_timer,
-            &TimerConfig::default().frequency(PWM_FREQUENCY.Hz()),
-        )?;
+        let ledc_timer_config = LedcTimerConfig::new().frequency(PWM_FREQUENCY.Hz());
+        let ledc_timer_driver = LedcTimerDriver::new(ledc_timer, &ledc_timer_config)?;
         let ledc_driver = LedcDriver::new(ledc_channel, ledc_timer_driver, ledc_pin)?;
         let ledc_max_duty = ledc_driver.get_max_duty();
 
+        let timer_config = TimerConfig::new().auto_reload(true);
+        let mut timer_driver = TimerDriver::new(timer, &timer_config)?;
+
+        timer_driver.set_alarm(timer_driver.tick_hz() / opts.frequency)?;
+        let notification = Notification::new();
+        let notifier = notification.notifier();
+        // Safety: make sure the `Notification` object is not dropped while the subscription is active
+        unsafe {
+            timer_driver.subscribe(move || {
+                notifier.notify_and_yield(NonZeroU32::new(1).unwrap());
+            })?;
+        }
+        timer_driver.enable_interrupt()?;
+        timer_driver.enable_alarm(true)?;
+
         let hal = ControllerHalTryBuilder {
-            adc_driver,
-            adc_channel_driver_builder: move |adc_driver| {
-                AdcChannelDriver::new(&adc_driver, adc_pin, &adc_config)
-            },
-            ledc_driver,
+            adc: adc_driver,
+            adc_channel_builder: move |adc| AdcChannelDriver::new(&adc, adc_pin, &adc_config),
+            ledc: ledc_driver,
+            timer: timer_driver,
         }
         .try_build()?;
 
@@ -110,6 +142,7 @@ where
 
         Ok(Self {
             hal,
+            notification,
             ledc_max_duty,
             interval_rotate_once_s,
             interval_rotate_all_s,
@@ -119,13 +152,15 @@ where
         })
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> anyhow::Result<()> {
+        self.hal.with_timer_mut(|timer| timer.enable(true))?;
+
         // TODO: remove
-        self.update_duty_cycle(0.15).unwrap();
+        self.update_duty_cycle(0.15)?;
 
         loop {
             for _ in 0..self.opts.reads_per_bin {
-                std::thread::sleep(core::time::Duration::from_millis(1));
+                let _ = self.notification.wait(delay::BLOCK);
 
                 if let Err(err) = self.read_phase() {
                     error!("Error while running controller read phase: {}", err);
@@ -153,9 +188,7 @@ where
     }
 
     fn read_adc(&mut self) -> Result<f32, anyhow::Error> {
-        let value = self
-            .hal
-            .with_adc_channel_driver_mut(|mut adc| adc.read_raw())?;
+        let value = self.hal.with_adc_channel_mut(|adc| adc.read_raw())?;
         Ok(value as f32 / ADC_MAX_VALUE as f32)
     }
 
@@ -176,7 +209,7 @@ where
     fn update_duty_cycle(&mut self, value: f32) -> Result<(), anyhow::Error> {
         let duty_cycle = value * self.ledc_max_duty as f32;
         self.hal
-            .with_ledc_driver_mut(|ledc| ledc.set_duty(duty_cycle as u32))?;
+            .with_ledc_mut(|ledc| ledc.set_duty(duty_cycle as u32))?;
         Ok(())
     }
 }
