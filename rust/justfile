@@ -57,7 +57,7 @@ _watch-bm NUM PACKAGE:
   -- just _build-bm \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build-bm NUM PACKAGE:
-  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build --release
 
 _run-bm NUM PACKAGE:
-  cd ./{{NUM}}-{{PACKAGE}}/ && cargo run
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo run --release

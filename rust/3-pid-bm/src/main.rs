@@ -5,8 +5,8 @@ mod registers;
 mod server;
 mod services;
 
-use std::pin::Pin;
 use std::thread;
+use std::{pin::Pin, time::Duration};
 
 use esp_idf_hal::cpu::Core;
 use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
@@ -54,7 +54,7 @@ fn main() -> anyhow::Result<()> {
         ..Default::default()
     }
     .set()?;
-    let server_thread = thread::Builder::new()
+    let _server_thread = thread::Builder::new()
         .stack_size(STACK_SIZE)
         .spawn(move || server.run().expect("Server loop failed"))?;
 
@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         ..Default::default()
     }
     .set()?;
-    let controller_thread = thread::Builder::new()
+    let _controller_thread = thread::Builder::new()
         .stack_size(STACK_SIZE)
         .spawn(move || {
             // Setup has to be inside the target task, because `Notification` relies on it.
@@ -85,7 +85,12 @@ fn main() -> anyhow::Result<()> {
 
     info!("Controlling motor using PID from Rust");
 
-    [server_thread, controller_thread].map(|thread| thread.join().expect("Couldn't join thread"));
+    loop {
+        thread::sleep(Duration::from_secs(5));
+    }
+
+    #[allow(unreachable_code)]
+    [_server_thread, _controller_thread].map(|thread| thread.join().expect("Couldn't join thread"));
 
     Ok(())
 }
