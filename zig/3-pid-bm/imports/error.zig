@@ -22,6 +22,8 @@ pub const esp_error = error{
     ErrorFlashBase,
     ErrorHWCryptoBase,
     ErrorMemProtectBase,
+    ErrorNvsNoFreePages,
+    ErrorNvsNewVersionFound,
 };
 
 // C to Zig error
@@ -46,6 +48,8 @@ pub fn espError(err: sys.esp_err_t) esp_error!sys.esp_err_t {
         .ESP_ERR_FLASH_BASE => esp_error.ErrorFlashBase,
         .ESP_ERR_HW_CRYPTO_BASE => esp_error.ErrorHWCryptoBase,
         .ESP_ERR_MEMPROT_BASE => esp_error.ErrorMemProtectBase,
+        .ESP_ERR_NVS_NO_FREE_PAGES => esp_error.ErrorNvsNoFreePages,
+        .ESP_ERR_NVS_NEW_VERSION_FOUND => esp_error.ErrorNvsNewVersionFound,
         else => .ESP_OK,
     };
 }
@@ -53,4 +57,10 @@ pub fn espError(err: sys.esp_err_t) esp_error!sys.esp_err_t {
 pub fn espCheckError(errc: sys.esp_err_t) esp_error!void {
     if (try espError(errc) == sys.esp_err_t.ESP_OK)
         return;
+}
+
+pub fn espLogError(errc: sys.esp_err_t) void {
+    espCheckError(errc) catch |err| {
+        std.log.err("Error: {}", .{err});
+    };
 }

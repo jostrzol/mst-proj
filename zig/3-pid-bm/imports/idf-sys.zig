@@ -4,6 +4,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 // C error
+const ESP_ERR_NVS_BASE = 0x1100;
 pub const esp_err_t = enum(c_int) {
     ESP_OK = 0,
     ESP_FAIL = -1,
@@ -25,6 +26,8 @@ pub const esp_err_t = enum(c_int) {
     ESP_ERR_FLASH_BASE = 0x6000,
     ESP_ERR_HW_CRYPTO_BASE = 0xc000,
     ESP_ERR_MEMPROT_BASE = 0xd000,
+    ESP_ERR_NVS_NO_FREE_PAGES = ESP_ERR_NVS_BASE + 0x0d,
+    ESP_ERR_NVS_NEW_VERSION_FOUND = ESP_ERR_NVS_BASE + 0x10,
 };
 
 pub extern fn esp_err_to_name(code: esp_err_t) [*:0]const u8;

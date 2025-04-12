@@ -79,14 +79,6 @@ esp_err_t services_init(services_t *self) {
     return err;
   }
 
-  err = esp_wifi_set_ps(WIFI_PS_NONE);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "esp_wifi_set_ps fail (0x%x)", (int)err);
-    my_mdns_deinit();
-    ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_flash_deinit());
-    return err;
-  }
-
   return ESP_OK;
 }
 

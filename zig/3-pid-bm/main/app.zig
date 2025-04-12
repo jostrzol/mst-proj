@@ -5,6 +5,7 @@ const idf = @import("esp_idf");
 const c = @import("c.zig");
 usingnamespace @import("comptime-rt.zig");
 
+const Services = @import("Services.zig");
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
 
@@ -15,6 +16,9 @@ const pwm_bitwidth = c.LEDC_TIMER_13_BIT;
 const pwm_max = (1 << pwm_bitwidth) - 1;
 
 fn main() !void {
+    const services = try Services.init();
+    defer services.deinit();
+
     log.info("Controlling motor from Zig", .{});
 
     try idf.gpio.Direction.set(.GPIO_NUM_5, .GPIO_MODE_OUTPUT);

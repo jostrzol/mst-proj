@@ -153,6 +153,14 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
     ESP_LOGE(TAG, "UNEXPECTED EVENT");
   }
 
+  err = esp_wifi_set_ps(WIFI_PS_NONE);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "esp_wifi_start fail (0x%x)", (int)err);
+    esp_netif_destroy_default_wifi(self->netif);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
+    return err;
+  }
+
   return ESP_OK;
 }
 

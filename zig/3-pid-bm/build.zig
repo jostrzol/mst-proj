@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("main/app.zig"),
         .target = target,
         .optimize = optimize,
+        .unwind_tables = .none,
     });
     const idf = idf_wrapped_modules(b);
     lib.root_module.addImport("esp_idf", idf);
@@ -558,6 +559,10 @@ pub fn idf_wrapped_modules(b: *std.Build) *std.Build.Module {
             .{
                 .name = "pulse",
                 .module = pcnt,
+            },
+            .{
+                .name = "sys",
+                .module = sys,
             },
         },
     });
