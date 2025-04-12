@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::mem::MaybeUninit;
+use std::pin::Pin;
 use std::ptr;
 
 use esp_idf_svc::netif::EspNetif;
@@ -44,7 +45,7 @@ impl Drop for Server {
 }
 
 impl Server {
-    pub fn new(netif: &EspNetif, registers: &Registers) -> anyhow::Result<Server> {
+    pub fn new(netif: &EspNetif, registers: Pin<&Registers>) -> anyhow::Result<Server> {
         let mut handle = MaybeUninit::uninit();
         esp!(unsafe { mbc_slave_init_tcp(handle.as_mut_ptr()) })?;
 

@@ -1,6 +1,5 @@
 use std::num::NonZeroU32;
-use std::thread;
-use std::time::Duration;
+use std::pin::Pin;
 
 use esp_idf_hal::adc::oneshot::config::Calibration;
 use esp_idf_hal::adc::Adc;
@@ -23,6 +22,8 @@ use log::{error, info};
 use ouroboros::self_referencing;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
+use crate::registers::{HoldingRegister, InputRegister, Registers};
+
 type LedcTimerConfig = ledc::config::TimerConfig;
 type TimerConfig = timer::config::Config;
 
@@ -30,6 +31,10 @@ const ADC_BITWIDTH: u16 = 9;
 const ADC_MAX_VALUE: u16 = (1 << ADC_BITWIDTH) - 1;
 
 const PWM_FREQUENCY: u32 = 1000;
+const PWM_MIN: f32 = 0.10;
+const PWM_MAX: f32 = 1.00;
+
+const LIMIT_MIN_DEADZONE: f32 = 0.001;
 
 #[self_referencing]
 pub struct ControllerHal<'a, TAdc, TAdcPin>
@@ -59,12 +64,14 @@ where
     TAdcPin: ADCPin<Adc = TAdc>,
 {
     hal: ControllerHal<'a, TAdc, TAdcPin>,
+    registers: Pin<&'a mut Registers>,
     notification: Notification,
     ledc_max_duty: u32,
     interval_rotate_once_s: f32,
     interval_rotate_all_s: f32,
     revolutions: AllocRingBuffer<u32>,
     is_close: bool,
+    feedback: Feedback,
     opts: ControllerOpts,
 }
 
@@ -91,6 +98,7 @@ where
         ledc_pin: impl Peripheral<P = TLedcPin> + 'a,
         ledc_channel: impl Peripheral<P = TLedcChannel> + 'a,
         timer: impl Peripheral<P = TTimer> + 'a,
+        registers: Pin<&'a mut Registers>,
         opts: ControllerOpts,
     ) -> anyhow::Result<Self>
     where
@@ -142,12 +150,14 @@ where
 
         Ok(Self {
             hal,
+            registers,
             notification,
             ledc_max_duty,
             interval_rotate_once_s,
             interval_rotate_all_s,
             revolutions,
             is_close: false,
+            feedback: Feedback::default(),
             opts,
         })
     }
@@ -155,12 +165,9 @@ where
     pub fn run(&mut self) -> anyhow::Result<()> {
         self.hal.with_timer_mut(|timer| timer.enable(true))?;
 
-        // TODO: remove
-        self.update_duty_cycle(0.15)?;
-
         loop {
             for _ in 0..self.opts.reads_per_bin {
-                let _ = self.notification.wait(delay::BLOCK);
+                while let None = self.notification.wait(delay::BLOCK) {}
 
                 if let Err(err) = self.read_phase() {
                     error!("Error while running controller read phase: {}", err);
@@ -198,6 +205,19 @@ where
 
         info!("frequency: {}", frequency);
 
+        let params = ControlParams::read(self.registers.as_ref());
+
+        info!("target frequency: {:.2}", params.target_frequency);
+
+        let (control_signal, feedback) = self.calculate_control(&params, frequency, &self.feedback);
+
+        let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
+        info!("control_signal_limited: {:.2}", control_signal_limited);
+        self.write_registers(frequency, control_signal_limited);
+
+        self.update_duty_cycle(control_signal_limited)?;
+        self.feedback = feedback;
+
         Ok(())
     }
 
@@ -206,10 +226,95 @@ where
         sum as f32 / self.interval_rotate_all_s
     }
 
+    fn calculate_control(
+        &self,
+        params: &ControlParams,
+        frequency: f32,
+        feedback: &Feedback,
+    ) -> (f32, Feedback) {
+        let delta = params.target_frequency - frequency;
+
+        let integration_factor =
+            params.proportional_factor / params.integration_time * self.interval_rotate_once_s;
+        let differentiation_factor =
+            params.proportional_factor * params.differentiation_time / self.interval_rotate_once_s;
+
+        let proportional_component = params.proportional_factor * delta;
+        let integration_component =
+            feedback.integration_component + integration_factor * feedback.delta;
+        let differentiation_component = differentiation_factor * (delta - feedback.delta);
+
+        let control_signal =
+            proportional_component + integration_component + differentiation_component;
+
+        info!("delta: {:.2}", delta);
+        info!(
+            "control signal: {:.2} = {:.2} + {:.2} + {:.2}",
+            control_signal,
+            proportional_component,
+            integration_component,
+            differentiation_component
+        );
+
+        let new_feedback = Feedback {
+            delta: finite_or_zero(delta),
+            integration_component: finite_or_zero(integration_component),
+        };
+        (control_signal, new_feedback)
+    }
+
+    fn write_registers(&mut self, frequency: f32, control_signal: f32) {
+        use InputRegister::*;
+        for (register, value) in [(Frequency, frequency), (ControlSignal, control_signal)] {
+            self.registers.as_mut().write_input(register, value);
+        }
+    }
+
     fn update_duty_cycle(&mut self, value: f32) -> Result<(), anyhow::Error> {
         let duty_cycle = value * self.ledc_max_duty as f32;
         self.hal
             .with_ledc_mut(|ledc| ledc.set_duty(duty_cycle as u32))?;
         Ok(())
+    }
+}
+
+struct ControlParams {
+    target_frequency: f32,
+    proportional_factor: f32,
+    integration_time: f32,
+    differentiation_time: f32,
+}
+
+impl ControlParams {
+    fn read(registers: Pin<&Registers>) -> Self {
+        use HoldingRegister::*;
+        Self {
+            target_frequency: registers.read_holding(TargetFrequency),
+            proportional_factor: registers.read_holding(ProportionalFactor),
+            integration_time: registers.read_holding(IntegrationTime),
+            differentiation_time: registers.read_holding(DifferentiationTime),
+        }
+    }
+}
+
+#[derive(Default)]
+struct Feedback {
+    delta: f32,
+    integration_component: f32,
+}
+
+fn finite_or_zero(value: f32) -> f32 {
+    if value.is_finite() {
+        value
+    } else {
+        0.
+    }
+}
+
+fn limit(signal: f32, min: f32, max: f32) -> f32 {
+    if signal < LIMIT_MIN_DEADZONE {
+        0.
+    } else {
+        (signal + min).clamp(min, max)
     }
 }

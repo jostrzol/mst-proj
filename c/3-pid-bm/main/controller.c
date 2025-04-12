@@ -276,7 +276,7 @@ typedef struct {
 control_t calculate_control(
     controller_t *self, const control_params_t *params, float frequency
 ) {
-  const float interval_s = self->interval.rotate_all_s;
+  const float interval_s = self->interval.rotate_once_s;
 
   const float integration_factor =
       params->proportional_factor / params->integration_time * interval_s;
