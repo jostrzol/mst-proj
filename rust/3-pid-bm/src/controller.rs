@@ -207,7 +207,7 @@ where
 
         let params = ControlParams::read(self.registers.as_ref());
 
-        info!("target frequency: {:.2}", params.target_frequency);
+        info!("target frequency: {:.2}", params.target_frequency,);
 
         let (control_signal, feedback) = self.calculate_control(&params, frequency, &self.feedback);
 

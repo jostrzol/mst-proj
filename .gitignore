@@ -13,6 +13,7 @@
 
 # Rust
 /rust/target/
+/rust/**/target_analyzer/
 
 # Zig
 /zig/**/.zig-cache
