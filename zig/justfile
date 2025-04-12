@@ -5,7 +5,7 @@ arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build
+build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build pid-bm-watch
 
 watch-all:
   just blinky-watch \
@@ -13,6 +13,7 @@ watch-all:
   & just motor-watch \
   & just motor-bm-watch \
   & just pid-watch \
+  & just pid-bm-watch \
   & wait
 
 clean:
@@ -34,9 +35,13 @@ motor-bm-watch: (_watch-bm "2-motor-bm")
 motor-bm-flash: (_cmd-bm "2-motor-bm" "flash" "monitor")
 motor-bm-cmd *CMD: (_cmd-bm "2-motor-bm" CMD)
 
-
 pid-build: (_build "3-pid")
 pid-watch: (_watch "3-pid")
+
+pid-bm-build: (_build-bm "3-pid-bm")
+pid-bm-watch: (_watch-bm "3-pid-bm")
+pid-bm-flash: (_cmd-bm "3-pid-bm" "flash" "monitor")
+pid-bm-cmd *CMD: (_cmd-bm "3-pid-bm" CMD)
 
 _watch PROJECT:
   watchexec --postpone --wrap-process session --verbose \
