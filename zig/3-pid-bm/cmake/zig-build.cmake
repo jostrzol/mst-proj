@@ -109,6 +109,11 @@ add_custom_target(zig_build
     BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libmotor.a
     VERBATIM)
 
-add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libmotor.a)
-add_dependencies(zig zig_build)
-target_link_libraries(${COMPONENT_LIB} PRIVATE ${CMAKE_BINARY_DIR}/lib/libmotor.a)
+configure_file(${CMAKE_BINARY_DIR}/lib/libmotor.a ${CMAKE_BINARY_DIR}/esp-idf/main/libmain.a COPYONLY)
+
+# add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libmotor.a)
+# add_dependencies(zig zig_build)
+
+# target_link_libraries(${COMPONENT_LIB} PRIVATE ${CMAKE_BINARY_DIR}/lib/libmotor.a)
+
+# target_link_libraries(${CMAKE_BINARY_DIR}/lib/libmotor.a ${CMAKE_BINARY_DIR}/esp-idf/cxx/libcxx.a)

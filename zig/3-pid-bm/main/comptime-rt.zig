@@ -8,22 +8,6 @@ comptime {
     @export(&__multi3, .{ .name = "__multi3", .linkage = .strong, .visibility = .default });
     @export(&__muloti4, .{ .name = "__muloti4", .linkage = .strong, .visibility = .default });
     @export(&__udivti3, .{ .name = "__udivti3", .linkage = .strong, .visibility = .default });
-
-    @export(&__wrap___cxa_allocate_exception, .{
-        .name = "__wrap___cxa_allocate_exception",
-        .linkage = .strong,
-        .visibility = .default,
-    });
-    @export(&__wrap___cxa_throw, .{
-        .name = "__wrap___cxa_throw",
-        .linkage = .strong,
-        .visibility = .default,
-    });
-    @export(&__wrap__Unwind_DeleteException, .{
-        .name = "__wrap__Unwind_DeleteException",
-        .linkage = .strong,
-        .visibility = .default,
-    });
 }
 
 pub fn __multi3(a: i128, b: i128) callconv(.c) i128 {
@@ -299,15 +283,3 @@ fn divwide_generic(comptime T: type, _u1: T, _u0: T, v_: T, r: *T) T {
     r.* = (un21 *% b +% un0 -% q0 *% v) >> s;
     return q1 *% b +% q0;
 }
-
-pub fn __wrap___cxa_allocate_exception(_: usize) callconv(.c) ?*anyopaque {
-    return null;
-}
-pub fn __wrap___cxa_throw(
-    _: ?*anyopaque,
-    _: ?*anyopaque,
-    _: ?*const fn (?*anyopaque) callconv(.C) void,
-) callconv(.c) void {
-    while (true) {}
-}
-pub fn __wrap__Unwind_DeleteException(_: ?*anyopaque) callconv(.c) void {}
