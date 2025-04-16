@@ -75,14 +75,15 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   err = esp_wifi_init(&cfg);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_init fail (0x%x)", (int)err);
+    esp_netif_destroy_default_wifi(self->netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
 
   // Handlers
-  esp_event_handler_instance_t instance_any_id;
+  esp_event_handler_instance_t handler_wifi;
   err = esp_event_handler_instance_register(
-      WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, &instance_any_id
+      WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL, &handler_wifi
   );
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_event_handler_instance_register fail (0x%x)", (int)err);
@@ -91,9 +92,9 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
     return err;
   }
 
-  esp_event_handler_instance_t instance_got_ip;
+  esp_event_handler_instance_t handler_ip;
   err = esp_event_handler_instance_register(
-      IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip
+      IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &handler_ip
   );
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_event_handler_instance_register fail (0x%x)", (int)err);
@@ -103,6 +104,13 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   }
 
   // Config
+  err = esp_wifi_set_mode(WIFI_MODE_STA);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "esp_wifi_set_mode fail (0x%x)", (int)err);
+    esp_netif_destroy_default_wifi(self->netif);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
+    return err;
+  }
   wifi_config_t wifi_config = {
       .sta =
           {
@@ -113,13 +121,6 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
               .sae_h2e_identifier = "",
           },
   };
-  err = esp_wifi_set_mode(WIFI_MODE_STA);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "esp_wifi_set_mode fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
-    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
-    return err;
-  }
   err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_set_config fail (0x%x)", (int)err);
