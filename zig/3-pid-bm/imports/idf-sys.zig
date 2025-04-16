@@ -3085,7 +3085,6 @@ pub const wifi_auth_mode_t = enum(c_uint) {
     WIFI_AUTH_WPA_PSK = 2,
     WIFI_AUTH_WPA2_PSK = 3,
     WIFI_AUTH_WPA_WPA2_PSK = 4,
-    WIFI_AUTH_ENTERPRISE = 5,
     WIFI_AUTH_WPA2_ENTERPRISE = 5,
     WIFI_AUTH_WPA3_PSK = 6,
     WIFI_AUTH_WPA2_WPA3_PSK = 7,
@@ -3259,7 +3258,42 @@ pub const wifi_ap_config_t = extern struct {
     pmf_cfg: wifi_pmf_config_t = std.mem.zeroes(wifi_pmf_config_t),
     sae_pwe_h2e: wifi_sae_pwe_method_t = std.mem.zeroes(wifi_sae_pwe_method_t),
 }; // esp-idf/components/esp_wifi/include/esp_wifi_types_generic.h:321:14: warning: struct demoted to opaque type - has bitfield
-pub const wifi_sta_config_t = opaque {};
+pub const wifi_sta_config_t = extern struct {
+    ssid: [32]u8 = std.mem.zeroes([32]u8),
+    password: [64]u8 = std.mem.zeroes([64]u8),
+    scan_method: wifi_scan_method_t = std.mem.zeroes(wifi_scan_method_t),
+    bssid_set: bool = std.mem.zeroes(bool),
+    bssid: [6]u8 = std.mem.zeroes([6]u8),
+    channel: u8 = std.mem.zeroes(u8),
+    listen_interval: u16 = std.mem.zeroes(u16),
+    sort_method: wifi_sort_method_t = std.mem.zeroes(wifi_sort_method_t),
+    threshold: wifi_scan_threshold_t = std.mem.zeroes(wifi_scan_threshold_t),
+    pmf_cfg: wifi_pmf_config_t = std.mem.zeroes(wifi_pmf_config_t),
+    capabilities: packed struct(u32) {
+        rm_enabled: bool = std.mem.zeroes(bool),
+        btm_enabled: bool = std.mem.zeroes(bool),
+        mbo_enabled: bool = std.mem.zeroes(bool),
+        ft_enabled: bool = std.mem.zeroes(bool),
+        owe_enabled: bool = std.mem.zeroes(bool),
+        transition_disable: bool = std.mem.zeroes(bool),
+        _padding: u26 = std.mem.zeroes(u26),
+    } = .{},
+    sae_pwe_h2e: wifi_sae_pwe_method_t = std.mem.zeroes(wifi_sae_pwe_method_t),
+    sae_pk_mode: wifi_sae_pk_mode_t = std.mem.zeroes(wifi_sae_pk_mode_t),
+    failure_retry_cnt: u8 = std.mem.zeroes(u8),
+    he: packed struct(u32) {
+        dcm_set: bool = std.mem.zeroes(bool),
+        dcm_max_constellation_tx: u2 = std.mem.zeroes(u2),
+        dcm_max_constellation_rx: u2 = std.mem.zeroes(u2),
+        mcs9_enabled: bool = std.mem.zeroes(bool),
+        su_beamformee_disabled: bool = std.mem.zeroes(bool),
+        trig_su_bmforming_feedback_disabled: bool = std.mem.zeroes(bool),
+        trig_mu_bmforming_partial_feedback_disabled: bool = std.mem.zeroes(bool),
+        trig_cqi_feedback_disabled: bool = std.mem.zeroes(bool),
+        _padding: u22 = std.mem.zeroes(u22),
+    } = .{},
+    sae_h2e_identifier: [32]u8 = std.mem.zeroes([32]u8),
+};
 pub const wifi_nan_config_t = extern struct {
     op_channel: u8 = std.mem.zeroes(u8),
     master_pref: u8 = std.mem.zeroes(u8),
@@ -5307,6 +5341,8 @@ pub const wifi_init_config_t = extern struct {
     feature_caps: u64 = std.mem.zeroes(u64),
     sta_disconnected_pm: bool = std.mem.zeroes(bool),
     espnow_max_encrypt_num: c_int = std.mem.zeroes(c_int),
+    tx_hetb_queue_num: c_int = std.mem.zeroes(c_int),
+    dump_hesigb_enable: bool = std.mem.zeroes(bool),
     magic: c_int = std.mem.zeroes(c_int),
 };
 pub extern const g_wifi_default_wpa_crypto_funcs: wpa_crypto_funcs_t;

@@ -5,6 +5,7 @@ const c = @cImport({
     @cInclude("esp_adc/adc_oneshot.h");
     @cInclude("driver/ledc.h");
     @cInclude("mdns.h");
+    @cInclude("sdkconfig.h");
 });
 
 pub usingnamespace c;

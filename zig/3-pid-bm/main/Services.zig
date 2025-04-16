@@ -2,6 +2,7 @@ const std = @import("std");
 const idf = @import("esp_idf");
 const sys = idf.sys;
 
+const Wifi = @import("Wifi.zig");
 const c = @import("c.zig");
 
 const Self = @This();
@@ -10,6 +11,7 @@ const mdns_port = 502;
 const mdns_hostname = "esp32";
 
 mdns: MDns,
+wifi: Wifi,
 
 pub fn init() !Self {
     idf.espCheckError(sys.nvs_flash_init()) catch |err| {
@@ -31,10 +33,17 @@ pub fn init() !Self {
     const mdns = try MDns.init();
     errdefer mdns.deinit();
 
-    return .{ .mdns = mdns };
+    const wifi = try Wifi.init();
+    errdefer wifi.deinit();
+
+    return .{
+        .mdns = mdns,
+        .wifi = wifi,
+    };
 }
 
 pub fn deinit(self: *const Self) void {
+    self.wifi.deinit();
     self.mdns.deinit();
     idf.espLogError(sys.esp_event_loop_delete_default());
     idf.espLogError(sys.nvs_flash_deinit());

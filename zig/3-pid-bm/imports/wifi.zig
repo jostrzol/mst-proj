@@ -1,11 +1,8 @@
 const sys = @import("sys");
 const errors = @import("error");
 
-pub fn init(config: ?*const sys.wifi_init_config_t) !*const sys.wifi_init_config_t {
-    if (config) |c| {
-        try errors.espCheckError(sys.esp_wifi_init(c));
-        return c;
-    } else return .{};
+pub fn init(config: *const sys.wifi_init_config_t) !void {
+    try errors.espCheckError(sys.esp_wifi_init(config));
 }
 pub fn setDefaultWifiStationHandlers() !void {
     return try errors.espCheckError(sys.esp_wifi_set_default_wifi_sta_handlers());
