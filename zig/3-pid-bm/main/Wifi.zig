@@ -38,7 +38,9 @@ pub fn init() !Self {
     const netif = sys.esp_netif_create_default_wifi_sta() orelse return error.ErrorSetupWifi;
     errdefer sys.esp_netif_destroy_default_wifi(netif);
 
-    try idf.wifi.init(&wifiConfigDefault());
+    const init_config = wifiInitConfigDefault();
+    std.log.info("init_config: {x}", .{@as([]const u8, @ptrCast((&init_config)[0..1]))});
+    try idf.wifi.init(&init_config);
     errdefer idf.wifi.deinit() catch |e| logErr(e);
 
     var handler_wifi: sys.esp_event_handler_instance_t = undefined;
@@ -63,11 +65,9 @@ pub fn init() !Self {
 
     var wifi_config = sys.wifi_config_t{
         .sta = .{
-            .ssid = extend(@FieldType(sys.wifi_sta_config_t, "ssid"), ssid),
-            .password = extend(@FieldType(sys.wifi_sta_config_t, "password"), password),
+            .ssid = nullExtend(@FieldType(sys.wifi_sta_config_t, "ssid"), ssid),
+            .password = nullExtend(@FieldType(sys.wifi_sta_config_t, "password"), password),
             .threshold = .{ .authmode = sys.wifi_auth_mode_t.WIFI_AUTH_WPA2_PSK },
-            .sae_pwe_h2e = sys.wifi_sae_pwe_method_t.WPA3_SAE_PWE_UNSPECIFIED,
-            .sae_h2e_identifier = extend(@FieldType(sys.wifi_sta_config_t, "sae_h2e_identifier"), ""),
         },
     };
     try idf.wifi.setConfig(.WIFI_IF_STA, &wifi_config);
@@ -171,8 +171,8 @@ const EventType = struct {
     }
 };
 
-fn wifiConfigDefault() sys.wifi_init_config_t {
-    return sys.wifi_init_config_t{
+fn wifiInitConfigDefault() sys.wifi_init_config_t {
+    return .{
         .osi_funcs = &sys.g_wifi_osi_funcs,
         .wpa_crypto_funcs = sys.g_wifi_default_wpa_crypto_funcs,
         .static_rx_buf_num = c.CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM,
@@ -189,7 +189,7 @@ fn wifiConfigDefault() sys.wifi_init_config_t {
         .amsdu_tx_enable = @intFromBool(config(bool, "CONFIG_ESP_WIFI_AMSDU_TX_ENABLED")),
         .nvs_enable = @intFromBool(config(bool, "CONFIG_ESP_WIFI_NVS_ENABLED")),
         .nano_enable = @intFromBool(config(bool, "CONFIG_NEWLIB_NANO_FORMAT")),
-        .rx_ba_win = config(c_int, "CONFIG_ESP_WIFI_AMPDU_RX_ENABLED") orelse 0,
+        .rx_ba_win = if (config(bool, "CONFIG_ESP_WIFI_AMPDU_RX_ENABLED")) c.CONFIG_ESP_WIFI_RX_BA_WIN else 0,
         .wifi_task_core_id = if (config(bool, "CONFIG_ESP_WIFI_TASK_PINNED_TO_CORE_1")) 1 else 0,
         .beacon_max_len = config(c_int, "CONFIG_ESP_WIFI_SOFTAP_BEACON_MAX_LEN") orelse 754,
         .mgmt_sbuf_num = config(c_int, "CONFIG_ESP_WIFI_MGMT_SBUF_NUM") orelse 32,
@@ -238,6 +238,6 @@ fn config(comptime T: type, comptime key: []const u8) if (T == bool) bool else ?
     }
 }
 
-fn extend(comptime T: type, comptime str: [:0]const u8) [@sizeOf(T)]u8 {
+fn nullExtend(comptime T: type, comptime str: [:0]const u8) [@sizeOf(T)]u8 {
     return (str ++ (.{'\x00'} ** (@sizeOf(T) - str.len))).*;
 }

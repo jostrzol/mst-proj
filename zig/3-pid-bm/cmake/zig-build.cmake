@@ -86,6 +86,28 @@ else()
     set(ZIG_BUILD_TYPE "ReleaseSafe")
 endif()
 
+if(CONFIG_IDF_TARGET_ESP32)
+    set(TARGET_IDF_MODEL "esp32")
+elseif(CONFIG_IDF_TARGET_ESP32C2)
+    set(TARGET_IDF_MODEL "esp32c2")
+elseif(CONFIG_IDF_TARGET_ESP32C3)
+    set(TARGET_IDF_MODEL "esp32c3")
+elseif(CONFIG_IDF_TARGET_ESP32C6)
+    set(TARGET_IDF_MODEL "esp32c6")
+elseif(CONFIG_IDF_TARGET_ESP32H2)
+    set(TARGET_IDF_MODEL "esp32h2")
+elseif(CONFIG_IDF_TARGET_ESP32P4)
+    set(TARGET_IDF_MODEL "esp32p4")
+elseif(CONFIG_IDF_TARGET_ESP32S2)
+    set(TARGET_IDF_MODEL "esp32s2")
+elseif(CONFIG_IDF_TARGET_ESP32S3)
+    set(TARGET_IDF_MODEL "esp32s3")
+else()
+    message(FATAL_ERROR "Unknown IDF target")
+endif()
+
+set(TOOLCHAIN_BASE_PATH "$ENV{HOME}/.espressif/tools/xtensa-esp-elf")
+
 set(include_dirs $<TARGET_PROPERTY:${COMPONENT_LIB},INCLUDE_DIRECTORIES> ${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES})
 
 add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/include_dirs.txt
@@ -109,11 +131,30 @@ add_custom_target(zig_build
     BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libmotor.a
     VERBATIM)
 
-configure_file(${CMAKE_BINARY_DIR}/lib/libmotor.a ${CMAKE_BINARY_DIR}/esp-idf/main/libmain.a COPYONLY)
+add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libmotor.a)
+add_dependencies(zig zig_build)
 
-# add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libmotor.a)
-# add_dependencies(zig zig_build)
-
-# target_link_libraries(${COMPONENT_LIB} PRIVATE ${CMAKE_BINARY_DIR}/lib/libmotor.a)
-
-# target_link_libraries(${CMAKE_BINARY_DIR}/lib/libmotor.a ${CMAKE_BINARY_DIR}/esp-idf/cxx/libcxx.a)
+target_link_libraries(${COMPONENT_LIB} PRIVATE
+    "-Wl,--start-group"
+    ${IDF_PATH}/components/esp_phy/lib/${TARGET_IDF_MODEL}/libphy.a
+    ${IDF_PATH}/components/esp_phy/lib/${TARGET_IDF_MODEL}/librtc.a
+    ${IDF_PATH}/components/esp_wifi/lib/${TARGET_IDF_MODEL}/libpp.a
+    ${IDF_PATH}/components/esp_wifi/lib/${TARGET_IDF_MODEL}/libmesh.a
+    ${IDF_PATH}/components/esp_wifi/lib/${TARGET_IDF_MODEL}/libnet80211.a
+    ${IDF_PATH}/components/esp_wifi/lib/${TARGET_IDF_MODEL}/libcore.a
+    ${CMAKE_BINARY_DIR}/esp-idf/wpa_supplicant/libwpa_supplicant.a
+    ${CMAKE_BINARY_DIR}/esp-idf/log/liblog.a
+    ${CMAKE_BINARY_DIR}/esp-idf/nvs_flash/libnvs_flash.a
+    ${CMAKE_BINARY_DIR}/esp-idf/soc/libsoc.a
+    ${CMAKE_BINARY_DIR}/esp-idf/esp_hw_support/libesp_hw_support.a
+    ${CMAKE_BINARY_DIR}/esp-idf/hal/libhal.a
+    ${CMAKE_BINARY_DIR}/esp-idf/mbedtls/mbedtls/library/libmbedcrypto.a
+    ${CMAKE_BINARY_DIR}/esp-idf/freertos/libfreertos.a
+    ${CMAKE_BINARY_DIR}/esp-idf/lwip/liblwip.a
+    ${CMAKE_BINARY_DIR}/esp-idf/esp_wifi/libesp_wifi.a
+    ${CMAKE_BINARY_DIR}/esp-idf/esp_netif/libesp_netif.a
+    ${CMAKE_BINARY_DIR}/esp-idf/esp_event/libesp_event.a
+    ${TOOLCHAIN_BASE_PATH}/esp-14.2.0_20241119/xtensa-esp-elf/xtensa-esp-elf/lib/esp32/no-rtti/libstdc++.a
+    zig
+    "-Wl,--end-group"
+)

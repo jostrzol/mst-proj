@@ -21,8 +21,6 @@ fn main() !void {
 
     log.info("Controlling motor from Zig", .{});
 
-    try idf.gpio.Direction.set(.GPIO_NUM_5, .GPIO_MODE_OUTPUT);
-
     const adc_unit = try adc.Unit.init(c.ADC_UNIT_1);
     const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
         .atten = c.ADC_ATTEN_DB_12,
@@ -55,7 +53,7 @@ fn main() !void {
 }
 
 export fn app_main() callconv(.C) void {
-    main() catch |err| std.debug.panic("Error calling main: {}", .{err});
+    main() catch |err| std.debug.panic("Failed to call main: {}", .{err});
 }
 
 // override the std panic function with idf.panic
