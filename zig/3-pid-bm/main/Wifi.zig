@@ -54,7 +54,7 @@ pub fn init() !Self {
 
     var handler_ip: sys.esp_event_handler_instance_t = undefined;
     try idf.espCheckError(sys.esp_event_handler_instance_register(
-        sys.WIFI_EVENT,
+        sys.IP_EVENT,
         @intFromEnum(sys.ip_event_t.IP_EVENT_STA_GOT_IP),
         &event_handler,
         null,

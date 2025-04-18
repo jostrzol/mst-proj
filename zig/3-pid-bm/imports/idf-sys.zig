@@ -7318,26 +7318,3 @@ pub extern fn pcnt_new_channel(unit: pcnt_unit_handle_t, config: ?*const pcnt_ch
 pub extern fn pcnt_del_channel(chan: pcnt_channel_handle_t) esp_err_t;
 pub extern fn pcnt_channel_set_edge_action(chan: pcnt_channel_handle_t, pos_act: pcnt_channel_edge_action_t, neg_act: pcnt_channel_edge_action_t) esp_err_t;
 pub extern fn pcnt_channel_set_level_action(chan: pcnt_channel_handle_t, high_act: pcnt_channel_level_action_t, low_act: pcnt_channel_level_action_t) esp_err_t;
-
-pub const WIFI_STATIC_TX_BUFFER_NUM = @as(c_int, 0);
-pub const WIFI_CACHE_TX_BUFFER_NUM = @as(c_int, 0);
-pub const WIFI_CSI_ENABLED = @as(c_int, 0);
-pub const WIFI_AMPDU_RX_ENABLED = @as(c_int, 1);
-pub const WIFI_AMPDU_TX_ENABLED = @as(c_int, 1);
-pub const WIFI_AMSDU_TX_ENABLED = @as(c_int, 0);
-pub const WIFI_NVS_ENABLED = @as(c_int, 1);
-pub const WIFI_NANO_FORMAT_ENABLED = @as(c_int, 0);
-pub const WIFI_INIT_CONFIG_MAGIC = @import("std").zig.c_translation.promoteIntLiteral(c_int, 0x1F2F3F4F, .hex);
-pub const WIFI_TASK_CORE_ID = @as(c_int, 0);
-pub const WIFI_STA_DISCONNECTED_PM_ENABLED = @as(c_int, 1);
-pub const WIFI_ENABLE_WPA3_SAE = @as(c_int, 1) << @as(c_int, 0);
-pub const WIFI_ENABLE_CACHE_TX_BUFFER = @as(c_int, 0);
-pub const WIFI_FTM_INITIATOR = @as(c_int, 0);
-pub const WIFI_FTM_RESPONDER = @as(c_int, 0);
-pub const WIFI_ENABLE_GCMP = @as(c_int, 0);
-pub const WIFI_ENABLE_GMAC = @as(c_int, 1) << @as(c_int, 5);
-pub const WIFI_ENABLE_11R = @as(c_int, 0);
-pub const WIFI_ENABLE_ENTERPRISE = @as(c_int, 1) << @as(c_int, 7);
-pub const WIFI_DUMP_HESIGB_ENABLED = @as(c_int, 0);
-pub const WIFI_TX_HETB_QUEUE_NUM = @as(c_int, 1);
-pub const WIFI_FEATURE_CAPS = ((((((WIFI_ENABLE_WPA3_SAE | WIFI_ENABLE_CACHE_TX_BUFFER) | WIFI_FTM_INITIATOR) | WIFI_FTM_RESPONDER) | WIFI_ENABLE_GCMP) | WIFI_ENABLE_GMAC) | WIFI_ENABLE_11R) | WIFI_ENABLE_ENTERPRISE;
