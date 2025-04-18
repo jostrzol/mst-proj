@@ -61,7 +61,7 @@ fn main() !void {
         "CONTROLLER_LOOP",
         stack_size,
         &controller,
-        24,
+        c.configMAX_PRIORITIES - 1,
         null,
         1,
     );
@@ -70,18 +70,7 @@ fn main() !void {
     log.info("Controlling motor from Zig", .{});
 
     while (true) {
-        // const value = try adc_channel.read();
-        //
-        // const value_normalized = @as(f32, @floatFromInt(value)) / @as(f32, @floatFromInt(adc_max));
-        // log.info(
-        //     "selected duty cycle: {d:.2} = {} / {}",
-        //     .{ value_normalized, value, adc_max },
-        // );
-        //
-        // const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
-        // try pwm_channel.set_duty_cycle(duty_cycle);
-
-        idf.vTaskDelay(100);
+        idf.vTaskDelay(10 * 1000 / c.portTICK_PERIOD_MS);
     }
 }
 

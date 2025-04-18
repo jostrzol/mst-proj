@@ -5,8 +5,8 @@ const c = @cImport({
     @cInclude("esp_adc/adc_oneshot.h");
     @cInclude("driver/ledc.h");
     @cInclude("driver/gptimer.h");
-    @cInclude("mdns.h");
 
+    @cInclude("mdns.h");
     @cInclude("esp_modbus_common.h");
     @cInclude("esp_modbus_slave.h");
 
