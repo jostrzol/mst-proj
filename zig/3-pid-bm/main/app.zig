@@ -16,6 +16,11 @@ const pwm = @import("pwm.zig");
 const stack_size = 4096;
 
 fn main() !void {
+    const heap = std.heap.raw_c_allocator;
+    var arena = std.heap.ArenaAllocator.init(heap);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     const services = try Services.init();
     defer services.deinit();
 
@@ -27,13 +32,17 @@ fn main() !void {
     });
     defer server.deinit();
 
-    var controller = try Controller.init(&registers, .{
-        .frequency = 1000,
-        .revolution_treshold_close = 0.36,
-        .revolution_treshold_far = 0.40,
-        .revolution_bins = 10,
-        .reads_per_bin = 100,
-    });
+    var controller = try Controller.init(
+        allocator,
+        &registers,
+        .{
+            .frequency = 1000,
+            .revolution_treshold_close = 0.36,
+            .revolution_treshold_far = 0.40,
+            .revolution_bins = 10,
+            .reads_per_bin = 100,
+        },
+    );
     defer controller.deinit();
 
     const server_task = idf.xTaskCreatePinnedToCore(

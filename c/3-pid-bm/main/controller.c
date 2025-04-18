@@ -189,6 +189,7 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
   );
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_set_alarm_action fail (0x%x)", err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     return err;
