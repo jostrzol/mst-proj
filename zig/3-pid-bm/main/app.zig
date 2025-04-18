@@ -7,6 +7,7 @@ usingnamespace @import("comptime-rt.zig");
 
 const Services = @import("Services.zig");
 const Server = @import("Server.zig");
+const Registers = @import("Registers.zig");
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
 
@@ -20,7 +21,12 @@ fn main() !void {
     const services = try Services.init();
     defer services.deinit();
 
-    const server = try Server.init(&.{ .netif = services.wifi.netif });
+    var registers = Registers{};
+
+    const server = try Server.init(&.{
+        .netif = services.wifi.netif,
+        .registers = &registers,
+    });
     defer server.deinit();
 
     log.info("Controlling motor from Zig", .{});

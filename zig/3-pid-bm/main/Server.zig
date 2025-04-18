@@ -2,7 +2,7 @@ const std = @import("std");
 const idf = @import("esp_idf");
 const sys = idf.sys;
 
-const Wifi = @import("Wifi.zig");
+const Registers = @import("Registers.zig");
 const c = @import("c.zig");
 
 const Self = @This();
@@ -14,6 +14,7 @@ handle: *const anyopaque,
 
 const ServerInitOpts = struct {
     netif: *sys.esp_netif_obj,
+    registers: *Registers,
 };
 
 pub fn init(opts: *const ServerInitOpts) !Self {
@@ -30,6 +31,20 @@ pub fn init(opts: *const ServerInitOpts) !Self {
         .slave_uid = server_modbus_address,
     } };
     try c.espCheckError(c.mbc_slave_setup(&comm_info));
+
+    try c.espCheckError(c.mbc_slave_set_descriptor(.{
+        .start_offset = 0,
+        .type = c.MB_PARAM_INPUT,
+        .address = &opts.registers.input,
+        .size = @sizeOf(Registers.Input),
+    }));
+
+    try c.espCheckError(c.mbc_slave_set_descriptor(.{
+        .start_offset = 0,
+        .type = c.MB_PARAM_HOLDING,
+        .address = &opts.registers.holding,
+        .size = @sizeOf(Registers.Holding),
+    }));
 
     try c.espCheckError(c.mbc_slave_start());
 
