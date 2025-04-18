@@ -6,18 +6,18 @@ input: Input = .{},
 holding: Holding = .{},
 
 pub const Input = packed struct {
-    Frequency: FloatCDAB = FloatCDAB.zero,
-    ControlSignal: FloatCDAB = FloatCDAB.zero,
+    frequency: FloatCDAB = FloatCDAB.zero,
+    control_signal: FloatCDAB = FloatCDAB.zero,
 };
 
 pub const Holding = packed struct {
-    TargetFrequency: FloatCDAB = FloatCDAB.zero,
-    ProportionalFactor: FloatCDAB = FloatCDAB.zero,
-    IntegrationTime: FloatCDAB = FloatCDAB.inf,
-    DifferentiationTime: FloatCDAB = FloatCDAB.zero,
+    target_frequency: FloatCDAB = FloatCDAB.zero,
+    proportional_factor: FloatCDAB = FloatCDAB.zero,
+    integration_time: FloatCDAB = FloatCDAB.inf,
+    differentiation_time: FloatCDAB = FloatCDAB.zero,
 };
 
-const FloatCDAB = packed struct {
+pub const FloatCDAB = packed struct {
     const zero = FloatCDAB.fromF32(0.0);
     const inf = FloatCDAB.fromF32(std.math.inf(f32));
 

@@ -14,9 +14,13 @@ const adc_bitwidth = c.ADC_BITWIDTH_9;
 const adc_max = (1 << adc_bitwidth) - 1;
 
 const pwm_bitwidth = c.LEDC_TIMER_13_BIT;
-const pwm_max = (1 << pwm_bitwidth) - 1;
+const pwm_duty_max = (1 << pwm_bitwidth) - 1;
 
 const timer_frequency: u32 = 1000000; // period = 1us
+
+const pwm_min = 0.1;
+const pwm_max = 1.0;
+const limit_min_deadzone = 0.001;
 
 opts: InitOpts,
 registers: *Registers,
@@ -162,7 +166,15 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
 
 fn read_iteration(self: *Self) !void {
     const value = try self.read_adc();
-    _ = value;
+
+    if (!self.state.is_close and value < self.opts.revolution_treshold_close) {
+        // gone close
+        self.state.is_close = true;
+        self.state.revolutions.back().* += 1;
+    } else if (self.state.is_close and value > self.opts.revolution_treshold_far) {
+        // gone far
+        self.state.is_close = false;
+    }
 }
 
 fn read_adc(self: *Self) !f32 {
@@ -171,7 +183,115 @@ fn read_adc(self: *Self) !f32 {
 }
 
 fn control_iteration(self: *Self) !void {
-    _ = self;
+    const frequency = self.calculate_frequency();
+    try self.state.revolutions.push(0);
+    std.log.debug("frequency: {d:.2} Hz", .{frequency});
+
+    const control_params = self.read_control_params();
+    // inline for (std.meta.fields(ControlParams)) |field| {
+    //     const value = @field(control_params, field.name);
+    //     std.log.debug("{s}: {d:.2}", .{ field.name, value });
+    // }
+
+    const control = self.calculate_control(&control_params, frequency);
+
+    const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
+
+    try self.set_duty_cycle(control_signal_limited);
+
+    self.write_status(frequency, control_signal_limited);
+
+    self.state.feedback = control.feedback;
+}
+
+fn calculate_frequency(self: *Self) f32 {
+    var sum: u32 = 0;
+    for (self.state.revolutions.items) |value|
+        sum += value;
+
+    return @as(f32, @floatFromInt(sum)) / self.interval.rotate_all_s;
+}
+
+pub const ControlParams = struct {
+    target_frequency: f32,
+    proportional_factor: f32,
+    integration_time: f32,
+    differentiation_time: f32,
+};
+
+fn read_control_params(self: *Self) ControlParams {
+    const holding = self.registers.holding;
+    return .{
+        .target_frequency = holding.target_frequency.toF32(),
+        .proportional_factor = holding.proportional_factor.toF32(),
+        .integration_time = holding.integration_time.toF32(),
+        .differentiation_time = holding.differentiation_time.toF32(),
+    };
+}
+
+fn calculate_control(
+    self: *const Self,
+    params: *const ControlParams,
+    frequency: f32,
+) struct { signal: f32, feedback: Feedback } {
+    const interval_s = self.interval.rotate_once_s;
+
+    const integration_factor: f32 =
+        params.proportional_factor / params.integration_time * interval_s;
+    const differentiation_factor: f32 =
+        params.proportional_factor * params.differentiation_time / interval_s;
+
+    const delta: f32 = params.target_frequency - frequency;
+    std.log.info("delta: {d:.2}", .{delta});
+
+    const proportional_component: f32 = params.proportional_factor * delta;
+    const integration_component: f32 =
+        self.state.feedback.integration_component +
+        integration_factor * self.state.feedback.delta;
+    const differentiation_component: f32 =
+        differentiation_factor * (delta - self.state.feedback.delta);
+
+    const control_signal: f32 = proportional_component +
+        integration_component +
+        differentiation_component;
+
+    std.log.info("control_signal: {d:.2} = {d:.2} + {d:.2} + {d:.2}", .{
+        control_signal,
+        proportional_component,
+        integration_component,
+        differentiation_component,
+    });
+
+    return .{
+        .signal = control_signal,
+        .feedback = .{
+            .delta = delta,
+            .integration_component = integration_component,
+        },
+    };
+}
+
+fn set_duty_cycle(self: *Self, value: f32) !void {
+    const duty_cycle: u32 = @intFromFloat(value * pwm_duty_max);
+    try self.pwm.channel.set_duty_cycle(duty_cycle);
+}
+
+fn finite_or_zero(value: f32) f32 {
+    return if (std.math.isFinite(value)) 0 else value;
+}
+
+fn limit(value: f32, min: f32, max: f32) f32 {
+    if (value < limit_min_deadzone)
+        return 0;
+
+    const result = value + min;
+    return if (result < min) min else if (result > max) max else result;
+}
+
+fn write_status(self: *Self, frequency: f32, control_signal: f32) void {
+    var input = self.registers.input;
+    input.frequency = Registers.FloatCDAB.fromF32(frequency);
+    input.control_signal = Registers.FloatCDAB.fromF32(control_signal);
 }
 
 export fn onTimerFired(
