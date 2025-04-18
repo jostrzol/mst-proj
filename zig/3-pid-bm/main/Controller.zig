@@ -14,6 +14,8 @@ const adc_max = (1 << adc_bitwidth) - 1;
 const pwm_bitwidth = c.LEDC_TIMER_13_BIT;
 const pwm_max = (1 << pwm_bitwidth) - 1;
 
+const timer_frequency: u32 = 1000000; // period = 1us
+
 opts: InitOpts,
 registers: *Registers,
 adc: struct {
@@ -24,11 +26,10 @@ pwm: struct {
     timer: pwm_t.Timer,
     channel: pwm_t.Channel,
 },
-// timer: struct {
-//     semaphore_buf: sys.StaticSemaphore_t,
-//     semaphore: sys.SemaphoreHandle_t,
-//     handle: c.gptimer_handle_t,
-// },
+timer: struct {
+    semaphore: sys.QueueHandle_t,
+    handle: c.gptimer_handle_t,
+},
 // interval: struct {
 //     rotate_once_s: f32,
 //     rotate_all_s: f32,
@@ -70,6 +71,23 @@ pub fn init(registers: *Registers, opts: InitOpts) !Self {
     });
     const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
 
+    const timer_semaphore = idf.xSemaphoreCreateBinary() orelse return error.ErrorInvalidState;
+
+    var timer: c.gptimer_handle_t = undefined;
+    try c.espCheckError(gptimer_new_timer(
+        &.{
+            .clk_src = c.GPTIMER_CLK_SRC_DEFAULT,
+            .direction = c.GPTIMER_COUNT_UP,
+            .resolution_hz = timer_frequency,
+        },
+        &timer,
+    ));
+    try c.espCheckError(c.gptimer_register_event_callbacks(
+        timer,
+        &.{ .on_alarm = onTimerFired },
+        timer_semaphore,
+    ));
+
     return .{
         .opts = opts,
         .registers = registers,
@@ -81,9 +99,47 @@ pub fn init(registers: *Registers, opts: InitOpts) !Self {
             .timer = pwm_timer,
             .channel = pwm_channel,
         },
+        .timer = .{
+            .semaphore = timer_semaphore,
+            .handle = timer,
+        },
     };
 }
 
 pub fn deinit(self: *const Self) !void {
     _ = self;
 }
+
+pub fn run(args: ?*anyopaque) callconv(.c) void {
+    const self: *Self = @alignCast(@ptrCast(args));
+
+    while (true) {
+        _ = idf.xSemaphoreTake(self.timer.semaphore, std.math.maxInt(u32));
+    }
+}
+
+export fn onTimerFired(
+    _: c.gptimer_handle_t,
+    _: [*c]const c.gptimer_alarm_event_data_t,
+    user_data: ?*anyopaque,
+) linksection(".iram1.0") callconv(.c) bool {
+    const timer_semaphore: idf.QueueHandle_t = @ptrCast(user_data);
+
+    var high_task_awoken: isize = 0;
+    _ = idf.xSemaphoreGiveFromISR(timer_semaphore, &high_task_awoken);
+    return high_task_awoken != 0;
+}
+
+pub const gptimer_config_t = extern struct {
+    clk_src: c.gptimer_clock_source_t = @import("std").mem.zeroes(c.gptimer_clock_source_t),
+    direction: c.gptimer_count_direction_t = @import("std").mem.zeroes(c.gptimer_count_direction_t),
+    resolution_hz: u32 = @import("std").mem.zeroes(u32),
+    intr_priority: c_int = @import("std").mem.zeroes(c_int),
+    flags: packed struct(u32) {
+        intr_shared: bool = false,
+        allow_pd: bool = false,
+        backup_before_sleep: bool = false,
+        _padding: u29 = 0,
+    } = .{},
+};
+pub extern fn gptimer_new_timer(config: ?*const gptimer_config_t, ret_timer: [*c]c.gptimer_handle_t) c.esp_err_t;

@@ -163,6 +163,8 @@ where
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
+        info!("Starting controller");
+
         self.hal.with_timer_mut(|timer| timer.enable(true))?;
 
         loop {

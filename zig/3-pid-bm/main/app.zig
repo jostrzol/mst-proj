@@ -27,7 +27,7 @@ fn main() !void {
     });
     defer server.deinit();
 
-    const controller = try Controller.init(&registers, .{
+    var controller = try Controller.init(&registers, .{
         .frequency = 1000,
         .revolution_treshold_close = 0.36,
         .revolution_treshold_far = 0.40,
@@ -46,6 +46,17 @@ fn main() !void {
         0,
     );
     defer sys.vTaskDelete(server_task);
+
+    const controller_task = idf.xTaskCreatePinnedToCore(
+        Controller.run,
+        "CONTROLLER_LOOP",
+        stack_size,
+        &controller,
+        24,
+        null,
+        1,
+    );
+    defer sys.vTaskDelete(controller_task);
 
     log.info("Controlling motor from Zig", .{});
 

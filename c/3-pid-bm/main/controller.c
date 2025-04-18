@@ -85,13 +85,6 @@ esp_err_t
 controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
   esp_err_t err;
 
-  SemaphoreHandle_t timer_semaphore =
-      xSemaphoreCreateBinaryStatic(&self->timer.semaphore_buf);
-  if (timer_semaphore == NULL) {
-    ESP_LOGE(TAG, "xSemaphoreCreateBinaryStatic fail");
-    return ESP_ERR_INVALID_STATE;
-  }
-
   adc_oneshot_unit_handle_t adc;
   adc_oneshot_unit_init_cfg_t init_config1 = {.unit_id = ADC_UNIT};
   err = adc_oneshot_new_unit(&init_config1, &adc);
@@ -142,6 +135,14 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
   }
 
   ringbuffer_t *revolutions = ringbuffer_alloc(opts.revolution_bins);
+
+  SemaphoreHandle_t timer_semaphore =
+      xSemaphoreCreateBinaryStatic(&self->timer.semaphore_buf);
+  if (timer_semaphore == NULL) {
+    ESP_LOGE(TAG, "xSemaphoreCreateBinaryStatic fail");
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    return ESP_ERR_INVALID_STATE;
+  }
 
   gptimer_handle_t timer;
   err = gptimer_new_timer(
@@ -318,7 +319,7 @@ void controller_loop(void *params) {
   esp_err_t err;
   controller_t *self = params;
 
-  ESP_LOGI(TAG, "Start controller_read_loop");
+  ESP_LOGI(TAG, "Starting controller");
 
   ESP_ERROR_CHECK(gptimer_start(self->timer.handle));
   while (true) {
