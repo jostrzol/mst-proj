@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const idf = @import("esp_idf");
+const sys = idf.sys;
 
 const c = @import("c.zig");
 usingnamespace @import("comptime-rt.zig");
@@ -12,13 +13,15 @@ const Controller = @import("Controller.zig");
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
 
+const stack_size = 4096;
+
 fn main() !void {
     const services = try Services.init();
     defer services.deinit();
 
     var registers = Registers{};
 
-    const server = try Server.init(&.{
+    var server = try Server.init(&.{
         .netif = services.wifi.netif,
         .registers = &registers,
     });
@@ -32,6 +35,17 @@ fn main() !void {
         .reads_per_bin = 100,
     });
     defer controller.deinit();
+
+    const server_task = idf.xTaskCreatePinnedToCore(
+        Server.run,
+        "SERVER_LOOP",
+        stack_size,
+        &server,
+        2,
+        null,
+        0,
+    );
+    defer sys.vTaskDelete(server_task);
 
     log.info("Controlling motor from Zig", .{});
 
