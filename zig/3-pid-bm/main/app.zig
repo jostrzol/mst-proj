@@ -6,6 +6,7 @@ const c = @import("c.zig");
 usingnamespace @import("comptime-rt.zig");
 
 const Services = @import("Services.zig");
+const Server = @import("Server.zig");
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
 
@@ -18,6 +19,9 @@ const pwm_max = (1 << pwm_bitwidth) - 1;
 fn main() !void {
     const services = try Services.init();
     defer services.deinit();
+
+    const server = try Server.init(&.{ .netif = services.wifi.netif });
+    defer server.deinit();
 
     log.info("Controlling motor from Zig", .{});
 
@@ -48,7 +52,7 @@ fn main() !void {
         const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
         try pwm_channel.set_duty_cycle(duty_cycle);
 
-        idf.vTaskDelay(1);
+        idf.vTaskDelay(100);
     }
 }
 
