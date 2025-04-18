@@ -4,6 +4,7 @@ const idf = @import("esp_idf");
 const c = @cImport({
     @cInclude("esp_adc/adc_oneshot.h");
     @cInclude("driver/ledc.h");
+    @cInclude("driver/gptimer_types.h");
     @cInclude("mdns.h");
 
     @cInclude("esp_modbus_common.h");
