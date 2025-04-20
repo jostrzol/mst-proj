@@ -38,9 +38,7 @@ pub fn init() !Self {
     const netif = sys.esp_netif_create_default_wifi_sta() orelse return error.ErrorSetupWifi;
     errdefer sys.esp_netif_destroy_default_wifi(netif);
 
-    const init_config = wifiInitConfigDefault();
-    std.log.info("init_config: {x}", .{@as([]const u8, @ptrCast((&init_config)[0..1]))});
-    try idf.wifi.init(&init_config);
+    try idf.wifi.init(&wifiInitConfigDefault());
     errdefer idf.wifi.deinit() catch |e| logErr(e);
 
     var handler_wifi: sys.esp_event_handler_instance_t = undefined;
@@ -73,6 +71,7 @@ pub fn init() !Self {
     try idf.wifi.setConfig(.WIFI_IF_STA, &wifi_config);
 
     try idf.wifi.start();
+    errdefer idf.wifi.stop() catch |err| logErr(err);
 
     const bits = sys.xEventGroupWaitBits(
         event_group_local,
@@ -85,7 +84,7 @@ pub fn init() !Self {
     if (flags.connected) {
         std.log.info("Connected to AP SSID:{s}", .{ssid});
     } else if (flags.failed) {
-        std.log.info("Failed to connect to SSID:{s}", .{ssid});
+        return error.ErrorWifiConnectionFailed;
     } else {
         std.log.err("Unexpected event", .{});
     }
@@ -97,6 +96,7 @@ pub fn init() !Self {
 
 pub fn deinit(self: *const Self) void {
     event_group = null;
+    idf.wifi.stop() catch |e| logErr(e);
     idf.wifi.deinit() catch |e| logErr(e);
     sys.esp_netif_destroy_default_wifi(self.netif);
     idf.espLogError(sys.esp_netif_deinit());
@@ -131,14 +131,17 @@ fn event_handler_impl(
         if (retry_count < maximum_retries) {
             try idf.wifi.connect();
             retry_count += 1;
-            std.log.info("Retrying to connect to the AP", .{});
+            std.log.info(
+                "Retrying to connect to the AP ({}/{})",
+                .{ retry_count, maximum_retries },
+            );
         } else {
+            std.log.err("Connecting to the AP failed", .{});
             _ = sys.xEventGroupSetBits(
                 event_group_local,
                 @bitCast(EventFlags{ .failed = true }),
             );
         }
-        std.log.err("Connecting to the AP failed", .{});
     } else if (event.is(&EventType.ip(.IP_EVENT_STA_GOT_IP))) {
         const data: *sys.ip_event_got_ip_t = @alignCast(@ptrCast(event_data));
         const addr: [4]u8 = @bitCast(data.ip_info.ip.addr);

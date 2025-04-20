@@ -195,7 +195,7 @@ pub const vRingbufferDeleteWithCaps = sys.vRingbufferDeleteWithCaps;
 pub const QueueHandle_t = sys.QueueHandle_t;
 
 pub inline fn xSemaphoreCreateBinary() sys.QueueHandle_t {
-    return xQueueGenericCreate(1, 1, 3);
+    return xQueueGenericCreate(1, 0, 3);
 }
 pub inline fn xSemaphoreCreateBinaryStatic(pxStaticSemaphore: anytype) sys.QueueHandle_t {
     return xQueueGenericCreateStatic(@import("std").zig.c_translation.cast(sys.UBaseType_t, @as(c_int, 1)), 0, null, pxStaticSemaphore, 3);

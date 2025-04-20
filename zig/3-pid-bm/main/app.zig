@@ -69,9 +69,8 @@ fn main() !void {
 
     log.info("Controlling motor from Zig", .{});
 
-    while (true) {
+    while (true)
         idf.vTaskDelay(10 * 1000 / c.portTICK_PERIOD_MS);
-    }
 }
 
 export fn app_main() callconv(.C) void {
