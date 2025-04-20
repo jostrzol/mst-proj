@@ -185,21 +185,22 @@ fn read_adc(self: *Self) !f32 {
 fn control_iteration(self: *Self) !void {
     const frequency = self.calculate_frequency();
     try self.state.revolutions.push(0);
-    std.log.debug("frequency: {d:.2} Hz", .{frequency});
+    std.log.info("frequency: {d:.2} Hz", .{frequency});
 
     const control_params = self.read_control_params();
     // inline for (std.meta.fields(ControlParams)) |field| {
     //     const value = @field(control_params, field.name);
-    //     std.log.debug("{s}: {d:.2}", .{ field.name, value });
+    //     std.log.info("{s}: {d:.2}", .{ field.name, value });
     // }
 
     const control = self.calculate_control(&control_params, frequency);
 
     const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
+    std.log.info("control signal limited: {d:.2}", .{control_signal_limited});
 
     try self.set_duty_cycle(control_signal_limited);
 
-    self.write_status(frequency, control_signal_limited);
+    self.write_registers(frequency, control_signal_limited);
 
     self.state.feedback = control.feedback;
 }
@@ -288,10 +289,10 @@ fn limit(value: f32, min: f32, max: f32) f32 {
     return if (result < min) min else if (result > max) max else result;
 }
 
-fn write_status(self: *Self, frequency: f32, control_signal: f32) void {
-    var input = self.registers.input;
-    input.frequency = Registers.FloatCDAB.fromF32(frequency);
-    input.control_signal = Registers.FloatCDAB.fromF32(control_signal);
+fn write_registers(self: *Self, frequency: f32, control_signal: f32) void {
+    var input = &self.registers.input;
+    input.frequency = .fromF32(frequency);
+    input.control_signal = .fromF32(control_signal);
 }
 
 export fn onTimerFired(
