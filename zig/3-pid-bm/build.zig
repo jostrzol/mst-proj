@@ -65,12 +65,10 @@ fn includeDeps(
         };
         for (includes) |include| {
             lib.addIncludePath(abs(include));
-            // for (cmodules) |mod| mod.addIncludePath(abs(include));
         }
 
         const sysInclude = b.pathJoin(&.{ tool_root, archtools, "sys-include" });
         lib.addSystemIncludePath(abs(sysInclude));
-        // for (cmodules) |mod| mod.addSystemIncludePath(abs(sysInclude));
     }
 
     // user include dirs
@@ -112,7 +110,6 @@ pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.Compile, idf_pat
         if (!std.mem.eql(u8, entry.basename, "include")) continue;
 
         const include_dir = b.pathJoin(&.{ comp, entry.path });
-        // std.debug.print("include: {s}\n", .{include_dir});
         lib.addIncludePath(.{ .cwd_relative = include_dir });
     }
 }

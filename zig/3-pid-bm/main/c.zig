@@ -2,11 +2,18 @@ const std = @import("std");
 const idf = @import("esp_idf");
 
 const c = @cImport({
+    @cDefine("__XTENSA__", "1");
+    @cUndef("__riscv");
+
     @cInclude("esp_adc/adc_oneshot.h");
     @cInclude("driver/ledc.h");
     @cInclude("driver/gptimer.h");
 
+    @cInclude("freertos/FreeRTOS.h");
+    @cInclude("portmacro.h");
+
     @cInclude("mdns.h");
+    @cInclude("freertos/portmacro.h");
     @cInclude("esp_modbus_common.h");
     @cInclude("esp_modbus_slave.h");
 
