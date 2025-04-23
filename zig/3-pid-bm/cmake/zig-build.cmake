@@ -128,10 +128,10 @@ add_custom_target(zig_build
     --prefix ${CMAKE_BINARY_DIR}
     DEPENDS ${CMAKE_BINARY_DIR}/include_dirs.txt
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libmotor.a
+    BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libpid.a
     VERBATIM)
 
-add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libmotor.a)
+add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libpid.a)
 add_dependencies(zig zig_build)
 
 target_link_libraries(${COMPONENT_LIB} PRIVATE

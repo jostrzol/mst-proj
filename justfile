@@ -3,7 +3,8 @@ mod rust
 mod zig
 mod server
 
-set unstable := true
+set unstable
+set dotenv-load
 
 languages := "c zig rust"
 thesis_dir := "../thesis"

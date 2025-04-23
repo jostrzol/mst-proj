@@ -75,8 +75,8 @@ void app_main(void) {
 
     const float value_normalized = (float)value_raw / ADC_MAX_VALUE;
     ESP_LOGI(
-        TAG, "selected duty cycle: %.2f = %d / %d", value_normalized, value_raw,
-        ADC_MAX_VALUE
+        TAG, "selected duty cycle: %.2f = %d / %" PRIu32, value_normalized,
+        value_raw, ADC_MAX_VALUE
     );
 
     const uint32_t duty_cycle = value_normalized * PWM_DUTY_MAX;

@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const lib = b.addStaticLibrary(.{
-        .name = "motor",
+        .name = "pid",
         .root_source_file = b.path("main/app.zig"),
         .target = target,
         .optimize = optimize,

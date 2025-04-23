@@ -1,8 +1,8 @@
 .{
-    .name = .motor,
+    .name = .pid,
     .version = "0.1.0",
     .minimum_zig_version = "0.14.0",
-    .fingerprint = 0xcb5304407f2a497f,
+    .fingerprint = 0x5550c4eda7b6cc77,
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.
     // `zig build --fetch` can be used to fetch all dependencies of a package, recursively.

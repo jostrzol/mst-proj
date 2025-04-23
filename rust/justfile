@@ -1,7 +1,8 @@
 arch := "arm-unknown-linux-gnueabihf"
+arch_bm := "xtensa-esp32-espidf"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build pid-bm-build dmc-build
+build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build pid-bm-build #dmc-build
 
 watch-all:
   just blinky-watch \
@@ -10,7 +11,7 @@ watch-all:
   & just motor-bm-watch \
   & just pid-watch \
   & just pid-bm-watch \
-  & just dmc-watch \
+  #& just dmc-watch \
   & wait
 
 clean:
@@ -57,7 +58,8 @@ _watch-bm NUM PACKAGE:
   -- just _build-bm \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build-bm NUM PACKAGE:
-  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build --release
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build --release \
+  && cp ./target/{{arch_bm}}/release/{{NUM}}-{{PACKAGE}} ../../artifacts/{{NUM}}-{{PACKAGE}}-rust
 
 _run-bm NUM PACKAGE:
   cd ./{{NUM}}-{{PACKAGE}}/ && cargo run --release
