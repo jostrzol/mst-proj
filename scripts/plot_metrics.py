@@ -17,7 +17,14 @@ class Language(TypedDict):
 
 ANALYSIS_DIR = Path("./analysis/")
 ARTIFACTS_DIR = Path("./artifacts/")
-EXPERIMENTS = ["1-hello-world", "2-motor-controller", "3-pid"]
+EXPERIMENTS = [
+    "1-blinky",
+    "1-blinky-bm",
+    "2-motor",
+    "2-motor-bm",
+    "3-pid",
+    "3-pid-bm",
+]
 LANGUAGES: list[Language] = [
     {"name": "C", "slug": "c", "color": "cornflowerblue"},
     {"name": "Zig", "slug": "zig", "color": "orange"},

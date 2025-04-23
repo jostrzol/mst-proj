@@ -38,18 +38,31 @@ artifacts-server:
 analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
 
 plot: analyze
-  ./scripts/plot_metrics.py
+  . ./.venv/bin/activate && ./scripts/plot_metrics.py
   if test -d "{{thesis_dir}}"; then cp ./analysis/*.svg "{{thesis_dir}}/pdmgr/imgs/"; fi
 
 install-dev: _venv_dev_dependencies
 
 # analyze private
-_analyze_c: (_analyze "c" "--exclude" "'./c/build/*'")
-_analyze_rust: (_analyze "rust")
+_analyze_c: (
+  _analyze "c"
+    "--exclude" "'./c/build/*'"
+    "--exclude" "'./*/build/*'"
+    "--exclude" "'./*/managed_components/*'"
+  )
+_analyze_rust: (
+  _analyze "rust"
+    "--exclude" "'./*/target/*'"
+    "--exclude" "'./*/.embuild/*'"
+  )
 _analyze_zig: (
   _analyze "zig"
     "--exclude" "'./zig/*/.zig-cache/*'"
     "--exclude" "'./zig/*/build.zig'"
+    "--exclude" "'./*/build/*'"
+    "--exclude" "'./*/imports/*'"
+    "--exclude" "'./*/.zig-cache/*'"
+    "--exclude" "'./*/managed_components/*'"
   )
 
 _analyze LANG *FLAGS:
