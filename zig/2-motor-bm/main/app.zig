@@ -17,8 +17,6 @@ const pwm_max = (1 << pwm_bitwidth) - 1;
 fn main() !void {
     log.info("Controlling motor from Zig", .{});
 
-    try idf.gpio.Direction.set(.GPIO_NUM_5, .GPIO_MODE_OUTPUT);
-
     const adc_unit = try adc.Unit.init(c.ADC_UNIT_1);
     const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
         .atten = c.ADC_ATTEN_DB_12,

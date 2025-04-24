@@ -39,7 +39,7 @@ pub fn init() !Self {
     errdefer sys.esp_netif_destroy_default_wifi(netif);
 
     try idf.wifi.init(&wifiInitConfigDefault());
-    errdefer idf.wifi.deinit() catch |e| logErr(e);
+    errdefer logErr(idf.wifi.deinit());
 
     var handler_wifi: sys.esp_event_handler_instance_t = undefined;
     try idf.espCheckError(sys.esp_event_handler_instance_register(
@@ -71,7 +71,7 @@ pub fn init() !Self {
     try idf.wifi.setConfig(.WIFI_IF_STA, &wifi_config);
 
     try idf.wifi.start();
-    errdefer idf.wifi.stop() catch |err| logErr(err);
+    errdefer logErr(idf.wifi.stop());
 
     const bits = sys.xEventGroupWaitBits(
         event_group_local,
@@ -96,8 +96,8 @@ pub fn init() !Self {
 
 pub fn deinit(self: *const Self) void {
     event_group = null;
-    idf.wifi.stop() catch |e| logErr(e);
-    idf.wifi.deinit() catch |e| logErr(e);
+    logErr(idf.wifi.stop());
+    logErr(idf.wifi.deinit());
     sys.esp_netif_destroy_default_wifi(self.netif);
     idf.espLogError(sys.esp_netif_deinit());
 }

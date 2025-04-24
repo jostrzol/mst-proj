@@ -63,6 +63,7 @@ _analyze_zig: (
     "--exclude" "'./*/imports/*'"
     "--exclude" "'./*/.zig-cache/*'"
     "--exclude" "'./*/managed_components/*'"
+    "--exclude" "'./*/comptime-rt.zig'"
   )
 
 _analyze LANG *FLAGS:

@@ -64,7 +64,7 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
     std.log.info("Listening for modbus requests...", .{});
 
     while (true)
-        self.iteration() catch |e| logErr(e);
+        logErr(self.iteration());
 }
 
 fn iteration(_: *Self) !void {

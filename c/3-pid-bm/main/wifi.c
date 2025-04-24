@@ -61,6 +61,10 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   esp_err_t err;
 
   // Init
+  if (s_wifi_event_group != NULL) {
+    ESP_LOGE(TAG, "Wifi already set up");
+    return ESP_ERR_INVALID_STATE;
+  }
   s_wifi_event_group = xEventGroupCreate();
 
   err = esp_netif_init();
@@ -69,7 +73,12 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
     return err;
   }
 
-  self->netif = esp_netif_create_default_wifi_sta();
+  esp_netif_t *netif = esp_netif_create_default_wifi_sta();
+  if (netif == NULL) {
+    ESP_LOGE(TAG, "esp_netif_create_default_wifi_sta fail (0x%x)", (int)err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
+    return ESP_ERR_INVALID_STATE;
+  }
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   err = esp_wifi_init(&cfg);

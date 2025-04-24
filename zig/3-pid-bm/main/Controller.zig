@@ -151,16 +151,15 @@ pub fn deinit(self: *const Self) !void {
 pub fn run(args: ?*anyopaque) callconv(.c) void {
     const self: *Self = @alignCast(@ptrCast(args));
 
-    c.espCheckError(c.gptimer_start(self.timer.handle)) catch |err|
-        logErr(err);
+    logErr(c.espCheckError(c.gptimer_start(self.timer.handle)));
 
     while (true) {
         for (0..self.opts.reads_per_bin) |_| {
             _ = idf.xSemaphoreTake(self.timer.semaphore, std.math.maxInt(u32));
 
-            self.read_iteration() catch |err| logErr(err);
+            logErr(self.read_iteration());
         }
-        self.control_iteration() catch |err| logErr(err);
+        logErr(self.control_iteration());
     }
 }
 

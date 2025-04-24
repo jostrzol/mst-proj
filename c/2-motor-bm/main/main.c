@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "driver/ledc.h"
 #include "esp_adc/adc_oneshot.h"
@@ -7,6 +8,7 @@
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "hal/adc_types.h"
 #include "hal/ledc_types.h"
+#include "lwip/err.h"
 #include "sdkconfig.h" // IWYU pragma: keep
 
 static const char TAG[] = "motor";
@@ -17,6 +19,7 @@ static const adc_channel_t ADC_CHANNEL = ADC_CHANNEL_4;
 static const adc_atten_t ADC_ATTENUATION = ADC_ATTEN_DB_12;
 static const adc_bitwidth_t ADC_BITWIDTH = ADC_BITWIDTH_9;
 
+static const uint32_t PWM_TIMER_NUM = LEDC_TIMER_0;
 static const uint32_t PWM_SPEED = LEDC_LOW_SPEED_MODE;
 static const uint32_t PWM_CHANNEL = LEDC_CHANNEL_0;
 static const uint32_t PWM_GPIO = 5;
@@ -35,24 +38,35 @@ void app_main(void) {
   adc_oneshot_unit_handle_t adc;
   adc_oneshot_unit_init_cfg_t init_config1 = {.unit_id = ADC_UNIT};
   err = adc_oneshot_new_unit(&init_config1, &adc);
-  ESP_ERROR_CHECK(err);
+  if (err != ERR_OK) {
+    ESP_LOGE(TAG, "adc_oneshot_new_unit fail (0x%x)", (int)err);
+    abort();
+  }
 
   adc_oneshot_chan_cfg_t config = {
       .atten = ADC_ATTENUATION,
       .bitwidth = ADC_BITWIDTH,
   };
   err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &config);
-  ESP_ERROR_CHECK(err);
+  if (err != ERR_OK) {
+    ESP_LOGE(TAG, "adc_oneshot_config_channel fail (0x%x)", (int)err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    abort();
+  }
 
   const ledc_timer_config_t led_timer_config = {
       .speed_mode = PWM_SPEED,
       .duty_resolution = PWM_DUTY_RESOLUTION,
-      .timer_num = LEDC_TIMER_0,
+      .timer_num = PWM_TIMER_NUM,
       .freq_hz = PWM_FREQUENCY,
       .clk_cfg = LEDC_AUTO_CLK,
   };
   err = ledc_timer_config(&led_timer_config);
-  ESP_ERROR_CHECK(err);
+  if (err != ERR_OK) {
+    ESP_LOGE(TAG, "ledc_timer_config fail (0x%x)", (int)err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    abort();
+  }
 
   ledc_channel_config_t ledc_channel = {
       .speed_mode = PWM_SPEED,
@@ -64,6 +78,15 @@ void app_main(void) {
       .hpoint = 0
   };
   ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
+  if (err != ERR_OK) {
+    ESP_LOGE(TAG, "ledc_channel_config fail (0x%x)", (int)err);
+    ledc_timer_config_t deconfig = {
+        .timer_num = PWM_TIMER_NUM, .deconfigure = true
+    };
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&deconfig));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    abort();
+  }
 
   while (true) {
     int value_raw;
@@ -81,11 +104,18 @@ void app_main(void) {
 
     const uint32_t duty_cycle = value_normalized * PWM_DUTY_MAX;
 
-    ESP_ERROR_CHECK(ledc_set_duty(PWM_SPEED, PWM_CHANNEL, duty_cycle));
-    ESP_ERROR_CHECK(ledc_update_duty(PWM_SPEED, PWM_CHANNEL));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(
+        ledc_set_duty(PWM_SPEED, PWM_CHANNEL, duty_cycle)
+    );
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_update_duty(PWM_SPEED, PWM_CHANNEL));
 
     vTaskDelay(1);
   }
 
-  ESP_ERROR_CHECK(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
+  ledc_timer_config_t deconfig = {
+      .timer_num = PWM_TIMER_NUM, .deconfigure = true
+  };
+  ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&deconfig));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
 }
