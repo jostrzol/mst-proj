@@ -3,14 +3,10 @@
 # pyright: reportUnusedCallResult=false
 
 import csv
-from collections.abc import Iterable
-from math import ceil
 from pathlib import Path
 from typing import TypedDict
 
 from matplotlib import pyplot as plt
-from matplotlib.axes import Axes
-from matplotlib.ticker import PercentFormatter
 
 ANALYSIS_DIR = Path("./analysis/")
 ANALYSIS_SRC_DIR = Path("./analysis-src/")
@@ -54,16 +50,6 @@ def main():
         fig.tight_layout()
         out_path = ANALYSIS_DIR / f"top-tags-{language['slug']}.svg"
         fig.savefig(out_path)
-
-
-def add_bar_texts(ax: Axes, ys: Iterable[float], texts: Iterable[object]) -> None:
-    _, ymax = ax.get_ylim()
-    margin = ymax / 50
-    for i, (y, text) in enumerate(zip(ys, texts)):
-        if y < 0.9 * ymax:
-            ax.text(i, y + margin, str(text), ha="center")
-        else:
-            ax.text(i, y - margin, str(text), ha="center", va="top", color="white")
 
 
 if __name__ == "__main__":
