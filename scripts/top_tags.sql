@@ -12,9 +12,9 @@ WHERE TagId = @TagId;
 SELECT TOP 30
     T.TagName,
     COUNT(*) AS Count
-FROM PostTags AS Pt
-INNER JOIN Tags AS T ON (Pt.TagId = T.Id)
-WHERE Pt.PostId IN (SELECT Pt.PostId FROM #SelectedPostIds)
-GROUP BY Pt.TagId, T.TagName
-HAVING Pt.TagId <> @TagId
+FROM PostTags AS PT
+INNER JOIN Tags AS T ON (PT.TagId = T.Id)
+WHERE PT.PostId IN (SELECT SPI.PostId FROM #SelectedPostIds AS SPI)
+GROUP BY PT.TagId, T.TagName
+HAVING PT.TagId <> @TagId
 ORDER BY COUNT(*) DESC;
