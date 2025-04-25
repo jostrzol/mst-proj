@@ -56,7 +56,7 @@ _watch-bm NUM PROJECT:
   watchexec --postpone --wrap-process session --verbose \
   -e c,h -w ./{{NUM}}-{{PROJECT}}-bm/main \
   --on-busy-update=restart --stop-signal=SIGKILL \
-  -- just _build-bm \"{{PROJECT}}\"
+  -- just _build-bm \"{{NUM}}\" \"{{PROJECT}}\"
 
 _build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build")
   cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.bin ../artifacts/{{NUM}}-{{PROJECT}}-bm-c

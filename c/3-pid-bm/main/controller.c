@@ -322,7 +322,11 @@ void controller_loop(void *params) {
 
   ESP_LOGI(TAG, "Starting controller");
 
-  ESP_ERROR_CHECK(gptimer_start(self->timer.handle));
+  err = gptimer_start(self->timer.handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "gptimer_start fail (0x%x)", err);
+    return;
+  }
   while (true) {
     for (size_t i = 0; i < self->opts.reads_per_bin; ++i) {
       xSemaphoreTake(self->timer.semaphore, portMAX_DELAY);

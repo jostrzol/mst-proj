@@ -77,7 +77,7 @@ void app_main(void) {
       .duty = 0,
       .hpoint = 0
   };
-  ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
+  err = ledc_channel_config(&ledc_channel);
   if (err != ERR_OK) {
     ESP_LOGE(TAG, "ledc_channel_config fail (0x%x)", (int)err);
     ledc_timer_config_t deconfig = {
@@ -104,10 +104,16 @@ void app_main(void) {
 
     const uint32_t duty_cycle = value_normalized * PWM_DUTY_MAX;
 
-    ESP_ERROR_CHECK_WITHOUT_ABORT(
-        ledc_set_duty(PWM_SPEED, PWM_CHANNEL, duty_cycle)
-    );
-    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_update_duty(PWM_SPEED, PWM_CHANNEL));
+    err = ledc_set_duty(PWM_SPEED, PWM_CHANNEL, duty_cycle);
+    if (err != ESP_OK) {
+      ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+      continue;
+    }
+    err = ledc_update_duty(PWM_SPEED, PWM_CHANNEL);
+    if (err != ESP_OK) {
+      ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+      continue;
+    }
 
     vTaskDelay(1);
   }
