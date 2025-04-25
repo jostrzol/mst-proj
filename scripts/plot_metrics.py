@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# pyright: reportUnusedCallResult=false
+
 import csv
 from collections.abc import Iterable
 from functools import lru_cache
