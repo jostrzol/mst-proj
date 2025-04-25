@@ -92,6 +92,11 @@ class FunctionInfos:
 
     @property
     @lru_cache
+    def ccn_prim(self) -> int:
+        return sum(info.ccn - 1 for info in self.infos)
+
+    @property
+    @lru_cache
     def token_count(self) -> int:
         return sum(info.token_count for info in self.infos)
 
@@ -131,28 +136,28 @@ def plot_experiment(experiment: str):
             infos = FunctionInfos.from_csv(file)
         langs_to_infos[lang["slug"]] = infos
 
-    _ = plt.figure()
+    plt.figure()
 
-    titles = ["CCN", "NLOC", "Liczba tokenów"]
-    fields = ["ccn", "nloc_count", "token_count"]
+    titles = ["CCN'", "NLOC", "Liczba tokenów"]
+    fields = ["ccn_prim", "nloc_count", "token_count"]
     labels = [lang["name"] for lang in LANGUAGES]
     colors = [lang["color"] for lang in LANGUAGES]
     for i, (title, field) in enumerate(zip(titles, fields)):
         values = [getattr(infos, field) for infos in langs_to_infos.values()]
-        _ = plt.subplot(2, 2, i + 1)
-        _ = plt.bar(labels, values, edgecolor="black", facecolor=colors)
-        _ = plt.title(title)
+        plt.subplot(2, 2, i + 1)
+        plt.bar(labels, values, edgecolor="black", facecolor=colors)
+        plt.title(title)
 
     execs = [ARTIFACTS_DIR / f"{experiment}-{lang['slug']}" for lang in LANGUAGES]
     sizes = [exec.stat().st_size / 1000 for exec in execs]
-    _ = plt.subplot(2, 2, 4)
-    _ = plt.bar(labels, sizes, edgecolor="black", facecolor=colors)
-    _ = plt.title("Rozmiar [KB]")
+    plt.subplot(2, 2, 4)
+    plt.bar(labels, sizes, edgecolor="black", facecolor=colors)
+    plt.title("Rozmiar [KB]")
 
-    _ = plt.tight_layout()
+    plt.tight_layout()
 
     out_path = ANALYSIS_DIR / f"{experiment}.svg"
-    _ = plt.savefig(out_path)
+    plt.savefig(out_path)
 
 
 def main():
