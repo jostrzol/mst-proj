@@ -2,9 +2,11 @@ arch := "arm-unknown-linux-gnueabihf"
 arch_bm := "xtensa-esp32-espidf"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build pid-bm-build #dmc-build
+build: build-os build-bm
+build-os: blinky-build motor-build pid-build #dmc-build
+build-bm: blinky-bm-build motor-bm-build pid-bm-build
 
-watch-all:
+watch:
   just blinky-watch \
   & just blinky-bm-watch \
   & just motor-watch \

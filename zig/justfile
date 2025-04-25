@@ -5,9 +5,11 @@ arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
 artifacts_dir := "../artifacts/"
 
-build-all: blinky-build blinky-bm-build motor-build motor-bm-build pid-build pid-bm-watch
+build: build-os build-bm
+build-os: blinky-build motor-build pid-build
+build-bm: blinky-bm-build motor-bm-build pid-bm-build
 
-watch-all:
+watch:
   just blinky-watch \
   & just blinky-bm-watch \
   & just motor-watch \

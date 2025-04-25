@@ -1,2 +1,6 @@
 [workspace]
 members = ["1-blinky", "2-motor", "3-pid", "4-dmc"]
+
+[profile.release]
+opt-level = "s"
+strip = true

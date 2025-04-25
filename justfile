@@ -10,9 +10,9 @@ languages := "c zig rust"
 thesis_dir := "../thesis"
 
 build:
-  just rust::build-all \
-  & just c::build-all \
-  & just zig::build-all \
+  just rust::build \
+  & just c::build \
+  & just zig::build \
   & wait
 
 clean:
@@ -27,9 +27,9 @@ watch-and-serve:
   & wait
 
 watch:
-  just rust::watch-all \
-  & just c::watch-all \
-  & just zig::watch-all \
+  just rust::watch \
+  & just c::watch \
+  & just zig::watch \
   & wait
 
 artifacts-server:
