@@ -1,5 +1,5 @@
-release := ""
-#release := "fast"
+# release := ""
+release := "small"
 
 arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
@@ -51,7 +51,7 @@ _watch PROJECT:
 
 _build PROJECT:
   cd {{PROJECT}} \
-  && zvm run 0.13.0 build -- \
+  && zvm run 0.13.0 build \
     -Dtarget={{arch}} \
     -Dcpu={{cpu}} \
     {{ if release != "" {"--release="+release} else {""} }} \

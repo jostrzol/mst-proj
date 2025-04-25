@@ -66,7 +66,7 @@ fn make_modbus(b: *std.Build, opts: MakeOpts) !struct {
 
     const configure = b.addSystemCommand(&[_][]const u8{"./configure"});
     configure.stdio = .{ .check = .{} };
-    configure.addFileInput(write.getDirectory().path(b, "src/modbus-version.h"));
+    configure.addFileInput(write.getDirectory().path(b, "configure"));
     const triple = try opts.target.query.zigTriple(b.allocator);
     defer b.allocator.free(triple);
     const hostArg = try std.fmt.allocPrint(b.allocator, "--host={s}", .{triple});
