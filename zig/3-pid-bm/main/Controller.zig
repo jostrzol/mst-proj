@@ -63,6 +63,7 @@ const Self = @This();
 
 pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
     const adc_unit = try adc_t.Unit.init(c.ADC_UNIT_1);
+    errdefer adc_unit.deinit();
     const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
         .atten = c.ADC_ATTEN_DB_12,
         .bitwidth = adc_bitwidth,
@@ -75,7 +76,9 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
         .freq_hz = 1000,
         .clk_cfg = c.LEDC_AUTO_CLK,
     });
+    errdefer pwm_timer.deinit();
     const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
+    errdefer pwm_channel.deinit();
 
     const timer_semaphore = idf.xSemaphoreCreateBinary() orelse return error.ErrorInvalidState;
     errdefer idf.vSemaphoreDelete(timer_semaphore);
@@ -143,6 +146,9 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
 
 pub fn deinit(self: *const Self) !void {
     self.state.revolutions.deinit();
+    self.adc.unit.deinit();
+    self.pwm.timer.deinit();
+    self.pwm.channel.deinit();
     c.espLogError(c.gptimer_stop(self.timer.handle));
     c.espLogError(c.gptimer_disable(self.timer.handle));
     c.espLogError(c.gptimer_del_timer(self.timer.handle));

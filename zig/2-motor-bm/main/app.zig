@@ -18,6 +18,7 @@ fn main() !void {
     log.info("Controlling motor from Zig", .{});
 
     const adc_unit = try adc.Unit.init(c.ADC_UNIT_1);
+    defer adc_unit.deinit();
     const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
         .atten = c.ADC_ATTEN_DB_12,
         .bitwidth = adc_bitwidth,
@@ -30,7 +31,9 @@ fn main() !void {
         .freq_hz = 1000,
         .clk_cfg = c.LEDC_AUTO_CLK,
     });
+    defer pwm_timer.deinit();
     const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
+    defer pwm_channel.deinit();
 
     while (true) {
         const value = try adc_channel.read();

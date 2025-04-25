@@ -12,6 +12,10 @@ pub const Unit = struct {
         return .{ .handle = handle };
     }
 
+    pub fn deinit(self: *const Unit) void {
+        c.espLogError(c.adc_oneshot_del_unit(self.handle));
+    }
+
     pub fn channel(
         self: Unit,
         id: c.adc_channel_t,

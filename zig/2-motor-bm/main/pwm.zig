@@ -14,6 +14,13 @@ pub const Timer = struct {
         };
     }
 
+    pub fn deinit(self: *const Timer) void {
+        c.espLogError(c.ledc_timer_config(&.{
+            .timer_num = self.id,
+            .deconfigure = true,
+        }));
+    }
+
     pub fn channel(self: *const Timer, id: c.ledc_channel_t, gpio: c_int) !Channel {
         const config = ledc_channel_config_t{
             .timer_sel = self.id,
@@ -36,6 +43,10 @@ pub const Channel = struct {
     pub fn set_duty_cycle(self: *const Channel, duty_cycle: u32) !void {
         try c.espCheckError(c.ledc_set_duty(self.timer.speed_mode, self.id, duty_cycle));
         try c.espCheckError(c.ledc_update_duty(self.timer.speed_mode, self.id));
+    }
+
+    pub fn deinit(self: *const Channel) void {
+        c.espLogError(c.ledc_stop(self.timer.speed_mode, self.id, 0));
     }
 };
 
