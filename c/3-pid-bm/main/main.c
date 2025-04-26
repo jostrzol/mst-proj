@@ -1,11 +1,15 @@
+#include <inttypes.h>
 #include <stdlib.h>
 
 #include "FreeRTOSConfig.h"
 #include "esp_err.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_private/freertos_debug.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "freertos/idf_additions.h"
 #include "freertos/projdefs.h"
+#include "freertos/task.h"
 #include "portmacro.h"
 
 #include "controller.h"
@@ -14,8 +18,22 @@
 #include "services.h"
 
 #define STACK_SIZE (4096)
+#define MEM_REPORT_INTERVAL_MS 1000
 
 static const char *TAG = "pid";
+
+int32_t stack_usage(TaskHandle_t task) {
+  BaseType_t err;
+
+  TaskSnapshot_t snapshot;
+  err = vTaskGetSnapshot(task, &snapshot);
+  if (err != pdTRUE) {
+    ESP_LOGE(TAG, "vTaskGetSnapshot fail (0x%x)", err);
+    return -1;
+  }
+
+  return snapshot.pxEndOfStack - snapshot.pxTopOfStack;
+}
 
 void app_main(void) {
   esp_err_t err;
@@ -85,8 +103,30 @@ void app_main(void) {
     abort();
   }
 
-  while (true)
-    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
+  size_t total_heap_size = heap_caps_get_total_size(0);
+  while (true) {
+    vTaskDelay(MEM_REPORT_INTERVAL_MS / portTICK_PERIOD_MS);
+
+    int32_t controller_stack_usage = stack_usage(controller_task);
+    if (controller_stack_usage != -1) {
+      ESP_LOGI(
+          TAG, "Controller stack usage: %" PRIi32 "/%d", controller_stack_usage,
+          STACK_SIZE
+      );
+    }
+
+    int32_t server_stack_usage = stack_usage(server_task);
+    if (server_stack_usage != -1) {
+      ESP_LOGI(
+          TAG, "Server stack usage: %" PRIi32 "/%d", server_stack_usage,
+          STACK_SIZE
+      );
+    }
+
+    size_t free_heap_size = heap_caps_get_free_size(0);
+    size_t heap_usage = total_heap_size - free_heap_size;
+    ESP_LOGI(TAG, "Heap usage: %d", heap_usage);
+  }
 
   vTaskDelete(server_task);
   vTaskDelete(controller_task);

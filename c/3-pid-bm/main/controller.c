@@ -289,7 +289,7 @@ control_t calculate_control(
       params->proportional_factor * params->differentiation_time / interval_s;
 
   const float delta = params->target_frequency - frequency;
-  ESP_LOGI(TAG, "delta: %.2f", delta);
+  ESP_LOGD(TAG, "delta: %.2f", delta);
 
   const float proportional_component = params->proportional_factor * delta;
   const float integration_component =
@@ -300,7 +300,7 @@ control_t calculate_control(
 
   const float control_signal = proportional_component + integration_component +
                                differentiation_component;
-  ESP_LOGI(
+  ESP_LOGD(
       TAG, "control_signal: %.2f = %.2f + %.2f + %.2f", control_signal,
       proportional_component, integration_component, differentiation_component
   );
@@ -319,6 +319,56 @@ void write_state(controller_t *self, float frequency, float control_signal) {
   mb_set_float_cdab(&input->control_signal, control_signal);
 }
 
+esp_err_t read_iteration(controller_t *self) {
+  esp_err_t err;
+
+  float value;
+  err = read_adc(self, &value);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "read_adc fail (0x%x)", err);
+    return err;
+  }
+
+  if (value < self->opts.revolution_treshold_close && !self->state.is_close) {
+    // gone close
+    self->state.is_close = true;
+    *ringbuffer_back(self->state.revolutions) += 1;
+  } else if (value > self->opts.revolution_treshold_far &&
+             self->state.is_close) {
+    // gone far
+    self->state.is_close = false;
+  }
+
+  return ESP_OK;
+}
+
+esp_err_t control_iteration(controller_t *self) {
+  esp_err_t err;
+
+  const float frequency = calculate_frequency(self);
+  ringbuffer_push(self->state.revolutions, 0);
+
+  const control_params_t params = read_control_params(self);
+
+  const control_t control = calculate_control(self, &params, frequency);
+
+  const float control_signal_limited = limit(control.signal, PWM_MIN, PWM_MAX);
+  ESP_LOGD(TAG, "control_signal_limited: %.2f", control_signal_limited);
+
+  write_state(self, frequency, control_signal_limited);
+  err = set_duty_cycle(control_signal_limited);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "set_duty_cycle fail (0x%x)", err);
+    return err;
+  }
+
+  self->state.feedback = control.feedback;
+
+  ESP_LOGD(TAG, "frequency: %.2f", frequency);
+
+  return ESP_OK;
+}
+
 void controller_loop(void *params) {
   esp_err_t err;
   controller_t *self = params;
@@ -334,40 +384,12 @@ void controller_loop(void *params) {
     for (size_t i = 0; i < self->opts.reads_per_bin; ++i) {
       xSemaphoreTake(self->timer.semaphore, portMAX_DELAY);
 
-      float value;
-      err = read_adc(self, &value);
-      ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+      err = read_iteration(self);
       if (err != ESP_OK)
-        continue;
-
-      if (value < self->opts.revolution_treshold_close &&
-          !self->state.is_close) {
-        // gone close
-        self->state.is_close = true;
-        *ringbuffer_back(self->state.revolutions) += 1;
-      } else if (value > self->opts.revolution_treshold_far &&
-                 self->state.is_close) {
-        // gone far
-        self->state.is_close = false;
-      }
+        ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
     }
-
-    const float frequency = calculate_frequency(self);
-    ringbuffer_push(self->state.revolutions, 0);
-
-    const control_params_t params = read_control_params(self);
-
-    const control_t control = calculate_control(self, &params, frequency);
-
-    const float control_signal_limited =
-        limit(control.signal, PWM_MIN, PWM_MAX);
-    ESP_LOGI(TAG, "control_signal_limited: %.2f", control_signal_limited);
-
-    write_state(self, frequency, control_signal_limited);
-    set_duty_cycle(control_signal_limited);
-
-    self->state.feedback = control.feedback;
-
-    ESP_LOGI(TAG, "frequency: %.2f", frequency);
+    err = control_iteration(self);
+    if (err != ESP_OK)
+      ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
   }
 }
