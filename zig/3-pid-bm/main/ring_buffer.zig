@@ -14,7 +14,7 @@ pub fn RingBuffer(comptime T: type) type {
             return .{ .items = items };
         }
 
-        pub fn deinit(self: *Self, allocator: Allocator) void {
+        pub fn deinit(self: *const Self, allocator: Allocator) void {
             allocator.free(self.items);
         }
 

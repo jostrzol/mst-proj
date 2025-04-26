@@ -1,12 +1,14 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const idf = @import("esp_idf");
+const sys = idf.sys;
 
 const c = @import("c.zig");
 usingnamespace @import("comptime-rt.zig");
 
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
+const memory = @import("memory.zig");
 
 const sleep_duration_ms = 100;
 
@@ -37,6 +39,8 @@ fn main() !void {
     const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
     defer pwm_channel.deinit();
 
+    const tasks = [_]sys.TaskHandle_t{sys.xTaskGetCurrentTaskHandle()};
+
     while (true) {
         const value = try adc_channel.read();
 
@@ -48,6 +52,8 @@ fn main() !void {
 
         const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
         try pwm_channel.set_duty_cycle(duty_cycle);
+
+        memory.report(&tasks);
 
         idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
     }

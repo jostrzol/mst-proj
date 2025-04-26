@@ -12,8 +12,11 @@ const Registers = @import("Registers.zig");
 const Controller = @import("Controller.zig");
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
+const memory = @import("memory.zig");
+const utils = @import("utils.zig");
 
 const stack_size = 4096;
+const mem_report_interval_ms = 1000;
 
 fn main() !void {
     const heap = std.heap.raw_c_allocator;
@@ -43,34 +46,40 @@ fn main() !void {
             .reads_per_bin = 100,
         },
     );
-    defer controller.deinit();
+    defer controller.deinit(allocator);
 
-    const server_task = idf.xTaskCreatePinnedToCore(
+    var server_task: sys.TaskHandle_t = undefined;
+    try utils.rtosCheckError(idf.xTaskCreatePinnedToCore(
         Server.run,
         "SERVER_LOOP",
         stack_size,
         &server,
         2,
-        null,
+        &server_task,
         0,
-    );
+    ));
     defer sys.vTaskDelete(server_task);
 
-    const controller_task = idf.xTaskCreatePinnedToCore(
+    var controller_task: sys.TaskHandle_t = undefined;
+    try utils.rtosCheckError(idf.xTaskCreatePinnedToCore(
         Controller.run,
         "CONTROLLER_LOOP",
         stack_size,
         &controller,
         c.configMAX_PRIORITIES - 1,
-        null,
+        &controller_task,
         1,
-    );
+    ));
     defer sys.vTaskDelete(controller_task);
 
     log.info("Controlling motor from Zig", .{});
 
-    while (true)
-        idf.vTaskDelay(10 * 1000 / c.portTICK_PERIOD_MS);
+    const tasks = [_]sys.TaskHandle_t{ controller_task, server_task };
+    while (true) {
+        memory.report(&tasks);
+
+        idf.vTaskDelay(mem_report_interval_ms / idf.portTICK_PERIOD_MS);
+    }
 }
 
 export fn app_main() callconv(.C) void {

@@ -86,6 +86,28 @@ else()
     set(ZIG_BUILD_TYPE "ReleaseSafe")
 endif()
 
+if(CONFIG_IDF_TARGET_ESP32)
+    set(TARGET_IDF_MODEL "esp32")
+elseif(CONFIG_IDF_TARGET_ESP32C2)
+    set(TARGET_IDF_MODEL "esp32c2")
+elseif(CONFIG_IDF_TARGET_ESP32C3)
+    set(TARGET_IDF_MODEL "esp32c3")
+elseif(CONFIG_IDF_TARGET_ESP32C6)
+    set(TARGET_IDF_MODEL "esp32c6")
+elseif(CONFIG_IDF_TARGET_ESP32H2)
+    set(TARGET_IDF_MODEL "esp32h2")
+elseif(CONFIG_IDF_TARGET_ESP32P4)
+    set(TARGET_IDF_MODEL "esp32p4")
+elseif(CONFIG_IDF_TARGET_ESP32S2)
+    set(TARGET_IDF_MODEL "esp32s2")
+elseif(CONFIG_IDF_TARGET_ESP32S3)
+    set(TARGET_IDF_MODEL "esp32s3")
+else()
+    message(FATAL_ERROR "Unknown IDF target")
+endif()
+
+set(TOOLCHAIN_BASE_PATH "$ENV{HOME}/.espressif/tools/xtensa-esp-elf")
+
 set(include_dirs $<TARGET_PROPERTY:${COMPONENT_LIB},INCLUDE_DIRECTORIES> ${CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES})
 
 add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/include_dirs.txt
@@ -111,4 +133,5 @@ add_custom_target(zig_build
 
 add_prebuilt_library(zig ${CMAKE_BINARY_DIR}/lib/libmotor.a)
 add_dependencies(zig zig_build)
-target_link_libraries(${COMPONENT_LIB} PRIVATE ${CMAKE_BINARY_DIR}/lib/libmotor.a)
+
+target_link_libraries(${COMPONENT_LIB} PRIVATE zig)

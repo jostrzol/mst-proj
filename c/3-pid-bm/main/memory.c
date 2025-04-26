@@ -29,9 +29,12 @@ void memory_report(size_t task_count, ...) {
     char *name = pcTaskGetName(task);
 
     int32_t task_stack_usage = stack_usage(task);
-    if (task_stack_usage != -1) {
-      ESP_LOGI(TAG, "%s stack usage: %" PRIi32 " B", name, task_stack_usage);
+    if (task_stack_usage == -1) {
+      ESP_LOGE(TAG, "stack_usage fail");
+      continue;
     }
+
+    ESP_LOGI(TAG, "%s stack usage: %" PRIi32 " B", name, task_stack_usage);
   }
   size_t total_heap_size = heap_caps_get_total_size(0);
   size_t free_heap_size = heap_caps_get_free_size(0);

@@ -1,6 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const idf = @import("esp_idf");
+const sys = idf.sys;
+
+const memory = @import("memory.zig");
 
 const tag = "blinky";
 const period_ms = 1000;
@@ -12,6 +15,8 @@ fn main() !void {
     var is_on = false;
 
     try idf.gpio.Direction.set(.GPIO_NUM_5, .GPIO_MODE_OUTPUT);
+
+    const tasks = [_]sys.TaskHandle_t{sys.xTaskGetCurrentTaskHandle()};
     while (true) {
         log.info("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
 
@@ -19,6 +24,9 @@ fn main() !void {
             std.log.err("Error: {}", .{err});
         };
         is_on = !is_on;
+
+        memory.report(&tasks);
+
         idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
     }
 }

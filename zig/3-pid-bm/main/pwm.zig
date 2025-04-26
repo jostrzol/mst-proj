@@ -32,31 +32,26 @@ pub const Timer = struct {
             .hpoint = 0,
         };
         try c.espCheckError(ledc_channel_config(@ptrCast(&config)));
-        return .{ .timer = self, .id = id };
+        return .{ .id = id, .speed_mode = self.speed_mode };
     }
 };
 
 pub const Channel = struct {
-    timer: *const Timer,
     id: c.ledc_channel_t,
+    speed_mode: c.ledc_mode_t,
 
     pub fn set_duty_cycle(self: *const Channel, duty_cycle: u32) !void {
-        try c.espCheckError(c.ledc_set_duty(self.timer.speed_mode, self.id, duty_cycle));
-        try c.espCheckError(c.ledc_update_duty(self.timer.speed_mode, self.id));
+        try c.espCheckError(c.ledc_set_duty(self.speed_mode, self.id, duty_cycle));
+        try c.espCheckError(c.ledc_update_duty(self.speed_mode, self.id));
     }
 
     pub fn deinit(self: *const Channel) void {
-        c.espLogError(c.ledc_stop(self.timer.speed_mode, self.id, 0));
+        c.espLogError(c.ledc_stop(self.speed_mode, self.id, 0));
     }
 };
 
 // Needed, because c-translate cannot properly translate flags
 pub const ledc_channel_config_t = extern struct {
-    const flags_t = packed struct {
-        output_invert: bool,
-        _: u31,
-    };
-
     gpio_num: c_int = @import("std").mem.zeroes(c_int),
     speed_mode: c.ledc_mode_t = @import("std").mem.zeroes(c.ledc_mode_t),
     channel: c.ledc_channel_t = @import("std").mem.zeroes(c.ledc_channel_t),
@@ -65,7 +60,10 @@ pub const ledc_channel_config_t = extern struct {
     duty: u32 = @import("std").mem.zeroes(u32),
     hpoint: c_int = @import("std").mem.zeroes(c_int),
     sleep_mode: c.ledc_sleep_mode_t = @import("std").mem.zeroes(c.ledc_sleep_mode_t),
-    flags: flags_t = @import("std").mem.zeroes(flags_t),
+    flags: packed struct(u32) {
+        output_invert: bool = false,
+        _: u31 = 0,
+    } = .{},
 };
 
 extern fn ledc_channel_config(ledc_conf: ?*const ledc_channel_config_t) c.esp_err_t;

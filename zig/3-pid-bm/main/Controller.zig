@@ -5,8 +5,8 @@ const Allocator = std.mem.Allocator;
 
 const Registers = @import("Registers.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
-const adc_t = @import("adc.zig");
-const pwm_t = @import("pwm.zig");
+const adc_m = @import("adc.zig");
+const pwm_m = @import("pwm.zig");
 const c = @import("c.zig");
 const logErr = @import("utils.zig").logErr;
 
@@ -25,12 +25,12 @@ const limit_min_deadzone = 0.001;
 opts: InitOpts,
 registers: *Registers,
 adc: struct {
-    unit: adc_t.Unit,
-    channel: adc_t.Channel,
+    unit: adc_m.Unit,
+    channel: adc_m.Channel,
 },
 pwm: struct {
-    timer: pwm_t.Timer,
-    channel: pwm_t.Channel,
+    timer: pwm_m.Timer,
+    channel: pwm_m.Channel,
 },
 timer: struct {
     semaphore: sys.QueueHandle_t,
@@ -62,14 +62,14 @@ const Feedback = struct {
 const Self = @This();
 
 pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
-    const adc_unit = try adc_t.Unit.init(c.ADC_UNIT_1);
+    const adc_unit = try adc_m.Unit.init(c.ADC_UNIT_1);
     errdefer adc_unit.deinit();
     const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
         .atten = c.ADC_ATTEN_DB_12,
         .bitwidth = adc_bitwidth,
     });
 
-    const pwm_timer = try pwm_t.Timer.init(&.{
+    const pwm_timer = try pwm_m.Timer.init(&.{
         .speed_mode = c.LEDC_LOW_SPEED_MODE,
         .duty_resolution = c.LEDC_TIMER_13_BIT,
         .timer_num = c.LEDC_TIMER_0,
@@ -144,8 +144,8 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
     };
 }
 
-pub fn deinit(self: *const Self) !void {
-    self.state.revolutions.deinit();
+pub fn deinit(self: *const Self, allocator: Allocator) void {
+    self.state.revolutions.deinit(allocator);
     self.adc.unit.deinit();
     self.pwm.timer.deinit();
     self.pwm.channel.deinit();
@@ -190,18 +190,14 @@ fn read_adc(self: *Self) !f32 {
 fn control_iteration(self: *Self) !void {
     const frequency = self.calculate_frequency();
     try self.state.revolutions.push(0);
-    std.log.info("frequency: {d:.2} Hz", .{frequency});
+    std.log.debug("frequency: {d:.2} Hz", .{frequency});
 
     const control_params = self.read_control_params();
-    // inline for (std.meta.fields(ControlParams)) |field| {
-    //     const value = @field(control_params, field.name);
-    //     std.log.info("{s}: {d:.2}", .{ field.name, value });
-    // }
 
     const control = self.calculate_control(&control_params, frequency);
 
     const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
-    std.log.info("control signal limited: {d:.2}", .{control_signal_limited});
+    std.log.debug("control signal limited: {d:.2}", .{control_signal_limited});
 
     try self.set_duty_cycle(control_signal_limited);
 
@@ -248,7 +244,7 @@ fn calculate_control(
         params.proportional_factor * params.differentiation_time / interval_s;
 
     const delta: f32 = params.target_frequency - frequency;
-    std.log.info("delta: {d:.2}", .{delta});
+    std.log.debug("delta: {d:.2}", .{delta});
 
     const proportional_component: f32 = params.proportional_factor * delta;
     const integration_component: f32 =
@@ -261,7 +257,7 @@ fn calculate_control(
         integration_component +
         differentiation_component;
 
-    std.log.info("control_signal: {d:.2} = {d:.2} + {d:.2} + {d:.2}", .{
+    std.log.debug("control_signal: {d:.2} = {d:.2} + {d:.2} + {d:.2}", .{
         control_signal,
         proportional_component,
         integration_component,

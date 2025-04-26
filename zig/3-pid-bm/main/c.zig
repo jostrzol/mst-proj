@@ -13,7 +13,6 @@ const c = @cImport({
     @cInclude("portmacro.h");
 
     @cInclude("mdns.h");
-    @cInclude("freertos/portmacro.h");
     @cInclude("esp_modbus_common.h");
     @cInclude("esp_modbus_slave.h");
 

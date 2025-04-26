@@ -12,20 +12,30 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("main/app.zig"),
         .target = target,
         .optimize = optimize,
+        .unwind_tables = .none,
     });
-    lib.root_module.addImport("esp_idf", idf_wrapped_modules(b));
+    const idf = idf_wrapped_modules(b);
+    lib.root_module.addImport("esp_idf", idf);
     lib.linkLibC(); // stubs for libc
 
     try includeDeps(b, lib);
     b.installArtifact(lib);
 }
 
-fn includeDeps(b: *std.Build, lib: *std.Build.Step.Compile) !void {
-    const include_dirs = std.process.getEnvVarOwned(b.allocator, "INCLUDE_DIRS") catch "";
-    if (!std.mem.eql(u8, include_dirs, "")) {
+fn includeDeps(
+    b: *std.Build,
+    lib: *std.Build.Step.Compile,
+) !void {
+    const build_path = b.path("build").getPath3(b, null);
+    const include_dirs_file = try build_path.openFile("include_dirs.txt", .{});
+    defer include_dirs_file.close();
+
+    const include_dirs = try include_dirs_file.readToEndAlloc(b.allocator, std.math.maxInt(usize));
+
+    if (include_dirs.len > 0) {
         var it_inc = std.mem.tokenizeAny(u8, include_dirs, ";");
         while (it_inc.next()) |dir| {
-            lib.addIncludePath(.{ .cwd_relative = dir });
+            lib.addIncludePath(abs(dir));
         }
     }
 
@@ -40,42 +50,25 @@ fn includeDeps(b: *std.Build, lib: *std.Build.Step.Compile) !void {
         const archtools = b.fmt("{s}-esp-elf", .{
             @tagName(lib.rootModuleTarget().cpu.arch),
         });
+        const tool_root = b.pathJoin(&.{
+            home_dir,
+            ".espressif",
+            "tools",
+            archtools,
+            "esp-14.2.0_20241119",
+            archtools,
+        });
 
-        lib.addIncludePath(.{
-            .cwd_relative = b.pathJoin(&.{
-                home_dir,
-                ".espressif",
-                "tools",
-                archtools,
-                "esp-14.2.0_20241119",
-                archtools,
-                "include",
-            }),
-        });
-        lib.addSystemIncludePath(.{
-            .cwd_relative = b.pathJoin(&.{
-                home_dir,
-                ".espressif",
-                "tools",
-                archtools,
-                "esp-14.2.0_20241119",
-                archtools,
-                archtools,
-                "sys-include",
-            }),
-        });
-        lib.addIncludePath(.{
-            .cwd_relative = b.pathJoin(&.{
-                home_dir,
-                ".espressif",
-                "tools",
-                archtools,
-                "esp-14.2.0_20241119",
-                archtools,
-                archtools,
-                "include",
-            }),
-        });
+        const includes = &[_][]const u8{
+            b.pathJoin(&.{ tool_root, "include" }),
+            b.pathJoin(&.{ tool_root, archtools, "include" }),
+        };
+        for (includes) |include| {
+            lib.addIncludePath(abs(include));
+        }
+
+        const sysInclude = b.pathJoin(&.{ tool_root, archtools, "sys-include" });
+        lib.addSystemIncludePath(abs(sysInclude));
     }
 
     // user include dirs
@@ -104,23 +97,20 @@ pub fn searched_idf_libs(b: *std.Build, lib: *std.Build.Step.Compile) !void {
 
 pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.Compile, idf_path: []const u8) !void {
     const comp = b.pathJoin(&.{ idf_path, "components" });
-    var dir = try std.fs.cwd().openDir(comp, .{
-        .iterate = true,
-    });
+    var dir = try std.fs.cwd().openDir(
+        comp,
+        .{ .iterate = true },
+    );
     defer dir.close();
     var walker = try dir.walk(b.allocator);
     defer walker.deinit();
 
     while (try walker.next()) |entry| {
-        const ext = std.fs.path.extension(entry.basename);
-        const include_file = inline for (&.{".h"}) |e| {
-            if (std.mem.eql(u8, ext, e))
-                break true;
-        } else false;
-        if (include_file) {
-            const include_dir = b.pathJoin(&.{ comp, std.fs.path.dirname(b.dupe(entry.path)).? });
-            lib.addIncludePath(.{ .cwd_relative = include_dir });
-        }
+        if (entry.kind != .directory) continue;
+        if (!std.mem.eql(u8, entry.basename, "include")) continue;
+
+        const include_dir = b.pathJoin(&.{ comp, entry.path });
+        lib.addIncludePath(.{ .cwd_relative = include_dir });
     }
 }
 
@@ -468,7 +458,7 @@ pub fn idf_wrapped_modules(b: *std.Build) *std.Build.Module {
             },
         },
     });
-    return b.addModule("esp_idf", .{
+    const idf = b.addModule("esp_idf", .{
         .root_source_file = b.path(b.pathJoin(&.{
             src_path,
             "imports",
@@ -567,8 +557,13 @@ pub fn idf_wrapped_modules(b: *std.Build) *std.Build.Module {
                 .name = "pulse",
                 .module = pcnt,
             },
+            .{
+                .name = "sys",
+                .module = sys,
+            },
         },
     });
+    return idf;
 }
 
 // Targets config
@@ -632,4 +627,8 @@ fn isEspXtensa() bool {
         if (result) break;
     }
     return result;
+}
+
+fn abs(path: []const u8) std.Build.LazyPath {
+    return .{ .cwd_relative = path };
 }
