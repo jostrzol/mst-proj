@@ -1,15 +1,29 @@
 artifacts_dir := "../artifacts"
+esp_export := ". ../esp-export/c.sh"
 
 build: build-os build-bm
 build-os: blinky-build motor-build pid-build
-build-bm: blinky-bm-build motor-bm-build pid-bm-build
+build-bm:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
+  just blinky-bm-build && \
+  just motor-bm-build && \
+  just pid-bm-build
 
 watch:
+  just watch-os \
+  & just watch-bm \
+  & wait
+
+watch-os:
   just blinky-watch \
-  & just blinky-bm-watch \
   & just motor-watch \
-  & just motor-bm-watch \
   & just pid-watch \
+  & wait
+
+watch-bm:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
+  just blinky-bm-watch \
+  & just motor-bm-watch \
   & just pid-bm-watch \
   & wait
 
@@ -53,6 +67,7 @@ _build PROJECT:
   && cp ./bin/{{PROJECT}} ../{{artifacts_dir}}/{{PROJECT}}-c
 
 _watch-bm NUM PROJECT:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   watchexec --postpone --wrap-process session --verbose \
   -e c,h -w ./{{NUM}}-{{PROJECT}}-bm/main \
   --on-busy-update=restart --stop-signal=SIGKILL \
@@ -62,4 +77,5 @@ _build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build")
   cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.bin ../artifacts/{{NUM}}-{{PROJECT}}-bm-c
 
 _cmd-bm NUM PROJECT *CMD:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   cd {{NUM}}-{{PROJECT}}-bm && idf.py {{CMD}}

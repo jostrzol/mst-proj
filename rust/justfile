@@ -1,19 +1,33 @@
 arch := "arm-unknown-linux-gnueabihf"
 arch_bm := "xtensa-esp32-espidf"
 artifacts_dir := "../artifacts/"
+esp_export := ". ../esp-export/rust.sh"
 
 build: build-os build-bm
 build-os: blinky-build motor-build pid-build #dmc-build
-build-bm: blinky-bm-build motor-bm-build pid-bm-build
+build-bm:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
+  just blinky-bm-build && \
+  just motor-bm-build && \
+  just pid-bm-build
 
 watch:
+  just watch-os \
+  & just watch-bm \
+  & wait
+
+watch-os:
   just blinky-watch \
-  & just blinky-bm-watch \
   & just motor-watch \
-  & just motor-bm-watch \
   & just pid-watch \
-  & just pid-bm-watch \
   #& just dmc-watch \
+  & wait
+
+watch-bm:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
+  just blinky-bm-watch \
+  & just motor-bm-watch \
+  & just pid-bm-watch \
   & wait
 
 clean:
@@ -54,14 +68,17 @@ _build NUM PACKAGE:
   && cp ./target/{{arch}}/release/{{PACKAGE}} ../artifacts/{{NUM}}-{{PACKAGE}}-rust
 
 _watch-bm NUM PACKAGE:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   watchexec --postpone --wrap-process session --verbose \
   -e rs,toml -w ./{{NUM}}-{{PACKAGE}} \
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build-bm \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build-bm NUM PACKAGE:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   cd ./{{NUM}}-{{PACKAGE}}/ && cargo build --release \
   && cp ./target/{{arch_bm}}/release/{{NUM}}-{{PACKAGE}} ../../artifacts/{{NUM}}-{{PACKAGE}}-rust
 
 _run-bm NUM PACKAGE:
+  if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   cd ./{{NUM}}-{{PACKAGE}}/ && cargo run --release
