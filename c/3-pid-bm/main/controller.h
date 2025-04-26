@@ -3,7 +3,7 @@
 #include "driver/gptimer_types.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_err.h"
-#include "freertos/FreeRTOS.h"
+#include "freertos/idf_additions.h"
 
 #include "registers.h"
 #include "ringbuffer.h"
@@ -26,7 +26,6 @@ typedef struct {
   regs_t *regs;
   adc_oneshot_unit_handle_t adc;
   struct {
-    StaticSemaphore_t semaphore_buf;
     SemaphoreHandle_t semaphore;
     gptimer_handle_t handle;
   } timer;
