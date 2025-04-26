@@ -15,6 +15,7 @@ harness = false      # do not use the built in cargo test harness -> resolve rus
 
 [profile.release]
 opt-level = "s"
+strip = true
 
 [profile.dev]
 debug = true    # Symbols are nice and they don't increase the size on Flash
