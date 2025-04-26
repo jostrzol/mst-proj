@@ -5,15 +5,21 @@
 #include "esp_adc/adc_oneshot.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_private/freertos_debug.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
+#include "freertos/idf_additions.h"
 #include "hal/adc_types.h"
 #include "hal/ledc_types.h"
 #include "lwip/err.h"
 #include "sdkconfig.h" // IWYU pragma: keep
 
+#include "memory.h"
+
 static const char TAG[] = "motor";
 
 // Configuration
+static const uint32_t SLEEP_DURATION_MS = 100;
+
 static const adc_unit_t ADC_UNIT = ADC_UNIT_1;
 static const adc_channel_t ADC_CHANNEL = ADC_CHANNEL_4;
 static const adc_atten_t ADC_ATTENUATION = ADC_ATTEN_DB_12;
@@ -88,6 +94,8 @@ void app_main(void) {
     abort();
   }
 
+  TaskHandle_t task = xTaskGetCurrentTaskHandle();
+
   while (true) {
     int value_raw;
     err = adc_oneshot_read(adc, ADC_CHANNEL, &value_raw);
@@ -115,7 +123,9 @@ void app_main(void) {
       continue;
     }
 
-    vTaskDelay(1);
+    memory_report(1, task);
+
+    vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
   }
 
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));

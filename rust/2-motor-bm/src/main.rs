@@ -10,8 +10,7 @@ use esp_idf_hal::{
     units::FromValueType,
 };
 
-const FREQUENCY: u32 = 100;
-const SLEEP_DURATION_MS: u32 = 1000 / FREQUENCY;
+const SLEEP_DURATION_MS: u32 = 100;
 
 const ADC_BITWIDTH: u16 = 9;
 const ADC_MAX_VALUE: u16 = (1 << ADC_BITWIDTH) - 1;

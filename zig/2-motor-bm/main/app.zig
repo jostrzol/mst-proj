@@ -8,6 +8,8 @@ usingnamespace @import("comptime-rt.zig");
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
 
+const sleep_duration_ms = 100;
+
 const adc_bitwidth = c.ADC_BITWIDTH_9;
 const adc_max = (1 << adc_bitwidth) - 1;
 
@@ -47,7 +49,7 @@ fn main() !void {
         const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
         try pwm_channel.set_duty_cycle(duty_cycle);
 
-        idf.vTaskDelay(1);
+        idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
     }
 }
 

@@ -2,7 +2,10 @@
 #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
-#include "sdkconfig.h"         // IWYU pragma: keep
+#include "freertos/idf_additions.h"
+#include "sdkconfig.h" // IWYU pragma: keep
+
+#include "memory.h"
 
 static const char TAG[] = "blinky";
 
@@ -28,6 +31,8 @@ void app_main(void) {
 
   uint8_t led_state = 0;
 
+  TaskHandle_t task = xTaskGetCurrentTaskHandle();
+
   while (true) {
     ESP_LOGI(TAG, "Turning the LED %s", led_state == true ? "ON" : "OFF");
 
@@ -37,6 +42,9 @@ void app_main(void) {
       continue;
     }
     led_state = !led_state;
+
+    memory_report(1, task);
+
     vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
   }
 }
