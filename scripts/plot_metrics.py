@@ -150,7 +150,9 @@ def plot_experiment(experiment: str):
         plt.bar(labels, values, edgecolor="black", facecolor=colors)
         plt.title(title)
 
-    execs = [ARTIFACTS_DIR / f"{experiment}-{lang['slug']}" for lang in LANGUAGES]
+    execs = [
+        ARTIFACTS_DIR / "small" / f"{experiment}-{lang['slug']}" for lang in LANGUAGES
+    ]
     sizes = [exec.stat().st_size / 1000 for exec in execs]
     plt.subplot(2, 2, 4)
     plt.bar(labels, sizes, edgecolor="black", facecolor=colors)
