@@ -1,20 +1,24 @@
 #![feature(variant_count)]
 
 mod controller;
+mod memory;
 mod registers;
 mod server;
 mod services;
 
+use std::pin::Pin;
 use std::thread;
-use std::{pin::Pin, time::Duration};
 
 use esp_idf_hal::cpu::Core;
+use esp_idf_hal::delay::Delay;
 use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_svc::hal::prelude::Peripherals;
 use esp_idf_svc::log::EspLogger;
+use esp_idf_sys::xTaskGetHandle;
 use log::info;
 
 use controller::{Controller, ControllerOpts};
+use memory::memory_report;
 use registers::Registers;
 use server::Server;
 use services::Services;
@@ -31,6 +35,10 @@ const CONTROLLER_OPTS: ControllerOpts = ControllerOpts {
 };
 
 const STACK_SIZE: usize = 5120;
+const CONTROLLER_TASK_NAME: &[u8] = "SERVER_LOOP\0".as_bytes();
+const SERVER_TASK_NAME: &[u8] = "CONTROLLER_LOOP\0".as_bytes();
+
+const MEM_REPORT_INTERVAL_MS: u32 = 1000;
 
 static mut REGISTERS: Option<Registers> = None;
 
@@ -48,7 +56,7 @@ fn main() -> anyhow::Result<()> {
     let server = Server::new(services.netif(), registers.as_ref())?;
 
     ThreadSpawnConfiguration {
-        name: Some("SERVER_LOOP\0".as_bytes()),
+        name: Some(SERVER_TASK_NAME),
         priority: 2,
         pin_to_core: Some(Core::Core0),
         ..Default::default()
@@ -57,9 +65,10 @@ fn main() -> anyhow::Result<()> {
     let _server_thread = thread::Builder::new()
         .stack_size(STACK_SIZE)
         .spawn(move || server.run().expect("Server loop failed"))?;
+    let server_task = unsafe { xTaskGetHandle(SERVER_TASK_NAME.as_ptr() as *const i8) };
 
     ThreadSpawnConfiguration {
-        name: Some("CONTROLLER_LOOP\0".as_bytes()),
+        name: Some(CONTROLLER_TASK_NAME),
         priority: 24,
         pin_to_core: Some(Core::Core1),
         ..Default::default()
@@ -82,11 +91,15 @@ fn main() -> anyhow::Result<()> {
             .expect("Controller setup failed");
             controller.run().expect("Controller loop failed")
         })?;
+    let controller_task = unsafe { xTaskGetHandle(CONTROLLER_TASK_NAME.as_ptr() as *const i8) };
 
     info!("Controlling motor using PID from Rust");
 
+    let delay = Delay::default();
     loop {
-        thread::sleep(Duration::from_secs(5));
+        memory_report(&[controller_task, server_task]);
+
+        delay.delay_ms(MEM_REPORT_INTERVAL_MS);
     }
 
     #[allow(unreachable_code)]

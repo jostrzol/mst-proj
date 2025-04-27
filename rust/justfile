@@ -1,5 +1,9 @@
+profile := "release"
+# profile := "debug"
+
 arch := "arm-unknown-linux-gnueabihf"
 arch_bm := "xtensa-esp32-espidf"
+opts := if profile == "release" {"--release"} else {""}
 artifacts_dir := "../artifacts/"
 esp_export := ". ../esp-export/rust.sh"
 
@@ -64,8 +68,8 @@ _watch NUM PACKAGE:
   -- just _build \"{{NUM}}\" \"{{PACKAGE}}\"
 
 _build NUM PACKAGE:
-  cross build --package {{PACKAGE}} --release --target={{arch}} \
-  && cp ./target/{{arch}}/release/{{PACKAGE}} ../artifacts/{{NUM}}-{{PACKAGE}}-rust
+  cross build --package {{PACKAGE}} {{opts}} --target={{arch}} \
+  && cp ./target/{{arch}}/{{profile}}/{{PACKAGE}} ../artifacts/{{NUM}}-{{PACKAGE}}-rust
 
 _watch-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
@@ -76,9 +80,9 @@ _watch-bm NUM PACKAGE:
 
 _build-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
-  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build --release \
-  && cp ./target/{{arch_bm}}/release/{{NUM}}-{{PACKAGE}} ../../artifacts/{{NUM}}-{{PACKAGE}}-rust
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build {{opts}} \
+  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} ../../artifacts/{{NUM}}-{{PACKAGE}}-rust
 
 _run-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
-  cd ./{{NUM}}-{{PACKAGE}}/ && cargo run --release
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo run {{opts}}

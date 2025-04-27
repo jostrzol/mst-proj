@@ -17,6 +17,8 @@ return {
 				settings = {
 					["rust-analyzer"] = {
 						cargo = {
+							extraArgs = { "--release" },
+							-- targetDir = "target_analyzer",
 							allTargets = false,
 						},
 						server = {

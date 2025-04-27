@@ -35,6 +35,7 @@ esp-idf-svc = { version = "0.51", features = [
 ] }
 esp-idf-hal = { version = "0.45.2" }
 anyhow = "1.0.97"
+esp-idf-sys = "0.36.1"
 
 [build-dependencies]
 embuild = "0.33"

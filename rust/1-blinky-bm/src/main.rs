@@ -1,6 +1,10 @@
-use esp_idf_hal::delay::FreeRtos;
+mod memory;
+
+use esp_idf_hal::delay::Delay;
 use esp_idf_hal::gpio::*;
 use esp_idf_hal::peripherals::Peripherals;
+use esp_idf_sys::xTaskGetCurrentTaskHandle;
+use memory::memory_report;
 
 const PERIOD_MS: u32 = 1000;
 const SLEEP_DURATION_MS: u32 = PERIOD_MS / 2;
@@ -14,12 +18,18 @@ fn main() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
     let mut led = PinDriver::output(peripherals.pins.gpio5)?;
 
+    let delay = Delay::default();
+
+    let task = unsafe { xTaskGetCurrentTaskHandle() };
     loop {
         log::info!(
             "Turning the LED {}",
             if led.is_set_low() { "ON" } else { "OFF" }
         );
         led.toggle()?;
-        FreeRtos::delay_ms(SLEEP_DURATION_MS);
+
+        memory_report(&[task]);
+
+        delay.delay_ms(SLEEP_DURATION_MS);
     }
 }
