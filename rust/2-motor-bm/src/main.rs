@@ -1,4 +1,7 @@
+#![feature(asm_experimental_arch)]
+
 mod memory;
+mod perf;
 
 use esp_idf_hal::adc::oneshot::config::Calibration;
 use esp_idf_hal::delay::Delay;
@@ -12,9 +15,11 @@ use esp_idf_hal::{
     },
     units::FromValueType,
 };
+use log::debug;
 use memory::memory_report;
 
 const SLEEP_DURATION_MS: u32 = 100;
+const CONTROL_ITERS_PER_PERF_REPORT: usize = 10;
 
 const ADC_BITWIDTH: u16 = 9;
 const ADC_MAX_VALUE: u16 = (1 << ADC_BITWIDTH) - 1;
@@ -49,23 +54,29 @@ fn main() -> anyhow::Result<()> {
     let max_duty_cycle = driver.get_max_duty();
 
     let delay = Delay::default();
-
     let task = unsafe { xTaskGetCurrentTaskHandle() };
+    let mut perf = perf::Counter::new("MAIN")?;
+
     loop {
-        let value = adc.read_raw(&mut adc_pin)?;
-        let value_normalized = value as f32 / ADC_MAX_VALUE as f32;
-        println!(
-            "selected duty cycle: {:.2} = {} / {}",
-            value_normalized, value, ADC_MAX_VALUE
-        );
+        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+            delay.delay_ms(SLEEP_DURATION_MS);
 
-        let duty_cycle = value_normalized * max_duty_cycle as f32;
-        if let Err(err) = driver.set_duty(duty_cycle as u32) {
-            eprintln!("Setting duty cycle: {}", err)
-        };
+            let _measure = perf.measure();
 
+            let value = adc.read_raw(&mut adc_pin)?;
+            let value_normalized = value as f32 / ADC_MAX_VALUE as f32;
+            debug!(
+                "selected duty cycle: {:.2} = {} / {}",
+                value_normalized, value, ADC_MAX_VALUE
+            );
+
+            let duty_cycle = value_normalized * max_duty_cycle as f32;
+            if let Err(err) = driver.set_duty(duty_cycle as u32) {
+                eprintln!("Setting duty cycle: {}", err)
+            };
+        }
         memory_report(&[task]);
-
-        delay.delay_ms(SLEEP_DURATION_MS);
+        perf.report();
+        perf.reset();
     }
 }

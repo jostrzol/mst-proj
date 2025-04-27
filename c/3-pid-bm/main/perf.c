@@ -46,10 +46,10 @@ void perf_counter_add_sample(perf_counter_t *self, perf_start_mark_t start) {
 
 void perf_counter_report(perf_counter_t *const self) {
   const double cycles_avg = (double)self->total_cycles / self->sample_count;
-  const double time_ms = cycles_avg / self->cpu_frequency * 1e6;
+  const double time_us = cycles_avg / self->cpu_frequency * 1e6;
   ESP_LOGI(
       TAG, "Performance counter %s: %.3f us = %.0f cycles (%d sampl.)",
-      self->name, time_ms, cycles_avg, self->sample_count
+      self->name, time_us, cycles_avg, self->sample_count
   );
 }
 void perf_counter_reset(perf_counter_t *self) {

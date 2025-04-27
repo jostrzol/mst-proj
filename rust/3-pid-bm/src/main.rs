@@ -1,7 +1,9 @@
 #![feature(variant_count)]
+#![feature(asm_experimental_arch)]
 
 mod controller;
 mod memory;
+mod perf;
 mod registers;
 mod server;
 mod services;

@@ -39,10 +39,6 @@ typedef struct {
     bool is_close;
     feedback_t feedback;
   } state;
-  struct {
-    perf_counter_t read;
-    perf_counter_t control;
-  } perf;
 } controller_t;
 
 esp_err_t

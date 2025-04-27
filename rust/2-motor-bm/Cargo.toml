@@ -39,3 +39,6 @@ esp-idf-sys = "0.36.1"
 
 [build-dependencies]
 embuild = "0.33"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+bindings_header = "clk.h"

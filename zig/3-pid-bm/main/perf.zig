@@ -47,10 +47,10 @@ pub const Counter = struct {
 
     pub fn report(self: *const Self) void {
         const cycles_avg = @as(f64, @floatFromInt(self.total_cycles)) / @as(f64, @floatFromInt(self.sample_count));
-        const time_ms = cycles_avg / @as(f64, @floatFromInt(self.cpu_frequency)) * 1e6;
+        const time_us = cycles_avg / @as(f64, @floatFromInt(self.cpu_frequency)) * 1e6;
         std.log.info(
             "Performance counter {s}: {d:.3} us = {d:.0} cycles ({} sampl.)",
-            .{ self.name, time_ms, cycles_avg, self.sample_count },
+            .{ self.name, time_us, cycles_avg, self.sample_count },
         );
     }
 

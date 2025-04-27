@@ -9,7 +9,9 @@ const adc_m = @import("adc.zig");
 const pwm_m = @import("pwm.zig");
 const perf_m = @import("perf.zig");
 const c = @import("c.zig");
-const logErr = @import("utils.zig").logErr;
+const utils = @import("utils.zig");
+const logErr = utils.logErr;
+const panicErr = utils.panicErr;
 
 const adc_bitwidth = c.ADC_BITWIDTH_9;
 const adc_max = (1 << adc_bitwidth) - 1;
@@ -46,10 +48,6 @@ state: struct {
     revolutions: RingBuffer(u32),
     is_close: bool,
     feedback: Feedback,
-},
-perf: struct {
-    read: perf_m.Counter,
-    control: perf_m.Counter,
 },
 
 pub const InitOpts = struct {
@@ -147,10 +145,6 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
             .is_close = false,
             .feedback = .{},
         },
-        .perf = .{
-            .read = try perf_m.Counter.init("READ"),
-            .control = try perf_m.Counter.init("CONTROL"),
-        },
     };
 }
 
@@ -167,7 +161,10 @@ pub fn deinit(self: *const Self, allocator: Allocator) void {
 pub fn run(args: ?*anyopaque) callconv(.c) void {
     const self: *Self = @alignCast(@ptrCast(args));
 
-    logErr(c.espCheckError(c.gptimer_start(self.timer.handle)));
+    c.espCheckError(c.gptimer_start(self.timer.handle)) catch |err| panicErr(err);
+
+    var perf_read = perf_m.Counter.init("READ") catch |err| panicErr(err);
+    var perf_control = perf_m.Counter.init("CONTROL") catch |err| panicErr(err);
 
     while (true) {
         for (0..control_iters_per_perf_report) |_| {
@@ -176,18 +173,18 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
 
                 const read_start = perf_m.StartMarker.now();
                 logErr(self.read_iteration());
-                self.perf.read.add_sample(read_start);
+                perf_read.add_sample(read_start);
             }
 
             const control_start = perf_m.StartMarker.now();
             logErr(self.control_iteration());
-            self.perf.control.add_sample(control_start);
+            perf_control.add_sample(control_start);
         }
 
-        self.perf.read.report();
-        self.perf.control.report();
-        self.perf.read.reset();
-        self.perf.control.reset();
+        perf_read.report();
+        perf_control.report();
+        perf_read.reset();
+        perf_control.reset();
     }
 }
 

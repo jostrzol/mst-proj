@@ -204,28 +204,6 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
   const float interval_rotate_all_s =
       interval_rotate_once_s * opts.revolution_bins;
 
-  perf_counter_t perf_read;
-  err = perf_counter_init(&perf_read, "READ");
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "perf_counter_init (READ) fail (0x%x)", err);
-    ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(timer));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
-    vSemaphoreDelete(timer_semaphore);
-    return err;
-  }
-
-  perf_counter_t perf_control;
-  err = perf_counter_init(&perf_control, "CONTROL");
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "perf_counter_init (CONTROL) fail (0x%x)", err);
-    ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(timer));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
-    vSemaphoreDelete(timer_semaphore);
-    return err;
-  }
-
   *self = (controller_t){
       .opts = opts,
       .regs = regs,
@@ -245,11 +223,6 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
               .revolutions = revolutions,
               .is_close = false,
               .feedback = {.delta = 0, .integration_component = 0},
-          },
-      .perf =
-          {
-              .read = perf_read,
-              .control = perf_control,
           },
   };
 
@@ -406,8 +379,23 @@ void controller_loop(void *params) {
   err = gptimer_start(self->timer.handle);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_start fail (0x%x)", err);
-    return;
+    abort();
   }
+
+  perf_counter_t perf_read;
+  err = perf_counter_init(&perf_read, "READ");
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "perf_counter_init (READ) fail (0x%x)", err);
+    abort();
+  }
+
+  perf_counter_t perf_control;
+  err = perf_counter_init(&perf_control, "CONTROL");
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "perf_counter_init (CONTROL) fail (0x%x)", err);
+    abort();
+  }
+
   while (true) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
       for (size_t j = 0; j < self->opts.reads_per_bin; ++j) {
@@ -419,7 +407,7 @@ void controller_loop(void *params) {
         if (err != ESP_OK)
           ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
 
-        perf_counter_add_sample(&self->perf.read, read_start);
+        perf_counter_add_sample(&perf_read, read_start);
       }
 
       const perf_start_mark_t control_start = perf_counter_mark_start();
@@ -428,12 +416,12 @@ void controller_loop(void *params) {
       if (err != ESP_OK)
         ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
 
-      perf_counter_add_sample(&self->perf.control, control_start);
+      perf_counter_add_sample(&perf_control, control_start);
     }
-    perf_counter_report(&self->perf.read);
-    perf_counter_report(&self->perf.control);
+    perf_counter_report(&perf_read);
+    perf_counter_report(&perf_control);
 
-    perf_counter_reset(&self->perf.read);
-    perf_counter_reset(&self->perf.control);
+    perf_counter_reset(&perf_read);
+    perf_counter_reset(&perf_control);
   }
 }

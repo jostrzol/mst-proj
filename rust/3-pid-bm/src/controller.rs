@@ -22,6 +22,7 @@ use log::{debug, error, info};
 use ouroboros::self_referencing;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
+use crate::perf;
 use crate::registers::{HoldingRegister, InputRegister, Registers};
 
 type LedcTimerConfig = ledc::config::TimerConfig;
@@ -35,6 +36,8 @@ const PWM_MIN: f32 = 0.10;
 const PWM_MAX: f32 = 1.00;
 
 const LIMIT_MIN_DEADZONE: f32 = 0.001;
+
+const CONTROL_ITERS_PER_PERF_REPORT: usize = 10;
 
 #[self_referencing]
 pub struct ControllerHal<'a, TAdc, TAdcPin>
@@ -167,17 +170,31 @@ where
 
         self.hal.with_timer_mut(|timer| timer.enable(true))?;
 
-        loop {
-            for _ in 0..self.opts.reads_per_bin {
-                while let None = self.notification.wait(delay::BLOCK) {}
+        let mut perf_read = perf::Counter::new("READ")?;
+        let mut perf_control = perf::Counter::new("CONTROL")?;
 
-                if let Err(err) = self.read_phase() {
-                    error!("Error while running controller read phase: {}", err);
+        loop {
+            for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+                for _ in 0..self.opts.reads_per_bin {
+                    while let None = self.notification.wait(delay::BLOCK) {}
+
+                    let _read_measure = perf_read.measure();
+
+                    if let Err(err) = self.read_phase() {
+                        error!("Error while running controller read phase: {}", err);
+                    }
+                }
+
+                let _control_measure = perf_control.measure();
+
+                if let Err(err) = self.control_phase() {
+                    error!("Error while running controller control phase: {}", err);
                 }
             }
-            if let Err(err) = self.control_phase() {
-                error!("Error while running controller control phase: {}", err);
-            }
+            perf_read.report();
+            perf_control.report();
+            perf_read.reset();
+            perf_control.reset();
         }
     }
 

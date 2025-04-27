@@ -46,6 +46,9 @@ ringbuffer = "0.15.0"
 embuild = "0.33"
 
 [[package.metadata.esp-idf-sys.extra_components]]
+bindings_header = "clk.h"
+
+[[package.metadata.esp-idf-sys.extra_components]]
 remote_component = { name = "espressif/mdns", version = "1.2" }
 
 [[package.metadata.esp-idf-sys.extra_components]]

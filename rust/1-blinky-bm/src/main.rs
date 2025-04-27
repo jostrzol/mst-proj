@@ -1,4 +1,7 @@
+#![feature(asm_experimental_arch)]
+
 mod memory;
+mod perf;
 
 use esp_idf_hal::delay::Delay;
 use esp_idf_hal::gpio::*;
@@ -8,6 +11,7 @@ use memory::memory_report;
 
 const PERIOD_MS: u32 = 1000;
 const SLEEP_DURATION_MS: u32 = PERIOD_MS / 2;
+const CONTROL_ITERS_PER_PERF_REPORT: usize = 2;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_hal::sys::link_patches();
@@ -19,17 +23,23 @@ fn main() -> anyhow::Result<()> {
     let mut led = PinDriver::output(peripherals.pins.gpio5)?;
 
     let delay = Delay::default();
-
     let task = unsafe { xTaskGetCurrentTaskHandle() };
+    let mut perf = perf::Counter::new("MAIN")?;
+
     loop {
-        log::info!(
-            "Turning the LED {}",
-            if led.is_set_low() { "ON" } else { "OFF" }
-        );
-        led.toggle()?;
+        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+            delay.delay_ms(SLEEP_DURATION_MS);
 
+            let _measure = perf.measure();
+
+            log::debug!(
+                "Turning the LED {}",
+                if led.is_set_low() { "ON" } else { "OFF" }
+            );
+            led.toggle()?;
+        }
         memory_report(&[task]);
-
-        delay.delay_ms(SLEEP_DURATION_MS);
+        perf.report();
+        perf.reset();
     }
 }
