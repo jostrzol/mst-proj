@@ -75,6 +75,9 @@ void app_main(void) {
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
+  ledc_timer_config_t timer_deconfig = {
+      .timer_num = PWM_TIMER_NUM, .deconfigure = true
+  };
 
   ledc_channel_config_t ledc_channel = {
       .speed_mode = PWM_SPEED,
@@ -88,10 +91,7 @@ void app_main(void) {
   err = ledc_channel_config(&ledc_channel);
   if (err != ERR_OK) {
     ESP_LOGE(TAG, "ledc_channel_config fail (0x%x)", (int)err);
-    ledc_timer_config_t deconfig = {
-        .timer_num = PWM_TIMER_NUM, .deconfigure = true
-    };
-    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&deconfig));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&timer_deconfig));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
@@ -99,7 +99,14 @@ void app_main(void) {
   TaskHandle_t task = xTaskGetCurrentTaskHandle();
 
   perf_counter_t perf;
-  perf_counter_init(&perf, "MAIN");
+  err = perf_counter_init(&perf, "MAIN");
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "perf_counter_init fail (0x%x)", (int)err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&timer_deconfig));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    abort();
+  }
 
   while (true) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
@@ -142,9 +149,6 @@ void app_main(void) {
   }
 
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
-  ledc_timer_config_t deconfig = {
-      .timer_num = PWM_TIMER_NUM, .deconfigure = true
-  };
-  ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&deconfig));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&timer_deconfig));
   ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
 }

@@ -37,7 +37,11 @@ void app_main(void) {
   TaskHandle_t task = xTaskGetCurrentTaskHandle();
 
   perf_counter_t perf;
-  perf_counter_init(&perf, "MAIN");
+  err = perf_counter_init(&perf, "MAIN");
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "perf_counter_init fail (0x%x)", (int)err);
+    abort();
+  }
 
   while (true) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
