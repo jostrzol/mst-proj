@@ -6,12 +6,15 @@
 #include "sdkconfig.h" // IWYU pragma: keep
 
 #include "memory.h"
-
-static const char TAG[] = "blinky";
+#include "perf.h"
 
 static const uint32_t BLINK_GPIO = 5;
 static const uint32_t PERIOD_MS = 1000;
 static const uint32_t SLEEP_DURATION_MS = PERIOD_MS / 2;
+
+static const size_t CONTROL_ITERS_PER_PERF_REPORT = 2;
+
+static const char TAG[] = "blinky";
 
 void app_main(void) {
   esp_err_t err;
@@ -33,18 +36,29 @@ void app_main(void) {
 
   TaskHandle_t task = xTaskGetCurrentTaskHandle();
 
-  while (true) {
-    ESP_LOGI(TAG, "Turning the LED %s", led_state == true ? "ON" : "OFF");
+  perf_counter_t perf;
+  perf_counter_init(&perf, "MAIN");
 
-    err = gpio_set_level(BLINK_GPIO, led_state);
-    if (err != ESP_OK) {
-      ESP_LOGE(TAG, "gpio_set_level fail (0x%x)", (int)err);
-      continue;
+  while (true) {
+    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+      vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
+
+      const perf_start_mark_t start = perf_counter_mark_start();
+
+      ESP_LOGD(TAG, "Turning the LED %s", led_state == true ? "ON" : "OFF");
+
+      err = gpio_set_level(BLINK_GPIO, led_state);
+      if (err != ESP_OK) {
+        ESP_LOGE(TAG, "gpio_set_level fail (0x%x)", (int)err);
+        continue;
+      }
+      led_state = !led_state;
+
+      perf_counter_add_sample(&perf, start);
     }
-    led_state = !led_state;
 
     memory_report(1, task);
-
-    vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
+    perf_counter_report(&perf);
+    perf_counter_reset(&perf);
   }
 }

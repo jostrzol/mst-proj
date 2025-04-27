@@ -5,7 +5,6 @@
 #include "esp_adc/adc_oneshot.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "esp_private/freertos_debug.h"
 #include "freertos/FreeRTOS.h" // IWYU pragma: keep
 #include "freertos/idf_additions.h"
 #include "hal/adc_types.h"
@@ -14,6 +13,7 @@
 #include "sdkconfig.h" // IWYU pragma: keep
 
 #include "memory.h"
+#include "perf.h"
 
 static const char TAG[] = "motor";
 
@@ -31,6 +31,8 @@ static const uint32_t PWM_CHANNEL = LEDC_CHANNEL_0;
 static const uint32_t PWM_GPIO = 5;
 static const uint32_t PWM_FREQUENCY = 1000;
 static const uint32_t PWM_DUTY_RESOLUTION = LEDC_TIMER_13_BIT;
+
+static const size_t CONTROL_ITERS_PER_PERF_REPORT = 10;
 
 // Derived constants
 static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
@@ -96,36 +98,47 @@ void app_main(void) {
 
   TaskHandle_t task = xTaskGetCurrentTaskHandle();
 
+  perf_counter_t perf;
+  perf_counter_init(&perf, "MAIN");
+
   while (true) {
-    int value_raw;
-    err = adc_oneshot_read(adc, ADC_CHANNEL, &value_raw);
-    if (err != ESP_OK) {
-      ESP_ERROR_CHECK_WITHOUT_ABORT(err);
-      continue;
-    }
+    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+      vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
 
-    const float value_normalized = (float)value_raw / ADC_MAX_VALUE;
-    ESP_LOGI(
-        TAG, "selected duty cycle: %.2f = %d / %" PRIu32, value_normalized,
-        value_raw, ADC_MAX_VALUE
-    );
+      const perf_start_mark_t start = perf_counter_mark_start();
 
-    const uint32_t duty_cycle = value_normalized * PWM_DUTY_MAX;
+      int value_raw;
+      err = adc_oneshot_read(adc, ADC_CHANNEL, &value_raw);
+      if (err != ESP_OK) {
+        ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+        continue;
+      }
 
-    err = ledc_set_duty(PWM_SPEED, PWM_CHANNEL, duty_cycle);
-    if (err != ESP_OK) {
-      ESP_ERROR_CHECK_WITHOUT_ABORT(err);
-      continue;
-    }
-    err = ledc_update_duty(PWM_SPEED, PWM_CHANNEL);
-    if (err != ESP_OK) {
-      ESP_ERROR_CHECK_WITHOUT_ABORT(err);
-      continue;
+      const float value_normalized = (float)value_raw / ADC_MAX_VALUE;
+      ESP_LOGD(
+          TAG, "selected duty cycle: %.2f = %d / %" PRIu32, value_normalized,
+          value_raw, ADC_MAX_VALUE
+      );
+
+      const uint32_t duty_cycle = value_normalized * PWM_DUTY_MAX;
+
+      err = ledc_set_duty(PWM_SPEED, PWM_CHANNEL, duty_cycle);
+      if (err != ESP_OK) {
+        ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+        continue;
+      }
+      err = ledc_update_duty(PWM_SPEED, PWM_CHANNEL);
+      if (err != ESP_OK) {
+        ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+        continue;
+      }
+
+      perf_counter_add_sample(&perf, start);
     }
 
     memory_report(1, task);
-
-    vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
+    perf_counter_report(&perf);
+    perf_counter_reset(&perf);
   }
 
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
