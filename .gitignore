@@ -18,7 +18,10 @@
 # Zig
 /zig/**/.zig-cache
 /zig/**/zig-out
+/zig/*/build
+/zig/*/.cache
 
 # esp-idf
 managed_components
 sdkconfig
+sdkconfig.old
