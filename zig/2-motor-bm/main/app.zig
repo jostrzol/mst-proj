@@ -9,8 +9,10 @@ usingnamespace @import("comptime-rt.zig");
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
 const memory = @import("memory.zig");
+const perf = @import("perf.zig");
 
 const sleep_duration_ms = 100;
+const control_iters_per_perf_report = 10;
 
 const adc_bitwidth = c.ADC_BITWIDTH_9;
 const adc_max = (1 << adc_bitwidth) - 1;
@@ -41,21 +43,30 @@ fn main() !void {
 
     const tasks = [_]sys.TaskHandle_t{sys.xTaskGetCurrentTaskHandle()};
 
+    var perf_main = try perf.Counter.init("MAIN");
+
     while (true) {
-        const value = try adc_channel.read();
+        for (0..control_iters_per_perf_report) |_| {
+            idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
 
-        const value_normalized = @as(f32, @floatFromInt(value)) / @as(f32, @floatFromInt(adc_max));
-        log.info(
-            "selected duty cycle: {d:.2} = {} / {}",
-            .{ value_normalized, value, adc_max },
-        );
+            const start = perf.StartMarker.now();
 
-        const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
-        try pwm_channel.set_duty_cycle(duty_cycle);
+            const value = try adc_channel.read();
 
+            const value_normalized = @as(f32, @floatFromInt(value)) / @as(f32, @floatFromInt(adc_max));
+            log.debug(
+                "selected duty cycle: {d:.2} = {} / {}",
+                .{ value_normalized, value, adc_max },
+            );
+
+            const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
+            try pwm_channel.set_duty_cycle(duty_cycle);
+
+            perf_main.add_sample(start);
+        }
         memory.report(&tasks);
-
-        idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
+        perf_main.report();
+        perf_main.reset();
     }
 }
 

@@ -686,8 +686,18 @@ pub extern fn xt_utils_get_raw_core_id() u32; // esp-idf/components/xtensa/inclu
 // esp-idf/components/xtensa/include/xt_utils.h:61:25: warning: unable to translate function, demoted to extern
 pub extern fn xt_utils_get_sp() ?*anyopaque; // esp-idf/components/xtensa/include/xt_instr_macros.h:11:30: warning: TODO implement translation of stmt class GCCAsmStmtClass
 // esp-idf/components/xtensa/include/xt_utils.h:68:28: warning: unable to translate function, demoted to extern
-pub extern fn xt_utils_get_cycle_count() u32; // esp-idf/components/xtensa/include/xt_instr_macros.h:12:30: warning: TODO implement translation of stmt class GCCAsmStmtClass
-// esp-idf/components/xtensa/include/xt_utils.h:75:20: warning: unable to translate function, demoted to extern
+const CCOUNT = 234;
+pub inline fn xt_utils_get_cycle_count() u32 {
+    return RSR(CCOUNT);
+}
+pub inline fn RSR(
+    reg: u9, // has to be u9, otherwise it is compiled as i8 and is negative
+) u32 {
+    return asm volatile ("rsr %[ret], %[reg]"
+        : [ret] "=r" (-> u32),
+        : [reg] "i" (reg),
+    );
+}
 pub extern fn xt_utils_set_cycle_count(ccount: u32) callconv(.C) void; // esp-idf/components/xtensa/include/xt_utils.h:82:5: warning: TODO implement translation of stmt class GCCAsmStmtClass
 // esp-idf/components/xtensa/include/xt_utils.h:80:24: warning: unable to translate function, demoted to extern
 pub extern fn xt_utils_wait_for_intr() void; // esp-idf/components/xtensa/include/xt_utils.h:95:5: warning: TODO implement translation of stmt class GCCAsmStmtClass

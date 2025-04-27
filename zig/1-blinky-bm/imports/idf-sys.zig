@@ -4,6 +4,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 // C error
+const ESP_ERR_NVS_BASE = 0x1100;
 pub const esp_err_t = enum(c_int) {
     ESP_OK = 0,
     ESP_FAIL = -1,
@@ -25,6 +26,8 @@ pub const esp_err_t = enum(c_int) {
     ESP_ERR_FLASH_BASE = 0x6000,
     ESP_ERR_HW_CRYPTO_BASE = 0xc000,
     ESP_ERR_MEMPROT_BASE = 0xd000,
+    ESP_ERR_NVS_NO_FREE_PAGES = ESP_ERR_NVS_BASE + 0x0d,
+    ESP_ERR_NVS_NEW_VERSION_FOUND = ESP_ERR_NVS_BASE + 0x10,
 };
 
 pub extern fn esp_err_to_name(code: esp_err_t) [*:0]const u8;
@@ -683,8 +686,18 @@ pub extern fn xt_utils_get_raw_core_id() u32; // esp-idf/components/xtensa/inclu
 // esp-idf/components/xtensa/include/xt_utils.h:61:25: warning: unable to translate function, demoted to extern
 pub extern fn xt_utils_get_sp() ?*anyopaque; // esp-idf/components/xtensa/include/xt_instr_macros.h:11:30: warning: TODO implement translation of stmt class GCCAsmStmtClass
 // esp-idf/components/xtensa/include/xt_utils.h:68:28: warning: unable to translate function, demoted to extern
-pub extern fn xt_utils_get_cycle_count() u32; // esp-idf/components/xtensa/include/xt_instr_macros.h:12:30: warning: TODO implement translation of stmt class GCCAsmStmtClass
-// esp-idf/components/xtensa/include/xt_utils.h:75:20: warning: unable to translate function, demoted to extern
+const CCOUNT = 234;
+pub inline fn xt_utils_get_cycle_count() u32 {
+    return RSR(CCOUNT);
+}
+pub inline fn RSR(
+    reg: u9, // has to be u9, otherwise it is compiled as i8 and is negative
+) u32 {
+    return asm volatile ("rsr %[ret], %[reg]"
+        : [ret] "=r" (-> u32),
+        : [reg] "i" (reg),
+    );
+}
 pub extern fn xt_utils_set_cycle_count(ccount: u32) callconv(.C) void; // esp-idf/components/xtensa/include/xt_utils.h:82:5: warning: TODO implement translation of stmt class GCCAsmStmtClass
 // esp-idf/components/xtensa/include/xt_utils.h:80:24: warning: unable to translate function, demoted to extern
 pub extern fn xt_utils_wait_for_intr() void; // esp-idf/components/xtensa/include/xt_utils.h:95:5: warning: TODO implement translation of stmt class GCCAsmStmtClass
@@ -3082,7 +3095,6 @@ pub const wifi_auth_mode_t = enum(c_uint) {
     WIFI_AUTH_WPA_PSK = 2,
     WIFI_AUTH_WPA2_PSK = 3,
     WIFI_AUTH_WPA_WPA2_PSK = 4,
-    WIFI_AUTH_ENTERPRISE = 5,
     WIFI_AUTH_WPA2_ENTERPRISE = 5,
     WIFI_AUTH_WPA3_PSK = 6,
     WIFI_AUTH_WPA2_WPA3_PSK = 7,
@@ -3256,7 +3268,42 @@ pub const wifi_ap_config_t = extern struct {
     pmf_cfg: wifi_pmf_config_t = std.mem.zeroes(wifi_pmf_config_t),
     sae_pwe_h2e: wifi_sae_pwe_method_t = std.mem.zeroes(wifi_sae_pwe_method_t),
 }; // esp-idf/components/esp_wifi/include/esp_wifi_types_generic.h:321:14: warning: struct demoted to opaque type - has bitfield
-pub const wifi_sta_config_t = opaque {};
+pub const wifi_sta_config_t = extern struct {
+    ssid: [32]u8 = std.mem.zeroes([32]u8),
+    password: [64]u8 = std.mem.zeroes([64]u8),
+    scan_method: wifi_scan_method_t = std.mem.zeroes(wifi_scan_method_t),
+    bssid_set: bool = std.mem.zeroes(bool),
+    bssid: [6]u8 = std.mem.zeroes([6]u8),
+    channel: u8 = std.mem.zeroes(u8),
+    listen_interval: u16 = std.mem.zeroes(u16),
+    sort_method: wifi_sort_method_t = std.mem.zeroes(wifi_sort_method_t),
+    threshold: wifi_scan_threshold_t = std.mem.zeroes(wifi_scan_threshold_t),
+    pmf_cfg: wifi_pmf_config_t = std.mem.zeroes(wifi_pmf_config_t),
+    capabilities: packed struct(u32) {
+        rm_enabled: bool = std.mem.zeroes(bool),
+        btm_enabled: bool = std.mem.zeroes(bool),
+        mbo_enabled: bool = std.mem.zeroes(bool),
+        ft_enabled: bool = std.mem.zeroes(bool),
+        owe_enabled: bool = std.mem.zeroes(bool),
+        transition_disable: bool = std.mem.zeroes(bool),
+        _padding: u26 = std.mem.zeroes(u26),
+    } = .{},
+    sae_pwe_h2e: wifi_sae_pwe_method_t = std.mem.zeroes(wifi_sae_pwe_method_t),
+    sae_pk_mode: wifi_sae_pk_mode_t = std.mem.zeroes(wifi_sae_pk_mode_t),
+    failure_retry_cnt: u8 = std.mem.zeroes(u8),
+    he: packed struct(u32) {
+        dcm_set: bool = std.mem.zeroes(bool),
+        dcm_max_constellation_tx: u2 = std.mem.zeroes(u2),
+        dcm_max_constellation_rx: u2 = std.mem.zeroes(u2),
+        mcs9_enabled: bool = std.mem.zeroes(bool),
+        su_beamformee_disabled: bool = std.mem.zeroes(bool),
+        trig_su_bmforming_feedback_disabled: bool = std.mem.zeroes(bool),
+        trig_mu_bmforming_partial_feedback_disabled: bool = std.mem.zeroes(bool),
+        trig_cqi_feedback_disabled: bool = std.mem.zeroes(bool),
+        _padding: u22 = std.mem.zeroes(u22),
+    } = .{},
+    sae_h2e_identifier: [32]u8 = std.mem.zeroes([32]u8),
+};
 pub const wifi_nan_config_t = extern struct {
     op_channel: u8 = std.mem.zeroes(u8),
     master_pref: u8 = std.mem.zeroes(u8),
@@ -4980,35 +5027,17 @@ pub const esp_aes_gmac_t = ?*const fn ([*:0]const u8, usize, [*:0]const u8, usiz
 pub const esp_sha256_vector_t = ?*const fn (usize, [*c][*c]const u8, [*c]const usize, [*:0]u8) callconv(.C) c_int;
 pub const esp_crc32_le_t = ?*const fn (u32, [*:0]const u8, u32) callconv(.C) u32;
 pub const wpa_crypto_funcs_t = extern struct {
-    size: u32 = std.mem.zeroes(u32),
-    version: u32 = std.mem.zeroes(u32),
-    aes_wrap: esp_aes_wrap_t = std.mem.zeroes(esp_aes_wrap_t),
-    aes_unwrap: esp_aes_unwrap_t = std.mem.zeroes(esp_aes_unwrap_t),
-    hmac_sha256_vector: esp_hmac_sha256_vector_t = std.mem.zeroes(esp_hmac_sha256_vector_t),
-    sha256_prf: esp_sha256_prf_t = std.mem.zeroes(esp_sha256_prf_t),
-    hmac_md5: esp_hmac_md5_t = std.mem.zeroes(esp_hmac_md5_t),
-    hamc_md5_vector: esp_hmac_md5_vector_t = std.mem.zeroes(esp_hmac_md5_vector_t),
-    hmac_sha1: esp_hmac_sha1_t = std.mem.zeroes(esp_hmac_sha1_t),
-    hmac_sha1_vector: esp_hmac_sha1_vector_t = std.mem.zeroes(esp_hmac_sha1_vector_t),
-    sha1_prf: esp_sha1_prf_t = std.mem.zeroes(esp_sha1_prf_t),
-    sha1_vector: esp_sha1_vector_t = std.mem.zeroes(esp_sha1_vector_t),
-    pbkdf2_sha1: esp_pbkdf2_sha1_t = std.mem.zeroes(esp_pbkdf2_sha1_t),
-    rc4_skip: esp_rc4_skip_t = std.mem.zeroes(esp_rc4_skip_t),
-    md5_vector: esp_md5_vector_t = std.mem.zeroes(esp_md5_vector_t),
-    aes_encrypt: esp_aes_encrypt_t = std.mem.zeroes(esp_aes_encrypt_t),
-    aes_encrypt_init: esp_aes_encrypt_init_t = std.mem.zeroes(esp_aes_encrypt_init_t),
-    aes_encrypt_deinit: esp_aes_encrypt_deinit_t = std.mem.zeroes(esp_aes_encrypt_deinit_t),
-    aes_decrypt: esp_aes_decrypt_t = std.mem.zeroes(esp_aes_decrypt_t),
-    aes_decrypt_init: esp_aes_decrypt_init_t = std.mem.zeroes(esp_aes_decrypt_init_t),
-    aes_decrypt_deinit: esp_aes_decrypt_deinit_t = std.mem.zeroes(esp_aes_decrypt_deinit_t),
-    aes_128_encrypt: esp_aes_128_encrypt_t = std.mem.zeroes(esp_aes_128_encrypt_t),
-    aes_128_decrypt: esp_aes_128_decrypt_t = std.mem.zeroes(esp_aes_128_decrypt_t),
-    omac1_aes_128: esp_omac1_aes_128_t = std.mem.zeroes(esp_omac1_aes_128_t),
-    ccmp_decrypt: esp_ccmp_decrypt_t = std.mem.zeroes(esp_ccmp_decrypt_t),
-    ccmp_encrypt: esp_ccmp_encrypt_t = std.mem.zeroes(esp_ccmp_encrypt_t),
-    aes_gmac: esp_aes_gmac_t = std.mem.zeroes(esp_aes_gmac_t),
-    sha256_vector: esp_sha256_vector_t = std.mem.zeroes(esp_sha256_vector_t),
-    crc32: esp_crc32_le_t = std.mem.zeroes(esp_crc32_le_t),
+    size: u32 = @import("std").mem.zeroes(u32),
+    version: u32 = @import("std").mem.zeroes(u32),
+    hmac_sha256_vector: esp_hmac_sha256_vector_t = @import("std").mem.zeroes(esp_hmac_sha256_vector_t),
+    pbkdf2_sha1: esp_pbkdf2_sha1_t = @import("std").mem.zeroes(esp_pbkdf2_sha1_t),
+    aes_128_encrypt: esp_aes_128_encrypt_t = @import("std").mem.zeroes(esp_aes_128_encrypt_t),
+    aes_128_decrypt: esp_aes_128_decrypt_t = @import("std").mem.zeroes(esp_aes_128_decrypt_t),
+    omac1_aes_128: esp_omac1_aes_128_t = @import("std").mem.zeroes(esp_omac1_aes_128_t),
+    ccmp_decrypt: esp_ccmp_decrypt_t = @import("std").mem.zeroes(esp_ccmp_decrypt_t),
+    ccmp_encrypt: esp_ccmp_encrypt_t = @import("std").mem.zeroes(esp_ccmp_encrypt_t),
+    aes_gmac: esp_aes_gmac_t = @import("std").mem.zeroes(esp_aes_gmac_t),
+    sha256_vector: esp_sha256_vector_t = @import("std").mem.zeroes(esp_sha256_vector_t),
 };
 pub const mesh_crypto_funcs_t = extern struct {
     aes_128_encrypt: esp_aes_128_encrypt_t = std.mem.zeroes(esp_aes_128_encrypt_t),
@@ -5304,6 +5333,8 @@ pub const wifi_init_config_t = extern struct {
     feature_caps: u64 = std.mem.zeroes(u64),
     sta_disconnected_pm: bool = std.mem.zeroes(bool),
     espnow_max_encrypt_num: c_int = std.mem.zeroes(c_int),
+    tx_hetb_queue_num: c_int = std.mem.zeroes(c_int),
+    dump_hesigb_enable: bool = std.mem.zeroes(bool),
     magic: c_int = std.mem.zeroes(c_int),
 };
 pub extern const g_wifi_default_wpa_crypto_funcs: wpa_crypto_funcs_t;
@@ -5389,21 +5420,9 @@ pub extern fn esp_wifi_set_dynamic_cs(enabled: bool) esp_err_t;
 pub extern fn esp_wifi_sta_get_rssi(rssi: [*c]c_int) esp_err_t;
 
 // ------------------------------ wifi internal STUBS
-pub export fn esp_wifi_internal_set_sta_ip() callconv(.C) esp_err_t {
-    return .ESP_OK;
-}
-
 pub const wifi_netstack_buf_ref_cb_t = ?*const fn (?*anyopaque) callconv(.C) void;
 pub const wifi_netstack_buf_free_cb_t = ?*const fn (?*anyopaque) callconv(.C) void;
-pub export fn esp_wifi_internal_reg_netstack_buf_cb(ref: wifi_netstack_buf_ref_cb_t, free: wifi_netstack_buf_free_cb_t) esp_err_t {
-    _ = ref; // unused
-    _ = free; // unused
-    return .ESP_OK;
-}
 
-pub export fn esp_wifi_internal_free_rx_buffer(buffer: ?*anyopaque) void {
-    std.c.free(buffer);
-}
 const struct_esp_remote_channel = opaque {};
 pub const esp_remote_channel_t = ?*struct_esp_remote_channel;
 pub const esp_remote_channel_tx_fn_t = ?*const fn (?*anyopaque, ?*anyopaque, usize) callconv(.C) esp_err_t;
@@ -5412,26 +5431,6 @@ var s_channel: [2]esp_remote_channel_t = std.mem.zeroes([2]esp_remote_channel_t)
 var s_rx_fn: [2]wifi_rxcb_t = std.mem.zeroes([2]wifi_rxcb_t);
 pub const wifi_rxcb_t = ?*const fn (?*anyopaque, u16, ?*anyopaque) callconv(.C) esp_err_t;
 
-pub export fn esp_wifi_internal_tx(ifx: wifi_interface_t, buffer: ?*anyopaque, len: u16) esp_err_t {
-    if (ifx == .WIFI_IF_STA) {
-        return s_tx_cb[@as(c_uint, @intCast(@as(c_int, 0)))].?(@as(?*anyopaque, @ptrCast(s_channel[@as(c_uint, @intCast(@as(c_int, 0)))])), buffer, @as(usize, @bitCast(@as(c_ulong, len))));
-    }
-    if (ifx == .WIFI_IF_AP) {
-        return s_tx_cb[@as(c_uint, @intCast(@as(c_int, 1)))].?(@as(?*anyopaque, @ptrCast(s_channel[@as(c_uint, @intCast(@as(c_int, 1)))])), buffer, @as(usize, @bitCast(@as(c_ulong, len))));
-    }
-    return .ESP_FAIL;
-}
-pub export fn esp_wifi_internal_reg_rxcb(ifx: wifi_interface_t, @"fn": wifi_rxcb_t) esp_err_t {
-    if (ifx == .WIFI_IF_STA) {
-        s_rx_fn[@as(c_uint, @intCast(@as(c_int, 0)))] = @"fn";
-        return .ESP_OK;
-    }
-    if (ifx == .WIFI_IF_AP) {
-        s_rx_fn[@as(c_uint, @intCast(@as(c_int, 1)))] = @"fn";
-        return .ESP_OK;
-    }
-    return .ESP_FAIL;
-}
 // -------------------------------------------------
 pub const linenoiseCompletions = opaque {};
 pub const esp_console_config_t = extern struct {

@@ -8,6 +8,8 @@ const c = @cImport({
     @cInclude("esp_adc/adc_oneshot.h");
     @cInclude("driver/ledc.h");
     @cInclude("driver/gptimer.h");
+    @cInclude("esp_clk_tree.h");
+    @cInclude("soc/clk_tree_defs.h");
 
     @cInclude("freertos/FreeRTOS.h");
     @cInclude("portmacro.h");

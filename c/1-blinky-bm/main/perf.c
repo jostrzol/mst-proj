@@ -3,7 +3,6 @@
 
 #include "esp_clk_tree.h"
 #include "esp_log.h"
-#include "esp_private/esp_clk.h"
 #include "soc/clk_tree_defs.h"
 
 #include "perf.h"
@@ -19,8 +18,6 @@ esp_err_t perf_counter_init(perf_counter_t *self, const char *name) {
     ESP_LOGE(TAG, "esp_clk_tree_src_get_freq_hz fail (0x%x)", err);
     return err;
   }
-
-  esp_clk_cpu_freq();
 
   ESP_LOGI(
       TAG, "Performance counter %s, cpu frequency: %" PRIu32, name,
@@ -50,11 +47,10 @@ void perf_counter_add_sample(perf_counter_t *self, perf_start_mark_t start) {
 
 void perf_counter_report(perf_counter_t *const self) {
   const double cycles_avg = (double)self->total_cycles / self->sample_count;
-  const double time_ms = cycles_avg / self->cpu_frequency * 1000;
+  const double time_ms = cycles_avg / self->cpu_frequency * 1e6;
   ESP_LOGI(
-      TAG, "Performance counter %s: %f ms = %" PRIu32 " cycles (%d sampl.)",
-      self->name, time_ms, (esp_cpu_cycle_count_t)round(cycles_avg),
-      self->sample_count
+      TAG, "Performance counter %s: %.3f us = %.0f cycles (%d sampl.)",
+      self->name, time_ms, cycles_avg, self->sample_count
   );
 }
 void perf_counter_reset(perf_counter_t *self) {

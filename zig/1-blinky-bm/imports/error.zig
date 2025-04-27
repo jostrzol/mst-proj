@@ -2,7 +2,7 @@ const sys = @import("sys");
 const std = @import("std");
 
 // Zig error
-const esp_error = error{
+pub const esp_error = error{
     Fail,
     ErrorNoMem,
     ErrorInvalidArg,

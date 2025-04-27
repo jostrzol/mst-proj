@@ -7,6 +7,7 @@ const Registers = @import("Registers.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const adc_m = @import("adc.zig");
 const pwm_m = @import("pwm.zig");
+const perf_m = @import("perf.zig");
 const c = @import("c.zig");
 const logErr = @import("utils.zig").logErr;
 
@@ -16,7 +17,8 @@ const adc_max = (1 << adc_bitwidth) - 1;
 const pwm_bitwidth = c.LEDC_TIMER_13_BIT;
 const pwm_duty_max = (1 << pwm_bitwidth) - 1;
 
-const timer_frequency: u32 = 1000000; // period = 1us
+const timer_frequency = 1000000; // period = 1us
+const control_iters_per_perf_report = 10;
 
 const pwm_min = 0.1;
 const pwm_max = 1.0;
@@ -44,6 +46,10 @@ state: struct {
     revolutions: RingBuffer(u32),
     is_close: bool,
     feedback: Feedback,
+},
+perf: struct {
+    read: perf_m.Counter,
+    control: perf_m.Counter,
 },
 
 pub const InitOpts = struct {
@@ -115,7 +121,7 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
         interval_rotate_once_s * @as(f32, @floatFromInt(opts.revolution_bins));
 
     const revolutions = try RingBuffer(u32).init(allocator, opts.revolution_bins);
-    errdefer revolutions.deinit();
+    errdefer revolutions.deinit(allocator);
 
     return .{
         .opts = opts,
@@ -141,6 +147,10 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
             .is_close = false,
             .feedback = .{},
         },
+        .perf = .{
+            .read = try perf_m.Counter.init("READ"),
+            .control = try perf_m.Counter.init("CONTROL"),
+        },
     };
 }
 
@@ -160,12 +170,24 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
     logErr(c.espCheckError(c.gptimer_start(self.timer.handle)));
 
     while (true) {
-        for (0..self.opts.reads_per_bin) |_| {
-            _ = idf.xSemaphoreTake(self.timer.semaphore, std.math.maxInt(u32));
+        for (0..control_iters_per_perf_report) |_| {
+            for (0..self.opts.reads_per_bin) |_| {
+                _ = idf.xSemaphoreTake(self.timer.semaphore, std.math.maxInt(u32));
 
-            logErr(self.read_iteration());
+                const read_start = perf_m.StartMarker.now();
+                logErr(self.read_iteration());
+                self.perf.read.add_sample(read_start);
+            }
+
+            const control_start = perf_m.StartMarker.now();
+            logErr(self.control_iteration());
+            self.perf.control.add_sample(control_start);
         }
-        logErr(self.control_iteration());
+
+        self.perf.read.report();
+        self.perf.control.report();
+        self.perf.read.reset();
+        self.perf.control.reset();
     }
 }
 

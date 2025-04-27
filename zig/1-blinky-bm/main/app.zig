@@ -4,10 +4,13 @@ const idf = @import("esp_idf");
 const sys = idf.sys;
 
 const memory = @import("memory.zig");
+const perf = @import("perf.zig");
 
-const tag = "blinky";
+usingnamespace @import("comptime-rt.zig");
+
 const period_ms = 1000;
 const sleep_duration_ms = period_ms / 2;
+const control_iters_per_perf_report = 2;
 
 fn main() !void {
     log.info("Blinking an LED from Zig", .{});
@@ -17,17 +20,27 @@ fn main() !void {
     try idf.gpio.Direction.set(.GPIO_NUM_5, .GPIO_MODE_OUTPUT);
 
     const tasks = [_]sys.TaskHandle_t{sys.xTaskGetCurrentTaskHandle()};
+
+    var perf_main = try perf.Counter.init("MAIN");
+
     while (true) {
-        log.info("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
+        for (0..control_iters_per_perf_report) |_| {
+            idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
 
-        idf.gpio.Level.set(.GPIO_NUM_5, @intFromBool(is_on)) catch |err| {
-            std.log.err("Error: {}", .{err});
-        };
-        is_on = !is_on;
+            const start = perf.StartMarker.now();
 
+            log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
+
+            idf.gpio.Level.set(.GPIO_NUM_5, @intFromBool(is_on)) catch |err| {
+                std.log.err("Error: {}", .{err});
+            };
+            is_on = !is_on;
+
+            perf_main.add_sample(start);
+        }
         memory.report(&tasks);
-
-        idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
+        perf_main.report();
+        perf_main.reset();
     }
 }
 
