@@ -2,6 +2,7 @@ idf_component_register(
   SRCS 
     main.c 
     memory.c 
+    perf.c
     wifi.c
     registers.c
     services.c

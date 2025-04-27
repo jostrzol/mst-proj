@@ -7,6 +7,7 @@
 #include "freertos/idf_additions.h"
 #include "hal/ledc_types.h"
 #include "mb_endianness_utils.h"
+#include "perf.h"
 #include "portmacro.h"
 
 #include "controller.h"
@@ -28,6 +29,7 @@ static const float PWM_MAX = 1.00;
 static const float PWM_LIMIT_MIN_DEADZONE = 0.001;
 
 static const uint32_t TIMER_FREQUENCY = 1000000; // period = 1us
+static const size_t CONTROL_ITERS_PER_PERF_REPORT = 10;
 
 // Derived constants
 static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
@@ -375,21 +377,51 @@ void controller_loop(void *params) {
 
   ESP_LOGI(TAG, "Starting controller");
 
+  perf_counter_t perf_read;
+  err = perf_counter_init(&perf_read, "READ");
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "perf_counter_init fail (0x%x)", err);
+    return;
+  }
+
+  perf_counter_t perf_control;
+  err = perf_counter_init(&perf_control, "CONTROL");
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "perf_counter_init fail (0x%x)", err);
+    return;
+  }
+
   err = gptimer_start(self->timer.handle);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_start fail (0x%x)", err);
     return;
   }
   while (true) {
-    for (size_t i = 0; i < self->opts.reads_per_bin; ++i) {
-      xSemaphoreTake(self->timer.semaphore, portMAX_DELAY);
+    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+      for (size_t j = 0; j < self->opts.reads_per_bin; ++j) {
+        xSemaphoreTake(self->timer.semaphore, portMAX_DELAY);
 
-      err = read_iteration(self);
+        const perf_start_mark_t read_start = perf_counter_mark_start();
+
+        err = read_iteration(self);
+        if (err != ESP_OK)
+          ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
+
+        perf_counter_add_sample(&perf_read, read_start);
+      }
+
+      const perf_start_mark_t control_start = perf_counter_mark_start();
+
+      err = control_iteration(self);
       if (err != ESP_OK)
         ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
+
+      perf_counter_add_sample(&perf_control, control_start);
     }
-    err = control_iteration(self);
-    if (err != ESP_OK)
-      ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
+    perf_counter_report(&perf_read);
+    perf_counter_report(&perf_control);
+
+    perf_counter_reset(&perf_read);
+    perf_counter_reset(&perf_control);
   }
 }
