@@ -17,7 +17,8 @@ ExternalProject_Add(
   GIT_TAG v79
   UPDATE_DISCONNECTED ON
   CMAKE_ARGS --install-prefix=${PIGPIO_PREFIX}
-             --toolchain=${CMAKE_SOURCE_DIR}/toolchain.cmake)
+             --toolchain=${CMAKE_SOURCE_DIR}/toolchain.cmake
+  BUILD_BYPRODUCTS "${PIGPIO_LIBRARY}")
 
 # ===== MAKE TARGET ===========================================================
 # hack needed to avoid errors about non-existing directory

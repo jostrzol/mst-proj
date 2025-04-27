@@ -1,3 +1,12 @@
+build_type := if env("BUILD_PROFILE", "") == "SMALL" {
+  "MinSizeRel"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  "Release"
+} else {
+  "Debug"
+}
+build_flags_os := "-DCMAKE_BUILD_TYPE=" + build_type
+
 artifacts_dir := "../artifacts" / lowercase(env("BUILD_PROFILE", "DEBUG"))
 esp_export := ". ../esp-export/c.sh"
 
@@ -62,8 +71,8 @@ _watch PROJECT:
 
 _build PROJECT: _make_artifact_dir
   mkdir -p build && cd build \
-  && cmake -Werror=dev --warn-uninitialized .. \
-  && make {{PROJECT}} \
+  && cmake -Werror=dev --warn-uninitialized {{build_flags_os}} -G Ninja .. \
+  && ninja {{PROJECT}} \
   && cp ./bin/{{PROJECT}} ../{{artifacts_dir}}/{{PROJECT}}-c
 
 _watch-bm NUM PROJECT:
