@@ -13,13 +13,20 @@ name = "1-blinky-bm"
 path = "src/main.rs"
 harness = false      # do not use the built in cargo test harness -> resolve rust-analyzer errors
 
-[profile.release]
-opt-level = "s"
-strip = true
-
 [profile.dev]
 debug = true    # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
+
+[profile.release]
+strip = true
+
+[profile.fast]
+inherits = "release"
+opt-level = 3
+
+[profile.small]
+inherits = "release"
+opt-level = "s"
 
 [features]
 default = []

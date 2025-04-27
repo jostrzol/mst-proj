@@ -1,11 +1,11 @@
-release := if env("BUILD_PROFILE", "") == "SMALL" {
+profile := if env("BUILD_PROFILE", "") == "SMALL" {
   "small"
 } else if env("BUILD_PROFILE", "") == "FAST" {
   "fast"
 } else {
   ""
 }
-build_flags := if release != "" {"--release="+release} else {""}
+build_flags := if profile != "" {"--release="+profile} else {""}
 export ZIG_BUILD_ARGS := build_flags
 
 arch := "arm-linux-gnueabihf"

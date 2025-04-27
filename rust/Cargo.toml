@@ -1,6 +1,17 @@
 [workspace]
 members = ["1-blinky", "2-motor", "3-pid", "4-dmc"]
 
+[profile.dev]
+# debug = true    # Symbols are nice and they don't increase the size on Flash
+# opt-level = "z"
+
 [profile.release]
-opt-level = "s"
 strip = true
+
+[profile.fast]
+inherits = "release"
+opt-level = 3
+
+[profile.small]
+inherits = "release"
+opt-level = "s"

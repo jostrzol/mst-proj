@@ -1,10 +1,15 @@
-profile := "release"
-# profile := "debug"
+profile := if env("BUILD_PROFILE", "") == "SMALL" {
+  "small"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  "fast"
+} else {
+  "dev"
+}
+build_flags := "--profile="+profile
 
 arch := "arm-unknown-linux-gnueabihf"
 arch_bm := "xtensa-esp32-espidf"
-opts := if profile == "release" {"--release"} else {""}
-artifacts_dir := "../artifacts/"
+artifacts_dir := "../artifacts" / lowercase(env("BUILD_PROFILE", "DEBUG"))
 esp_export := ". ../esp-export/rust.sh"
 
 build: build-os build-bm
@@ -67,9 +72,9 @@ _watch NUM PACKAGE:
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build \"{{NUM}}\" \"{{PACKAGE}}\"
 
-_build NUM PACKAGE:
-  cross build --package {{PACKAGE}} {{opts}} --target={{arch}} \
-  && cp ./target/{{arch}}/{{profile}}/{{PACKAGE}} ../artifacts/{{NUM}}-{{PACKAGE}}-rust
+_build NUM PACKAGE: _make_artifact_dir
+  cross build --package {{PACKAGE}} {{build_flags}} --target={{arch}} \
+  && cp ./target/{{arch}}/{{profile}}/{{PACKAGE}} {{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust
 
 _watch-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
@@ -78,11 +83,14 @@ _watch-bm NUM PACKAGE:
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build-bm \"{{NUM}}\" \"{{PACKAGE}}\"
 
-_build-bm NUM PACKAGE:
+_build-bm NUM PACKAGE: _make_artifact_dir
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
-  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build {{opts}} \
-  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} ../../artifacts/{{NUM}}-{{PACKAGE}}-rust
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo build {{build_flags}} \
+  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust
 
 _run-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
-  cd ./{{NUM}}-{{PACKAGE}}/ && cargo run {{opts}}
+  cd ./{{NUM}}-{{PACKAGE}}/ && cargo run {{build_flags}}
+
+_make_artifact_dir:
+  mkdir -p {{artifacts_dir}}

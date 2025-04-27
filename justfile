@@ -9,17 +9,22 @@ set dotenv-load
 languages := "c zig rust"
 thesis_dir := "../thesis"
 
-export SDKCONFIG_DEFAULTS := if env("BUILD_PROFILE", "") == "SMALL" {
+build_profile := env("BUILD_PROFILE", "")
+export SDKCONFIG_DEFAULTS := if build_profile == "SMALL" {
   "sdkconfig.defaults;sdkconfig.defaults-small"
-} else if env("BUILD_PROFILE", "") == "FAST" {
+} else if build_profile == "FAST" {
   "sdkconfig.defaults;sdkconfig.defaults-fast"
-} else {
+} else if build_profile == "DEBUG" {
   "sdkconfig.defaults"
+} else if build_profile == "" {
+  "sdkconfig.defaults"
+} else {
+  error("Invalid build profile: " + build_profile)
 }
 
-export SDKCONFIG := if env("BUILD_PROFILE", "") == "SMALL" {
+export SDKCONFIG := if build_profile == "SMALL" {
   "sdkconfig.small"
-} else if env("BUILD_PROFILE", "") == "FAST" {
+} else if build_profile == "FAST" {
   "sdkconfig.fast"
 } else {
   "sdkconfig"
