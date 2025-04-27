@@ -1,9 +1,16 @@
-# release := ""
-release := "small"
+release := if env("BUILD_PROFILE", "") == "SMALL" {
+  "small"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  "fast"
+} else {
+  ""
+}
+build_flags := if release != "" {"--release="+release} else {""}
+export ZIG_BUILD_ARGS := build_flags
 
 arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
-artifacts_dir := "../artifacts/"
+artifacts_dir := "../artifacts" / lowercase(env("BUILD_PROFILE", "DEBUG"))
 esp_export := ". ../esp-export/zig.sh"
 
 build: build-os build-bm
@@ -65,14 +72,14 @@ _watch PROJECT:
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build \"{{PROJECT}}\"
 
-_build PROJECT:
+_build PROJECT: _make_artifact_dir
   cd {{PROJECT}} \
   && zvm run 0.13.0 build \
     -Dtarget={{arch}} \
     -Dcpu={{cpu}} \
-    {{ if release != "" {"--release="+release} else {""} }} \
+    {{build_flags}} \
     -freference-trace \
-  && cp ./zig-out/bin/* ../../artifacts/
+  && cp ./zig-out/bin/* ../{{artifacts_dir}}
 
 _watch-bm NUM PROJECT:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
@@ -81,9 +88,12 @@ _watch-bm NUM PROJECT:
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build-bm \"{{NUM}}\" \"{{PROJECT}}\"
 
-_build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build")
-  cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.bin ../artifacts/{{NUM}}-{{PROJECT}}-bm-zig
+_build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build") _make_artifact_dir
+  cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.bin {{artifacts_dir}}/{{NUM}}-{{PROJECT}}-bm-zig
 
 _cmd-bm NUM PROJECT *CMD:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
-  cd {{NUM}}-{{PROJECT}}-bm && idf.py {{CMD}}
+  cd {{NUM}}-{{PROJECT}}-bm && idf.py -DSDKCONFIG="$SDKCONFIG" {{CMD}}
+
+_make_artifact_dir:
+  mkdir -p {{artifacts_dir}}

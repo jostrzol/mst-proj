@@ -9,6 +9,22 @@ set dotenv-load
 languages := "c zig rust"
 thesis_dir := "../thesis"
 
+export SDKCONFIG_DEFAULTS := if env("BUILD_PROFILE", "") == "SMALL" {
+  "sdkconfig.defaults;sdkconfig.defaults-small"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  "sdkconfig.defaults;sdkconfig.defaults-fast"
+} else {
+  "sdkconfig.defaults"
+}
+
+export SDKCONFIG := if env("BUILD_PROFILE", "") == "SMALL" {
+  "sdkconfig.small"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  "sdkconfig.fast"
+} else {
+  "sdkconfig"
+}
+
 build:
   just rust::build \
   & just c::build \

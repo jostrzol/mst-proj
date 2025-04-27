@@ -24,4 +24,7 @@
 # esp-idf
 managed_components
 sdkconfig
+sdkconfig.fast
+sdkconfig.small
+sdkconfig.defaults-local
 sdkconfig.old

@@ -1,4 +1,4 @@
-artifacts_dir := "../artifacts"
+artifacts_dir := "../artifacts" / lowercase(env("BUILD_PROFILE", "DEBUG"))
 esp_export := ". ../esp-export/c.sh"
 
 build: build-os build-bm
@@ -60,7 +60,7 @@ _watch PROJECT:
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build \"{{PROJECT}}\"
 
-_build PROJECT:
+_build PROJECT: _make_artifact_dir
   mkdir -p build && cd build \
   && cmake -Werror=dev --warn-uninitialized .. \
   && make {{PROJECT}} \
@@ -73,9 +73,12 @@ _watch-bm NUM PROJECT:
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build-bm \"{{NUM}}\" \"{{PROJECT}}\"
 
-_build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build")
-  cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.bin ../artifacts/{{NUM}}-{{PROJECT}}-bm-c
+_build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build") _make_artifact_dir
+  cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.bin {{artifacts_dir}}/{{NUM}}-{{PROJECT}}-bm-c
 
 _cmd-bm NUM PROJECT *CMD:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
-  cd {{NUM}}-{{PROJECT}}-bm && idf.py {{CMD}}
+  cd {{NUM}}-{{PROJECT}}-bm && idf.py -DSDKCONFIG="$SDKCONFIG" {{CMD}}
+
+_make_artifact_dir:
+  mkdir -p {{artifacts_dir}}
