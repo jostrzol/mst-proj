@@ -84,6 +84,7 @@ _watch-bm NUM PROJECT:
 
 _build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build") _make_artifact_dir
   cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.bin {{artifacts_dir}}/{{NUM}}-{{PROJECT}}-bm-c
+  cp {{NUM}}-{{PROJECT}}-bm/build/{{PROJECT}}.elf {{artifacts_dir}}/{{NUM}}-{{PROJECT}}-bm-c.elf
 
 _cmd-bm NUM PROJECT *CMD:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \

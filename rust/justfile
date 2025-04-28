@@ -86,7 +86,11 @@ _watch-bm NUM PACKAGE:
 _build-bm NUM PACKAGE: _make_artifact_dir
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   cd ./{{NUM}}-{{PACKAGE}}/ && cargo build {{build_flags}} \
-  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust
+  && espflash save-image --chip esp32 \
+    ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} \
+    ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}}.bin \
+  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}}.bin ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust \
+  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust.elf
 
 _run-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \

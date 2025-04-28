@@ -36,6 +36,18 @@ build:
   & just zig::build \
   & wait
 
+build-bm:
+  just rust::build-bm \
+  & just c::build-bm \
+  & just zig::build-bm \
+  & wait
+
+build-os:
+  just rust::build-os \
+  & just c::build-os \
+  & just zig::build-os \
+  & wait
+
 clean:
   just rust::clean
   just c::clean
