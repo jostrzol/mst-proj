@@ -9,9 +9,9 @@ use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_sys::xTaskGetCurrentTaskHandle;
 use memory::memory_report;
 
-const PERIOD_MS: u32 = 1000;
+const PERIOD_MS: u32 = 100;
 const SLEEP_DURATION_MS: u32 = PERIOD_MS / 2;
-const CONTROL_ITERS_PER_PERF_REPORT: usize = 2;
+const CONTROL_ITERS_PER_PERF_REPORT: usize = 20;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_hal::sys::link_patches();

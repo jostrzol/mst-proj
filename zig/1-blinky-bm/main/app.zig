@@ -8,9 +8,9 @@ const perf = @import("perf.zig");
 
 usingnamespace @import("comptime-rt.zig");
 
-const period_ms = 1000;
+const period_ms = 100;
 const sleep_duration_ms = period_ms / 2;
-const control_iters_per_perf_report = 2;
+const control_iters_per_perf_report: usize = 20;
 
 fn main() !void {
     log.info("Blinking an LED from Zig", .{});

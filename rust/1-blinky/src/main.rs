@@ -7,7 +7,7 @@ use std::time::Duration;
 use rppal::gpio::Gpio;
 
 const GPIO_LED: u8 = 14;
-const PERIOD_MS: u64 = 1000;
+const PERIOD_MS: u64 = 100;
 const SLEEP_DURATION: Duration = Duration::from_millis(PERIOD_MS / 2);
 
 fn main() -> Result<(), Box<dyn Error>> {

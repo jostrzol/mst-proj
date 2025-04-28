@@ -1,0 +1,21 @@
+technology,popularity,language
+Raspberry Pi,38.6,
+Arduino,29.9,
+GNU GCC,29.1,c
+CMake,28.3,c
+LLVM's Clang,17.1,c
+Cargo,15.8,rust
+MSVC,8.9,c
+Ninja,7.8,
+PlatformIO,4.8,
+Meson,2.9,
+QMake,2.4,c
+Catch2,1.8,c
+cppunit,1.5,c
+Boost.Test,1.1,c
+doctest,1.1,c
+SCons,1.1,
+ZMK,0.8,
+Miconaut,0.7,java
+build2,0.5,c
+CUTE,0.4,c

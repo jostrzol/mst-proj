@@ -68,11 +68,41 @@ watch:
 artifacts-server:
   python3 -m http.server -d ./artifacts/
 
+blinky-bm-bench: \
+  (_bench "--reports" "60" \
+    "./artifacts/fast/1-blinky-bm-c.elf" \
+    "./artifacts/fast/1-blinky-bm-zig.elf" \
+    "./artifacts/fast/1-blinky-bm-rust.elf" \
+  )
+
+motor-bm-bench: \
+  (_bench "--reports" "110" \
+    "./artifacts/fast/2-motor-bm-c.elf" \
+    "./artifacts/fast/2-motor-bm-zig.elf" \
+    "./artifacts/fast/2-motor-bm-rust.elf" \
+  ) 
+
+pid-bm-bench: \
+  (_bench "--reports" "110" \
+    "./artifacts/fast/3-pid-bm-c.elf" \
+    "./artifacts/fast/3-pid-bm-zig.elf" \
+    "./artifacts/fast/3-pid-bm-rust.elf" \
+  )
+
+_bench *ARGS:
+  ./.venv/bin/python3 ./scripts/benchmark_bm.py {{ARGS}}
+
 analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
 
-plot: analyze
-  . ./.venv/bin/activate && ./scripts/plot_metrics.py
-  if test -d "{{thesis_dir}}"; then cp ./analysis/*.svg "{{thesis_dir}}/pdmgr/imgs/"; fi
+plot: analyze plot-only
+
+plot-only:
+  mkdir -p "./analysis/plots/"
+  for file in ./scripts/plot_*.py; do \
+    echo {{BOLD}}  \-\> running "'$file'..." && \
+    ./.venv/bin/python3 "$file"; \
+  done
+  if test -d "{{thesis_dir}}"; then cp -r ./analysis/plots "{{thesis_dir}}/sdm2-2/img"; fi
 
 install-dev: _venv_dev_dependencies
 

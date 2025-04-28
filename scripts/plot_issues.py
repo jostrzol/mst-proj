@@ -3,19 +3,16 @@
 # pyright: reportUnusedCallResult=false
 
 import csv
-from collections.abc import Iterable
 from math import ceil
-from pathlib import Path
 
+from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from lib.plot import add_bar_texts
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
-ANALYSIS_DIR = Path("./analysis/")
-ANALYSIS_SRC_DIR = Path("./analysis-src/")
-
 ISSUES_PATH = ANALYSIS_SRC_DIR / "issues.csv"
-OUT_PATH = ANALYSIS_DIR / "issues.svg"
+OUT_PATH = PLOT_DIR / "issues.svg"
 
 
 def main():
@@ -67,16 +64,6 @@ def main():
 
     fig.tight_layout()
     fig.savefig(OUT_PATH)
-
-
-def add_bar_texts(ax: Axes, ys: Iterable[float], texts: Iterable[object]) -> None:
-    _, ymax = ax.get_ylim()
-    margin = ymax / 50
-    for i, (y, text) in enumerate(zip(ys, texts)):
-        if y < 0.9 * ymax:
-            ax.text(i, y + margin, str(text), ha="center")
-        else:
-            ax.text(i, y - margin, str(text), ha="center", va="top", color="white")
 
 
 if __name__ == "__main__":

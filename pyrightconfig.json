@@ -1,4 +1,6 @@
 {
-    "venv": ".venv",
-    "reportUnknownMemberType": false
+  "include": ["scripts"],
+  "venv": ".venv",
+  "reportUnknownMemberType": false,
+  "reportImplicitRelativeImport": false
 }

@@ -9,10 +9,10 @@
 #include "perf.h"
 
 static const uint32_t BLINK_GPIO = 5;
-static const uint32_t PERIOD_MS = 1000;
+static const uint32_t PERIOD_MS = 100;
 static const uint32_t SLEEP_DURATION_MS = PERIOD_MS / 2;
 
-static const size_t CONTROL_ITERS_PER_PERF_REPORT = 2;
+static const size_t CONTROL_ITERS_PER_PERF_REPORT = 20;
 
 static const char TAG[] = "blinky";
 

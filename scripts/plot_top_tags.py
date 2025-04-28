@@ -3,31 +3,17 @@
 # pyright: reportUnusedCallResult=false
 
 import csv
-from pathlib import Path
 from typing import TypedDict
 
+from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from lib.language import LANGUAGES
 from matplotlib import pyplot as plt
-
-ANALYSIS_DIR = Path("./analysis/")
-ANALYSIS_SRC_DIR = Path("./analysis-src/")
-
-
-class Language(TypedDict):
-    name: str
-    slug: str
-    color: str
 
 
 class DataRow(TypedDict):
     TagName: str
     Count: str
 
-
-LANGUAGES: list[Language] = [
-    {"name": "C", "slug": "c", "color": "cornflowerblue"},
-    {"name": "Zig", "slug": "zig", "color": "orange"},
-    {"name": "Rust", "slug": "rust", "color": "indianred"},
-]
 
 TAG_SUBSTITUTIONS = {
     "segmentation-fault": "seg-fault",
@@ -38,7 +24,7 @@ TAG_SUBSTITUTIONS = {
 
 
 def main():
-    for language in LANGUAGES:
+    for language in LANGUAGES.values():
         data_path = ANALYSIS_SRC_DIR / f"top-tags-{language['slug']}.csv"
         with data_path.open() as file:
             reader = csv.DictReader(file)
@@ -60,7 +46,7 @@ def main():
         ax.set_title(f"Najpopularniejsze tagi dla języka {language['name']}")
 
         fig.tight_layout()
-        out_path = ANALYSIS_DIR / f"top-tags-{language['slug']}.svg"
+        out_path = PLOT_DIR / f"top-tags-{language['slug']}.svg"
         fig.savefig(out_path)
 
 

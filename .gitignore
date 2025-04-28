@@ -21,6 +21,9 @@
 /zig/*/build
 /zig/*/.cache
 
+# Python scripts
+__pycache__
+
 # esp-idf
 managed_components
 sdkconfig

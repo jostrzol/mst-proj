@@ -5,20 +5,12 @@
 import csv
 from collections.abc import Iterable
 from functools import lru_cache
-from pathlib import Path
-from typing import NamedTuple, TypedDict, final, override
+from typing import NamedTuple, final, override
 
+from lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
+from lib.language import LANGUAGES
 from matplotlib import pyplot as plt
 
-
-class Language(TypedDict):
-    name: str
-    slug: str
-    color: str
-
-
-ANALYSIS_DIR = Path("./analysis/")
-ARTIFACTS_DIR = Path("./artifacts/")
 EXPERIMENTS = [
     "1-blinky",
     "1-blinky-bm",
@@ -26,11 +18,6 @@ EXPERIMENTS = [
     "2-motor-bm",
     "3-pid",
     "3-pid-bm",
-]
-LANGUAGES: list[Language] = [
-    {"name": "C", "slug": "c", "color": "cornflowerblue"},
-    {"name": "Zig", "slug": "zig", "color": "orange"},
-    {"name": "Rust", "slug": "rust", "color": "indianred"},
 ]
 
 
@@ -132,7 +119,7 @@ class FunctionInfos:
 
 def plot_experiment(experiment: str):
     langs_to_infos: dict[str, FunctionInfos] = {}
-    for lang in LANGUAGES:
+    for lang in LANGUAGES.values():
         path = ANALYSIS_DIR / f"{experiment}-{lang['slug']}.csv"
         with path.open() as file:
             infos = FunctionInfos.from_csv(file)
@@ -142,8 +129,8 @@ def plot_experiment(experiment: str):
 
     titles = ["CCN'", "NLOC", "Liczba tokenów"]
     fields = ["ccn_prim", "nloc_count", "token_count"]
-    labels = [lang["name"] for lang in LANGUAGES]
-    colors = [lang["color"] for lang in LANGUAGES]
+    labels = [lang["name"] for lang in LANGUAGES.values()]
+    colors = [lang["color"] for lang in LANGUAGES.values()]
     for i, (title, field) in enumerate(zip(titles, fields)):
         values = [getattr(infos, field) for infos in langs_to_infos.values()]
         plt.subplot(2, 2, i + 1)
@@ -151,7 +138,8 @@ def plot_experiment(experiment: str):
         plt.title(title)
 
     execs = [
-        ARTIFACTS_DIR / "small" / f"{experiment}-{lang['slug']}" for lang in LANGUAGES
+        ARTIFACTS_DIR / "small" / f"{experiment}-{lang['slug']}"
+        for lang in LANGUAGES.values()
     ]
     sizes = [exec.stat().st_size / 1000 for exec in execs]
     plt.subplot(2, 2, 4)
@@ -160,7 +148,7 @@ def plot_experiment(experiment: str):
 
     plt.tight_layout()
 
-    out_path = ANALYSIS_DIR / f"{experiment}.svg"
+    out_path = PLOT_DIR / f"{experiment}.svg"
     plt.savefig(out_path)
 
 

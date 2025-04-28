@@ -10,7 +10,7 @@ const char CONSUMER[] = "Consumer";
 const char CHIPNAME[] = "gpiochip0";
 const int32_t LINE_NUMBER = 14;
 
-const int64_t PERIOD_MS = 1000;
+const int64_t PERIOD_MS = 100;
 const int64_t SLEEP_DURATION_US = PERIOD_MS * 1000 / 2;
 
 bool do_continue = true;

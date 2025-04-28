@@ -2,7 +2,7 @@ const std = @import("std");
 const gpio = @import("gpio");
 const signal = @cImport(@cInclude("signal.h"));
 
-const period_ms = 1000;
+const period_ms = 100;
 const sleep_time_ns = period_ms * std.time.ns_per_ms / 2;
 
 var do_continue = true;

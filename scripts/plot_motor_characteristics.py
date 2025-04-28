@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 
 import csv
-from pathlib import Path
 
+from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 from matplotlib import pyplot as plt
 
-ANALYSIS_DIR = Path("./analysis/")
-ANALYSIS_SRC_DIR = Path("./analysis-src/")
-
 MOTOR_CHARACTERISTICS_PATH = ANALYSIS_SRC_DIR / "motor-characteristics.csv"
-OUT_PATH = ANALYSIS_DIR / "motor-characteristics.svg"
+OUT_PATH = PLOT_DIR / "motor-characteristics.svg"
 
 
 def main():
