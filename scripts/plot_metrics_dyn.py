@@ -10,11 +10,10 @@ import csv
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from itertools import groupby
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import numpy as np
-from lib.constants import ANALYSIS_DIR, PLOT_DIR
+from lib.constants import PERF_DIR, PLOT_DIR
 from lib.language import LANGUAGES, Language
 from lib.plot import savefig
 from lib.types import MemReport, PerformanceReport
@@ -67,13 +66,13 @@ class Stat:
 def plot_experiment(experiment: str):
     results: list[LangResult] = []
     for lang in LANGUAGES.values():
-        perf = read_report(
+        perf = read_reports(
             PerformanceReport,
-            ANALYSIS_DIR / "perf" / f"{experiment}-{lang['slug']}-perf.csv",
+            f"{experiment}-{lang['slug']}-perf-*.csv",
         )
-        mem = read_report(
+        mem = read_reports(
             MemReport,
-            ANALYSIS_DIR / "perf" / f"{experiment}-{lang['slug']}-mem.csv",
+            f"{experiment}-{lang['slug']}-mem-*.csv",
         )
         time_us_per_loop = {
             name: Stat(np.array([row.time_us for row in rows]).astype(np.float64))
@@ -131,10 +130,12 @@ def plot_experiment(experiment: str):
     savefig(fig, out_path)
 
 
-def read_report[T](t: type[T], path: Path):
-    with path.open() as file:
-        reader = csv.DictReader(file)
-        return [t(**row) for row in reader][SKIP_REPORTS:]
+def read_reports[T](t: type[T], pattern: str) -> Iterable[T]:
+    paths = PERF_DIR.glob(pattern)
+    for path in paths:
+        with path.open() as file:
+            reader = csv.DictReader(file)
+            yield from [t(**row) for row in reader][SKIP_REPORTS:]
 
 
 def groupby2[T, TK: SupportsRichComparison](lst: Iterable[T], key: Callable[[T], TK]):
