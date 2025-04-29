@@ -7,13 +7,13 @@ from typing import TypedDict
 
 from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 from lib.language import LANGUAGES
-from lib.plot import add_bar_texts, lighten_color
+from lib.plot import add_bar_texts, lighten_color, savefig
 from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from matplotlib.typing import ColorType
 
 SRC_PATH = ANALYSIS_SRC_DIR / "so-survey.csv"
-OUT_PATH = PLOT_DIR / "so-survey.svg"
+OUT_PATH = PLOT_DIR / "so-survey"
 
 
 class DataRow(TypedDict):
@@ -47,7 +47,7 @@ def main():
     add_bar_texts(ax, popularities, texts, below_color="black", size="small")
 
     fig.tight_layout()
-    fig.savefig(OUT_PATH)
+    savefig(fig, OUT_PATH)
 
 
 def language_to_color(language: str) -> ColorType:

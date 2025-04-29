@@ -7,7 +7,9 @@ from typing import TypedDict
 
 from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 from lib.language import LANGUAGES
+from lib.plot import savefig
 from matplotlib import pyplot as plt
+from matplotlib.typing import ColorType
 
 
 class DataRow(TypedDict):
@@ -22,6 +24,14 @@ TAG_SUBSTITUTIONS = {
     "metaprogramming": "metaprog.",
 }
 
+HIGHLIGHTED_TAGS = {
+    "c": {
+        "black": {"arrays", "pointers", "malloc", "seg-fault", "memory", "mem-manag."}
+    },
+    "zig": {},
+    "rust": {},
+}
+
 
 def main():
     for language in LANGUAGES.values():
@@ -33,25 +43,43 @@ def main():
         tags = [substitute(row["TagName"]) for row in rows]
         counts = [int(row["Count"]) for row in rows]
 
-        fig = plt.figure(figsize=(10, 4))
+        fig = plt.figure(figsize=(8, 4))
 
         ax = fig.subplots()
-        ax.bar(tags, counts, width=0.65, facecolor="black")
+        ax.bar(
+            tags,
+            counts,
+            width=0.65,
+            facecolor=colors(language["slug"], tags),
+        )
         ax.set_xticks(
             ax.get_xticks(),  # pyright: ignore[reportUnknownArgumentType]
             ax.get_xticklabels(),  # pyright: ignore[reportArgumentType]
             rotation=45,
             ha="right",
         )
-        ax.set_title(f"Najpopularniejsze tagi dla języka {language['name']}")
+        # ax.set_title(f"Najpopularniejsze tagi dla języka {language['name']}")
 
         fig.tight_layout()
-        out_path = PLOT_DIR / f"top-tags-{language['slug']}.svg"
-        fig.savefig(out_path)
+        out_path = PLOT_DIR / f"top-tags-{language['slug']}"
+        savefig(fig, out_path)
 
 
 def substitute(tag: str) -> str:
     return TAG_SUBSTITUTIONS.get(tag, tag)
+
+
+def colors(language: str, tags: list[str]) -> list[ColorType]:
+    result: list[ColorType] = []
+    highlights = HIGHLIGHTED_TAGS[language]
+    for tag in tags:
+        color = "grey"
+        for hcolor, htags in highlights.items():
+            if tag in htags:
+                color = hcolor
+                break
+        result.append(color)
+    return result
 
 
 if __name__ == "__main__":

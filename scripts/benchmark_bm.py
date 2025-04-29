@@ -3,13 +3,18 @@
 # pyright: reportAny=false
 import csv
 import dataclasses
+import math
+import os
 import re
 import subprocess
 import sys
 from argparse import ArgumentParser
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from time import sleep
+from typing import IO, TYPE_CHECKING, Callable, Protocol
 
+from lib.constants import PERF_DIR
 from lib.types import MemReport, PerformanceReport
 
 if TYPE_CHECKING:
@@ -17,8 +22,7 @@ if TYPE_CHECKING:
 
 from rich.progress import Progress
 
-ANALYSIS_DIR = Path("./analysis/perf/")
-
+CONNECTING = re.compile(rb"Connecting...")
 FLASH_FINISHED = re.compile(rb"Flashing has completed")
 PERFORMANCE = re.compile(
     rb"Performance counter "  # pyright: ignore[reportImplicitStringConcatenation]
@@ -35,6 +39,8 @@ class Args(Protocol):
     files: list[str]
     reports: int
     retries: int
+    iters: int
+    reset: bool
 
 
 args: Args
@@ -43,13 +49,15 @@ args: Args
 def main():
     parser = ArgumentParser()
     _ = parser.add_argument("files", type=str, nargs="*")
+    _ = parser.add_argument("--reset", type=bool, const=True, nargs="?", default=False)
+    _ = parser.add_argument("--iters", type=int, default=5)
     _ = parser.add_argument("--reports", type=int, default=100)
     _ = parser.add_argument("--retries", type=int, default=10)
 
     global args
     args = parser.parse_args()  # pyright: ignore[reportAssignmentType]
 
-    ANALYSIS_DIR.mkdir(exist_ok=True, parents=True)
+    PERF_DIR.mkdir(exist_ok=True, parents=True)
 
     for elf_path_str in args.files:
         elf_path = Path(elf_path_str)
@@ -58,47 +66,144 @@ def main():
 
 def benchmark(elf_path: Path):
     print(f"Benchmarking: {elf_path}")
-    name, *_ = elf_path.name.split(".")
 
+    name, *_ = elf_path.name.split(".")
+    perf_outs = [PERF_DIR / f"{name}-perf-{i}.csv" for i in range(args.iters)]
+    mem_outs = [PERF_DIR / f"{name}-mem-{i}.csv" for i in range(args.iters)]
+
+    found: list[int] = []
+    to_do: list[int] = []
+    for i, (perf_out, mem_out) in enumerate(zip(perf_outs, mem_outs)):
+        if perf_out.exists() and mem_out.exists():
+            found.append(i)
+        else:
+            to_do.append(i)
+    print(f"Found results for iterations: {found}")
+
+    if args.reset:
+        print("Resetting found results")
+        for i in found:
+            perf_outs[i].unlink()
+            mem_outs[i].unlink()
+        to_do = list(range(args.iters))
+
+    print(f"Executing iterations: {to_do}")
+
+    is_init = False
+    for i in to_do:
+
+        def iteration():
+            nonlocal is_init
+            _ = reset_usb()
+            # with monitor() if is_init else flash(elf_path) as proc:
+            with flash(elf_path) as proc:
+                wait_for_connected(proc)
+                if not is_init:
+                    wait_for_flash_finish(proc)
+                    is_init = True
+                return gather_results(proc)
+
+        def on_error():
+            sleep(5)
+
+        result = retry(iteration, times=args.retries, on_error=on_error)
+        if not result:
+            print(f"Failed to benchmark: {elf_path}, iteration {i}")
+        else:
+            perf, mem = result
+            write_report(PerformanceReport, perf, perf_outs[i])
+            write_report(MemReport, mem, mem_outs[i])
+
+
+def flash(elf_path: Path):
+    return launch(["espflash", "flash", "--monitor", str(elf_path)])
+
+
+def monitor():
+    return launch(["espflash", "monitor", "--non-interactive"])
+
+
+def launch(command: list[str]):
+    return subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+
+def reset_usb():
+    print("Resetting usb device")
+    vendor = os.environ["USB_VENDOR"]
+    product = os.environ["USB_PRODUCT"]
+    command = ["usb_modeswitch", "-v", vendor, "-p", product, "--reset-usb"]
+    print(f"Running: {command}")
+    return subprocess.run(
+        ["usb_modeswitch", "-v", vendor, "-p", product, "--reset-usb"], check=True
+    )
+
+
+def retry[T](
+    function: Callable[[], T],
+    times: int,
+    on_error: Callable[[], None] | None = None,
+) -> T | None:
     try_count = 0
     is_done = False
-    while try_count < args.retries and not is_done:
+    while try_count < times and not is_done:
         try:
-            with subprocess.Popen(
-                ["espflash", "flash", "--monitor", str(elf_path)],
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            ) as proc:
-                perf, mem = gather_results(proc)
-            is_done = True
+            return function()
         except Exception as e:
             print(e)
             try_count += 1
-            print(f"Retry number: {try_count + 1}/{args.retries}")
-    if not is_done:
-        print(f"Failed to benchmark: {elf_path}")
-        return
+            if on_error:
+                on_error()
+            print(f"Retry number: {try_count + 1}/{times}")
+    return None
 
-    perf = perf  # pyright: ignore[reportPossiblyUnboundVariable]
-    mem = mem  # pyright: ignore[reportPossiblyUnboundVariable]
 
-    write_report(PerformanceReport, perf, ANALYSIS_DIR / f"{name}-perf.csv")
-    write_report(MemReport, mem, ANALYSIS_DIR / f"{name}-mem.csv")
+def wait_for_connected(proc: subprocess.Popen[bytes]):
+    if proc.stderr is None:
+        raise Exception("stderr not opened")
+
+    is_connecting = False
+    while proc.poll() is None:
+        line = readline_non_blocking(proc.stderr, timeout=5)
+        _ = sys.stderr.buffer.write(line.strip() + b"\n")
+        _ = sys.stderr.flush()
+        if is_connecting:
+            break
+        if CONNECTING.search(line):
+            is_connecting = True
+    if proc.returncode is not None:
+        raise Exception(f"Unexpected process finish, ret: {proc.returncode}")
+
+
+def wait_for_flash_finish(proc: subprocess.Popen[bytes]):
+    if proc.stderr is None:
+        raise Exception("stderr not opened")
+
+    while proc.poll() is None:
+        line = proc.stderr.readline()
+        _ = sys.stderr.buffer.write(line.strip() + b"\n")
+        _ = sys.stderr.flush()
+        if FLASH_FINISHED.search(line):
+            break
+    if proc.returncode is not None:
+        raise Exception(f"Unexpected process finish, ret: {proc.returncode}")
+
+
+def readline_non_blocking(file: IO[bytes], timeout: float = math.inf):
+    end = datetime.now() + timedelta(seconds=timeout)
+    bytes = b""
+    while datetime.now() < end and bytes[-1:] != b"\n" and not file.closed:
+        bytes += os.read(file.fileno(), 1)
+
+    if bytes[-1] == ord("\n"):
+        return bytes
+    else:
+        raise Exception("Timeout")
 
 
 def gather_results(proc: subprocess.Popen[bytes]):
     perf: list[PerformanceReport] = []
     stack: list[MemReport] = []
     heap: list[MemReport] = []
-
-    while proc.poll() is None and proc.stderr is not None:
-        line = proc.stderr.readline()
-        _ = sys.stderr.buffer.write(line)
-        _ = sys.stderr.flush()
-        if FLASH_FINISHED.search(line):
-            break
-    if proc.returncode is not None:
-        raise Exception(f"Unexpected process finish, ret: {proc.returncode}")
 
     patterns = [PERFORMANCE, MEM_STACK, MEM_HEAP]
     types = [PerformanceReport, MemReport, MemReport]
@@ -110,7 +215,7 @@ def gather_results(proc: subprocess.Popen[bytes]):
         while (
             proc.poll() is None and proc.stdout is not None and len(perf) < args.reports
         ):
-            line = proc.stdout.readline()
+            line = readline_non_blocking(proc.stdout, timeout=5)
             for pattern, ty, report_set in zip(patterns, types, report_sets):
                 match = pattern.search(line)
                 if match is None:

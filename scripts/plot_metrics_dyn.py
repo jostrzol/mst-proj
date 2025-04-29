@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 import numpy as np
 from lib.constants import ANALYSIS_DIR, PLOT_DIR
 from lib.language import LANGUAGES, Language
+from lib.plot import savefig
 from lib.types import MemReport, PerformanceReport
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
@@ -126,8 +127,8 @@ def plot_experiment(experiment: str):
 
     fig.subplots_adjust(top=0.8)
 
-    out_path = PLOT_DIR / f"{experiment}-perf.svg"
-    fig.savefig(out_path)
+    out_path = PLOT_DIR / f"{experiment}-perf"
+    savefig(fig, out_path)
 
 
 def read_report[T](t: type[T], path: Path):

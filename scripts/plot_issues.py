@@ -6,13 +6,13 @@ import csv
 from math import ceil
 
 from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
-from lib.plot import add_bar_texts
+from lib.plot import add_bar_texts, savefig
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
 ISSUES_PATH = ANALYSIS_SRC_DIR / "issues.csv"
-OUT_PATH = PLOT_DIR / "issues.svg"
+OUT_PATH = PLOT_DIR / "issues"
 
 
 def main():
@@ -63,7 +63,7 @@ def main():
         ax.remove()
 
     fig.tight_layout()
-    fig.savefig(OUT_PATH)
+    savefig(fig, OUT_PATH)
 
 
 if __name__ == "__main__":

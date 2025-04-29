@@ -6,7 +6,7 @@ from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 from matplotlib import pyplot as plt
 
 MOTOR_CHARACTERISTICS_PATH = ANALYSIS_SRC_DIR / "motor-characteristics.csv"
-OUT_PATH = PLOT_DIR / "motor-characteristics.svg"
+OUT_PATH = PLOT_DIR / "motor-characteristics.pdf"
 
 
 def main():

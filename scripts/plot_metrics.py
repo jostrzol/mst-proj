@@ -9,6 +9,7 @@ from typing import NamedTuple, final, override
 
 from lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
 from lib.language import LANGUAGES
+from lib.plot import savefig
 from matplotlib import pyplot as plt
 
 EXPERIMENTS = [
@@ -125,7 +126,7 @@ def plot_experiment(experiment: str):
             infos = FunctionInfos.from_csv(file)
         langs_to_infos[lang["slug"]] = infos
 
-    plt.figure()
+    fig = plt.figure()
 
     titles = ["CCN'", "NLOC", "Liczba tokenów"]
     fields = ["ccn_prim", "nloc_count", "token_count"]
@@ -148,8 +149,8 @@ def plot_experiment(experiment: str):
 
     plt.tight_layout()
 
-    out_path = PLOT_DIR / f"{experiment}.svg"
-    plt.savefig(out_path)
+    out_path = PLOT_DIR / f"{experiment}"
+    savefig(fig, out_path)
 
 
 def main():

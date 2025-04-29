@@ -102,7 +102,10 @@ plot-only:
     echo {{BOLD}}  \-\> running "'$file'..." && \
     ./.venv/bin/python3 "$file"; \
   done
-  if test -d "{{thesis_dir}}"; then cp -r ./analysis/plots "{{thesis_dir}}/sdm2-2/img"; fi
+  if test -d "{{thesis_dir}}"; then \
+    mkdir -p "{{thesis_dir}}/sdm2-2/img/plots" \
+    && cp ./analysis/plots/*.pdf "{{thesis_dir}}/sdm2-2/img/plots"; \
+  fi
 
 install-dev: _venv_dev_dependencies
 

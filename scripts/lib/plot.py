@@ -1,6 +1,8 @@
 from collections.abc import Iterable
+from pathlib import Path
 
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from matplotlib.typing import ColorType
 
 
@@ -59,3 +61,8 @@ def lighten_color(color: ColorType | str, amount: float) -> ColorType:
         c = color
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], 1 - (1 - amount) * (1 - c[1]), c[2])
+
+
+def savefig(fig: Figure, path: Path):
+    for format in ["pdf", "svg"]:
+        fig.savefig(path.with_suffix("." + format))
