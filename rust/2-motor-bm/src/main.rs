@@ -15,6 +15,7 @@ use esp_idf_hal::{
     },
     units::FromValueType,
 };
+#[cfg(debug_assertions)]
 use log::debug;
 use memory::memory_report;
 
@@ -65,6 +66,7 @@ fn main() -> anyhow::Result<()> {
 
             let value = adc.read_raw(&mut adc_pin)?;
             let value_normalized = value as f32 / ADC_MAX_VALUE as f32;
+            #[cfg(debug_assertions)]
             debug!(
                 "selected duty cycle: {:.2} = {} / {}",
                 value_normalized, value, ADC_MAX_VALUE

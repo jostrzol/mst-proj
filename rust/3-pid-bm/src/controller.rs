@@ -17,8 +17,9 @@ use esp_idf_hal::{
     },
     units::FromValueType,
 };
-
-use log::{debug, error, info};
+#[cfg(debug_assertions)]
+use log::debug;
+use log::{error, info};
 use ouroboros::self_referencing;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
@@ -222,6 +223,7 @@ where
         let frequency = self.calculate_frequency();
         self.revolutions.push(0);
 
+        #[cfg(debug_assertions)]
         debug!("frequency: {}", frequency);
 
         let params = ControlParams::read(self.registers.as_ref());
@@ -229,6 +231,7 @@ where
         let (control_signal, feedback) = self.calculate_control(&params, frequency, &self.feedback);
 
         let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
+        #[cfg(debug_assertions)]
         debug!("control_signal_limited: {:.2}", control_signal_limited);
         self.write_registers(frequency, control_signal_limited);
 
@@ -264,7 +267,9 @@ where
         let control_signal =
             proportional_component + integration_component + differentiation_component;
 
+        #[cfg(debug_assertions)]
         debug!("delta: {:.2}", delta);
+        #[cfg(debug_assertions)]
         debug!(
             "control signal: {:.2} = {:.2} + {:.2} + {:.2}",
             control_signal,

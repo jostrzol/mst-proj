@@ -32,6 +32,7 @@ fn main() -> anyhow::Result<()> {
 
             let _measure = perf.measure();
 
+            #[cfg(debug_assertions)]
             log::debug!(
                 "Turning the LED {}",
                 if led.is_set_low() { "ON" } else { "OFF" }
