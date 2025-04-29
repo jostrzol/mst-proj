@@ -67,7 +67,7 @@ fn main() -> anyhow::Result<()> {
     let _server_thread = thread::Builder::new()
         .stack_size(STACK_SIZE)
         .spawn(move || server.run().expect("Server loop failed"))?;
-    let server_task = unsafe { xTaskGetHandle(SERVER_TASK_NAME.as_ptr() as *const i8) };
+    let _server_task = unsafe { xTaskGetHandle(SERVER_TASK_NAME.as_ptr() as *const i8) };
 
     ThreadSpawnConfiguration {
         name: Some(CONTROLLER_TASK_NAME),
@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
 
     let delay = Delay::default();
     loop {
-        memory_report(&[controller_task, server_task]);
+        memory_report(&[controller_task]);
 
         delay.delay_ms(MEM_REPORT_INTERVAL_MS);
     }

@@ -74,7 +74,7 @@ fn main() !void {
 
     log.info("Controlling motor from Zig", .{});
 
-    const tasks = [_]sys.TaskHandle_t{ controller_task, server_task };
+    const tasks = [_]sys.TaskHandle_t{controller_task};
     while (true) {
         memory.report(&tasks);
 

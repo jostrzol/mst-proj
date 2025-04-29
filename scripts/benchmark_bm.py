@@ -7,9 +7,10 @@ import re
 import subprocess
 import sys
 from argparse import ArgumentParser
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
+
+from lib.types import MemReport, PerformanceReport
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
@@ -28,39 +29,6 @@ PERFORMANCE = re.compile(
 )
 MEM_STACK = re.compile(rb"(?P<name>\w+) stack usage: (?P<usage>\d+) B")
 MEM_HEAP = re.compile(rb"(?P<name>Heap) usage: (?P<usage>\d+) B")
-
-
-@dataclass
-class PerformanceReport:
-    name: str
-    time_us: float
-    cycles: int
-    samples: int
-
-    @classmethod
-    def from_dict(cls, d: dict[str, bytes]):
-        return cls(
-            name=d["name"].decode(),
-            time_us=float(d["time_us"]),
-            cycles=int(d["cycles"]),
-            samples=int(d["samples"]),
-        )
-
-
-@dataclass
-class MemReport:
-    name: str
-    usage: int
-
-    @classmethod
-    def from_dict(cls, d: dict[str, bytes]):
-        return cls(
-            name=d["name"].decode(),
-            usage=int(d["usage"]),
-        )
-
-
-type Report = PerformanceReport | MemReport
 
 
 class Args(Protocol):

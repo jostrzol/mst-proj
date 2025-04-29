@@ -91,7 +91,7 @@ void app_main(void) {
   while (true) {
     vTaskDelay(MEM_REPORT_INTERVAL_MS / portTICK_PERIOD_MS);
 
-    memory_report(2, controller_task, server_task);
+    memory_report(1, controller_task);
   }
 
   vTaskDelete(server_task);
