@@ -68,6 +68,8 @@ watch:
 artifacts-server:
   python3 -m http.server -d ./artifacts/
 
+bench: pid-bm-bench motor-bm-bench blinky-bm-bench
+
 blinky-bm-bench: \
   (_bench "--reports" "60" \
     "./artifacts/fast/1-blinky-bm-c.elf" \

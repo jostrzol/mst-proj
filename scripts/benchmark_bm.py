@@ -165,7 +165,7 @@ def wait_for_connected(proc: subprocess.Popen[bytes]):
     is_connecting = False
     while proc.poll() is None:
         line = readline_non_blocking(proc.stderr, timeout=5)
-        _ = sys.stderr.buffer.write(line.strip() + b"\n")
+        _ = sys.stderr.buffer.write(line)
         _ = sys.stderr.flush()
         if is_connecting:
             break
@@ -180,8 +180,8 @@ def wait_for_flash_finish(proc: subprocess.Popen[bytes]):
         raise Exception("stderr not opened")
 
     while proc.poll() is None:
-        line = proc.stderr.readline()
-        _ = sys.stderr.buffer.write(line.strip() + b"\n")
+        line = readline_non_blocking(proc.stderr, timeout=15)
+        _ = sys.stderr.buffer.write(line)
         _ = sys.stderr.flush()
         if FLASH_FINISHED.search(line):
             break
@@ -190,15 +190,23 @@ def wait_for_flash_finish(proc: subprocess.Popen[bytes]):
 
 
 def readline_non_blocking(file: IO[bytes], timeout: float = math.inf):
-    end = datetime.now() + timedelta(seconds=timeout)
+    tout = timedelta(seconds=timeout)
+    last_byte_at = datetime.now()
     bytes = b""
 
     def is_line_complete():
         nonlocal bytes
         return len(bytes) != 0 and bytes[-1:] == b"\n"
 
-    while datetime.now() < end and not is_line_complete() and not file.closed:
-        bytes += os.read(file.fileno(), 1)
+    while (
+        datetime.now() < last_byte_at + tout
+        and not is_line_complete()
+        and not file.closed
+    ):
+        byte = os.read(file.fileno(), 1)
+        if byte != b"":
+            last_byte_at = datetime.now()
+        bytes += byte
 
     if is_line_complete():
         return bytes
