@@ -6,7 +6,14 @@ profile := if env("BUILD_PROFILE", "") == "SMALL" {
   ""
 }
 build_flags := if profile != "" {"--release="+profile} else {""}
-export ZIG_BUILD_ARGS := build_flags
+
+cmake_build_type := if env("BUILD_PROFILE", "") == "SMALL" {
+  "MinSizeRel"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  "Release"
+} else {
+  "Debug"
+}
 
 arch := "arm-linux-gnueabihf"
 cpu := "arm1176jzf_s"
@@ -94,7 +101,7 @@ _build-bm NUM PROJECT: (_cmd-bm NUM PROJECT "build") _make_artifact_dir
 
 _cmd-bm NUM PROJECT *CMD:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
-  cd {{NUM}}-{{PROJECT}}-bm && idf.py -DSDKCONFIG="$SDKCONFIG" {{CMD}}
+  cd {{NUM}}-{{PROJECT}}-bm && idf.py -DCMAKE_BUILD_TYPE={{cmake_build_type}} -DSDKCONFIG="$SDKCONFIG" {{CMD}}
 
 _make_artifact_dir:
   mkdir -p {{artifacts_dir}}

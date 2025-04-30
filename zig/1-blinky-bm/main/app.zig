@@ -33,6 +33,7 @@ fn main() !void {
 
             idf.gpio.Level.set(.GPIO_NUM_5, @intFromBool(is_on)) catch |err| {
                 std.log.err("Error: {}", .{err});
+                continue;
             };
             is_on = !is_on;
 

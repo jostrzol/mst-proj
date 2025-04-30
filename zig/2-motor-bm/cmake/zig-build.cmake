@@ -80,10 +80,14 @@ else()
     message(FATAL_ERROR "Unsupported target ${CONFIG_IDF_TARGET}")
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(ZIG_BUILD_TYPE "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    set(ZIG_BUILD_TYPE "ReleaseFast")
+elseif(CMAKE_BUILD_TYPE STREQUAL "ReleaseSmall")
+    set(ZIG_BUILD_TYPE "ReleaseSmall")
+elseif(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    set(ZIG_BUILD_TYPE "ReleaseSmall")
 else()
-    set(ZIG_BUILD_TYPE "ReleaseSafe")
+    set(ZIG_BUILD_TYPE "Debug")
 endif()
 
 if(CONFIG_IDF_TARGET_ESP32)
@@ -122,7 +126,6 @@ add_custom_target(zig_build
     -Doptimize=${ZIG_BUILD_TYPE}
     -Dtarget=${ZIG_TARGET}
     -Dcpu=${TARGET_CPU_MODEL}
-    ${ZIG_BUILD_FLAGS}
     --prominent-compile-errors
     --cache-dir ${CMAKE_BINARY_DIR}/../.zig-cache
     --prefix ${CMAKE_BINARY_DIR}
