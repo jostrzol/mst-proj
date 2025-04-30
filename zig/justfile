@@ -88,6 +88,7 @@ _build PROJECT: _make_artifact_dir
     -freference-trace \
   && cp ./zig-out/bin/* ../{{artifacts_dir}}
 
+# --ignore './{{NUM}}-{{PROJECT}}-bm/build' \
 _watch-bm NUM PROJECT:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   watchexec --postpone --wrap-process session --verbose \

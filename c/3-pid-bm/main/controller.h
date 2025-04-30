@@ -3,9 +3,8 @@
 #include "driver/gptimer_types.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_err.h"
-#include "freertos/idf_additions.h"
 
-#include "perf.h"
+#include "freertos/idf_additions.h"
 #include "registers.h"
 #include "ringbuffer.h"
 
@@ -26,10 +25,7 @@ typedef struct {
   controller_opts_t opts;
   regs_t *regs;
   adc_oneshot_unit_handle_t adc;
-  struct {
-    SemaphoreHandle_t semaphore;
-    gptimer_handle_t handle;
-  } timer;
+  gptimer_handle_t timer;
   struct {
     float rotate_once_s;
     float rotate_all_s;
@@ -39,6 +35,7 @@ typedef struct {
     bool is_close;
     feedback_t feedback;
   } state;
+  TaskHandle_t task;
 } controller_t;
 
 esp_err_t

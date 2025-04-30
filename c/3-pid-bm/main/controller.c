@@ -5,11 +5,13 @@
 #include "esp_adc/adc_oneshot.h"
 #include "esp_log.h"
 #include "freertos/idf_additions.h"
+#include "freertos/task.h"
 #include "hal/ledc_types.h"
 #include "mb_endianness_utils.h"
 #include "portmacro.h"
 
 #include "controller.h"
+#include "perf.h"
 #include "ringbuffer.h"
 
 // Configuration
@@ -35,6 +37,8 @@ static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
 static const uint32_t PWM_DUTY_MAX = (1 << PWM_DUTY_RESOLUTION) - 1;
 
 static const char TAG[] = "controller";
+
+TaskHandle_t controller_task = NULL;
 
 esp_err_t read_adc(controller_t *self, float *value) {
   int value_raw;
@@ -75,10 +79,8 @@ bool IRAM_ATTR on_timer_fired(
     gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata,
     void *user_data
 ) {
-  SemaphoreHandle_t timer_semaphore = user_data;
-
   BaseType_t high_task_awoken = pdFALSE;
-  xSemaphoreGiveFromISR(timer_semaphore, &high_task_awoken);
+  vTaskNotifyGiveFromISR(controller_task, &high_task_awoken);
   return high_task_awoken == pdTRUE;
 }
 
@@ -137,13 +139,6 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
 
   ringbuffer_t *revolutions = ringbuffer_alloc(opts.revolution_bins);
 
-  SemaphoreHandle_t timer_semaphore = xSemaphoreCreateBinary();
-  if (timer_semaphore == NULL) {
-    ESP_LOGE(TAG, "xSemaphoreCreateBinaryStatic fail");
-    ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
-    return ESP_ERR_INVALID_STATE;
-  }
-
   gptimer_handle_t timer;
   err = gptimer_new_timer(
       &(gptimer_config_t){
@@ -156,7 +151,6 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "timer_init fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
-    vSemaphoreDelete(timer_semaphore);
     return err;
   }
 
@@ -165,13 +159,12 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
       &(gptimer_event_callbacks_t){
           .on_alarm = on_timer_fired,
       },
-      timer_semaphore
+      NULL
   );
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_register_event_callbacks fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
-    vSemaphoreDelete(timer_semaphore);
     return err;
   }
   err = gptimer_enable(timer);
@@ -179,7 +172,6 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
     ESP_LOGE(TAG, "gptimer_enable fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
-    vSemaphoreDelete(timer_semaphore);
     return err;
   }
   err = gptimer_set_alarm_action(
@@ -195,7 +187,6 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
-    vSemaphoreDelete(timer_semaphore);
     return err;
   }
 
@@ -208,11 +199,7 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
       .opts = opts,
       .regs = regs,
       .adc = adc,
-      .timer =
-          {
-              .semaphore = timer_semaphore,
-              .handle = timer,
-          },
+      .timer = timer,
       .interval =
           {
               .rotate_once_s = interval_rotate_once_s,
@@ -231,12 +218,11 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
 
 void controller_deinit(controller_t *self) {
   free(self->state.revolutions);
-  ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_stop(self->timer.handle));
-  ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(self->timer.handle));
-  ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(self->timer.handle));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_stop(self->timer));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(self->timer));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(self->timer));
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
   ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(self->adc));
-  vSemaphoreDelete(self->timer.semaphore);
 }
 
 float finite_or_zero(float value) { return isfinite(value) ? value : 0; }
@@ -376,7 +362,13 @@ void controller_loop(void *params) {
 
   ESP_LOGI(TAG, "Starting controller");
 
-  err = gptimer_start(self->timer.handle);
+  if (controller_task != NULL) {
+    ESP_LOGE(TAG, "controller task already running");
+    abort();
+  }
+  controller_task = xTaskGetCurrentTaskHandle();
+
+  err = gptimer_start(self->timer);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_start fail (0x%x)", err);
     abort();
@@ -399,7 +391,8 @@ void controller_loop(void *params) {
   while (true) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
       for (size_t j = 0; j < self->opts.reads_per_bin; ++j) {
-        xSemaphoreTake(self->timer.semaphore, portMAX_DELAY);
+        while (ulTaskNotifyTake(pdTRUE, portMAX_DELAY) == 0)
+          ;
 
         const perf_start_mark_t read_start = perf_counter_mark_start();
 
@@ -424,4 +417,6 @@ void controller_loop(void *params) {
     perf_counter_reset(&perf_read);
     perf_counter_reset(&perf_control);
   }
+
+  controller_task = NULL;
 }

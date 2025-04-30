@@ -90,11 +90,11 @@ def plot_experiment(experiment: str):
             )
         )
 
-    fig, axes = plt.subplots(nrows=2, layout="tight", figsize=(6.4, 8))
+    fig, axes = plt.subplots(ncols=2, layout="tight", figsize=(8, 4))
     axes: Iterable[Axes]
     ax_perf, ax_mem = axes
 
-    series_names_perf = [f"pętla {name}" for name in results[0].time_us_per_loop.keys()]
+    series_names_perf = [f"faza {name}" for name in results[0].time_us_per_loop.keys()]
     series_stats_perf: list[Sequence[Stat]] = list(
         zip(*(result.time_us_per_loop.values() for result in results))
     )
@@ -159,7 +159,7 @@ def plot(
     if not patterns:
         patterns = PATTERNS
     if not width:
-        width = 0.8 / (n_series + 1)
+        width = 1 / (n_series + 1)
 
     names = [lang["name"] for lang in LANGUAGES.values()]
     colors = [lang["color"] for lang in LANGUAGES.values()]

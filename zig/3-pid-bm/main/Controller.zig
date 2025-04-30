@@ -26,6 +26,8 @@ const pwm_min = 0.1;
 const pwm_max = 1.0;
 const limit_min_deadzone = 0.001;
 
+var controller_task: sys.TaskHandle_t = null;
+
 opts: InitOpts,
 registers: *Registers,
 adc: struct {
@@ -36,10 +38,7 @@ pwm: struct {
     timer: pwm_m.Timer,
     channel: pwm_m.Channel,
 },
-timer: struct {
-    semaphore: sys.QueueHandle_t,
-    handle: c.gptimer_handle_t,
-},
+timer: c.gptimer_handle_t,
 interval: struct {
     rotate_once_s: f32,
     rotate_all_s: f32,
@@ -84,9 +83,6 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
     const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
     errdefer pwm_channel.deinit();
 
-    const timer_semaphore = idf.xSemaphoreCreateBinary() orelse return error.ErrorInvalidState;
-    errdefer idf.vSemaphoreDelete(timer_semaphore);
-
     var timer: c.gptimer_handle_t = undefined;
     try c.espCheckError(gptimer_new_timer(
         &.{
@@ -101,7 +97,7 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
     try c.espCheckError(c.gptimer_register_event_callbacks(
         timer,
         &.{ .on_alarm = onTimerFired },
-        timer_semaphore,
+        null,
     ));
 
     try c.espCheckError(c.gptimer_enable(timer));
@@ -132,10 +128,7 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
             .timer = pwm_timer,
             .channel = pwm_channel,
         },
-        .timer = .{
-            .semaphore = timer_semaphore,
-            .handle = timer,
-        },
+        .timer = timer,
         .interval = .{
             .rotate_once_s = interval_rotate_once_s,
             .rotate_all_s = interval_rotate_all_s,
@@ -153,15 +146,22 @@ pub fn deinit(self: *const Self, allocator: Allocator) void {
     self.adc.unit.deinit();
     self.pwm.timer.deinit();
     self.pwm.channel.deinit();
-    c.espLogError(c.gptimer_stop(self.timer.handle));
-    c.espLogError(c.gptimer_disable(self.timer.handle));
-    c.espLogError(c.gptimer_del_timer(self.timer.handle));
+    c.espLogError(c.gptimer_stop(self.timer));
+    c.espLogError(c.gptimer_disable(self.timer));
+    c.espLogError(c.gptimer_del_timer(self.timer));
 }
 
 pub fn run(args: ?*anyopaque) callconv(.c) void {
     const self: *Self = @alignCast(@ptrCast(args));
 
-    c.espCheckError(c.gptimer_start(self.timer.handle)) catch |err| panicErr(err);
+    std.log.info("Starting controller", .{});
+
+    if (controller_task != null)
+        std.debug.panic("Controller task already running", .{});
+    controller_task = idf.xTaskGetCurrentTaskHandle();
+    defer controller_task = null;
+
+    c.espCheckError(c.gptimer_start(self.timer)) catch |err| panicErr(err);
 
     var perf_read = perf_m.Counter.init("READ") catch |err| panicErr(err);
     var perf_control = perf_m.Counter.init("CONTROL") catch |err| panicErr(err);
@@ -169,7 +169,11 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
     while (true) {
         for (0..control_iters_per_perf_report) |_| {
             for (0..self.opts.reads_per_bin) |_| {
-                _ = idf.xSemaphoreTake(self.timer.semaphore, std.math.maxInt(u32));
+                while (idf.ulTaskGenericNotifyTake(
+                    c.tskDEFAULT_INDEX_TO_NOTIFY,
+                    c.pdTRUE,
+                    c.portMAX_DELAY,
+                ) == 0) {}
 
                 const read_start = perf_m.StartMarker.now();
                 logErr(self.read_phase());
@@ -318,12 +322,14 @@ fn write_registers(self: *Self, frequency: f32, control_signal: f32) void {
 export fn onTimerFired(
     _: c.gptimer_handle_t,
     _: [*c]const c.gptimer_alarm_event_data_t,
-    user_data: ?*anyopaque,
+    _: ?*anyopaque,
 ) linksection(".iram1.0") callconv(.c) bool {
-    const timer_semaphore: idf.QueueHandle_t = @ptrCast(user_data);
-
     var high_task_awoken: isize = 0;
-    _ = idf.xSemaphoreGiveFromISR(timer_semaphore, &high_task_awoken);
+    _ = idf.vTaskGenericNotifyGiveFromISR(
+        controller_task,
+        c.tskDEFAULT_INDEX_TO_NOTIFY,
+        &high_task_awoken,
+    );
     return high_task_awoken != 0;
 }
 
