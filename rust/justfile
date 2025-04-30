@@ -7,6 +7,14 @@ profile := if env("BUILD_PROFILE", "") == "SMALL" {
 }
 build_flags := "--profile="+profile
 
+export RUSTFLAGS := if env("BUILD_PROFILE", "") == "SMALL" {
+  "-Zfmt-debug=none -Zlocation-detail=none"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  ""
+} else {
+  ""
+}
+
 arch := "arm-unknown-linux-gnueabihf"
 arch_bm := "xtensa-esp32-espidf"
 artifacts_dir := "../artifacts" / lowercase(env("BUILD_PROFILE", "DEBUG"))

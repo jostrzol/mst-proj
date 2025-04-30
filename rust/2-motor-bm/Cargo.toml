@@ -27,6 +27,9 @@ opt-level = 3
 [profile.small]
 inherits = "release"
 opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
 
 [features]
 default = []

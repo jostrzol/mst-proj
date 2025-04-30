@@ -95,6 +95,7 @@ def benchmark(elf_path: Path):
         def iteration():
             nonlocal is_init
             _ = reset_usb()
+            sleep(2)
             # with monitor() if is_init else flash(elf_path) as proc:
             with flash(elf_path) as proc:
                 wait_for_connected(proc)
@@ -104,7 +105,7 @@ def benchmark(elf_path: Path):
                 return gather_results(proc)
 
         def on_error():
-            sleep(5)
+            sleep(1)
 
         result = retry(iteration, times=args.retries, on_error=on_error)
         if not result:
@@ -191,10 +192,15 @@ def wait_for_flash_finish(proc: subprocess.Popen[bytes]):
 def readline_non_blocking(file: IO[bytes], timeout: float = math.inf):
     end = datetime.now() + timedelta(seconds=timeout)
     bytes = b""
-    while datetime.now() < end and bytes[-1:] != b"\n" and not file.closed:
+
+    def is_line_complete():
+        nonlocal bytes
+        return len(bytes) != 0 and bytes[-1:] == b"\n"
+
+    while datetime.now() < end and not is_line_complete() and not file.closed:
         bytes += os.read(file.fileno(), 1)
 
-    if bytes[-1] == ord("\n"):
+    if is_line_complete():
         return bytes
     else:
         raise Exception("Timeout")
@@ -215,7 +221,7 @@ def gather_results(proc: subprocess.Popen[bytes]):
         while (
             proc.poll() is None and proc.stdout is not None and len(perf) < args.reports
         ):
-            line = readline_non_blocking(proc.stdout, timeout=5)
+            line = readline_non_blocking(proc.stdout, timeout=15)
             for pattern, ty, report_set in zip(patterns, types, report_sets):
                 match = pattern.search(line)
                 if match is None:

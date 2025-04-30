@@ -172,12 +172,12 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
                 _ = idf.xSemaphoreTake(self.timer.semaphore, std.math.maxInt(u32));
 
                 const read_start = perf_m.StartMarker.now();
-                logErr(self.read_iteration());
+                logErr(self.read_phase());
                 perf_read.add_sample(read_start);
             }
 
             const control_start = perf_m.StartMarker.now();
-            logErr(self.control_iteration());
+            logErr(self.control_phase());
             perf_control.add_sample(control_start);
         }
 
@@ -188,7 +188,7 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
     }
 }
 
-fn read_iteration(self: *Self) !void {
+fn read_phase(self: *Self) !void {
     const value = try self.read_adc();
 
     if (!self.state.is_close and value < self.opts.revolution_treshold_close) {
@@ -206,7 +206,7 @@ fn read_adc(self: *Self) !f32 {
     return @as(f32, @floatFromInt(value)) / adc_max;
 }
 
-fn control_iteration(self: *Self) !void {
+fn control_phase(self: *Self) !void {
     const frequency = self.calculate_frequency();
     try self.state.revolutions.push(0);
     std.log.debug("frequency: {d:.2} Hz", .{frequency});

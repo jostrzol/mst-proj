@@ -320,7 +320,7 @@ void write_state(controller_t *self, float frequency, float control_signal) {
   mb_set_float_cdab(&input->control_signal, control_signal);
 }
 
-esp_err_t read_iteration(controller_t *self) {
+esp_err_t read_phase(controller_t *self) {
   esp_err_t err;
 
   float value;
@@ -343,7 +343,7 @@ esp_err_t read_iteration(controller_t *self) {
   return ESP_OK;
 }
 
-esp_err_t control_iteration(controller_t *self) {
+esp_err_t control_phase(controller_t *self) {
   esp_err_t err;
 
   const float frequency = calculate_frequency(self);
@@ -403,18 +403,18 @@ void controller_loop(void *params) {
 
         const perf_start_mark_t read_start = perf_counter_mark_start();
 
-        err = read_iteration(self);
+        err = read_phase(self);
         if (err != ESP_OK)
-          ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
+          ESP_LOGE(TAG, "read_phase fail (0x%x)", err);
 
         perf_counter_add_sample(&perf_read, read_start);
       }
 
       const perf_start_mark_t control_start = perf_counter_mark_start();
 
-      err = control_iteration(self);
+      err = control_phase(self);
       if (err != ESP_OK)
-        ESP_LOGE(TAG, "read_iteration fail (0x%x)", err);
+        ESP_LOGE(TAG, "control_phase fail (0x%x)", err);
 
       perf_counter_add_sample(&perf_control, control_start);
     }
