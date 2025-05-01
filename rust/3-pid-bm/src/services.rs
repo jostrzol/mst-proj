@@ -21,18 +21,17 @@ impl<'a> Services<'a> {
         ssid: &'static str,
         password: &'static str,
     ) -> anyhow::Result<Services<'a>> {
-        let sys_loop = EspSystemEventLoop::take()?;
         let nvs = EspDefaultNvsPartition::take()?;
+
+        let sys_loop = EspSystemEventLoop::take()?;
+
+        let mdns = mdns_init()?;
 
         let mut wifi =
             BlockingWifi::wrap(EspWifi::new(modem, sys_loop.clone(), Some(nvs))?, sys_loop)?;
 
         let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
         info!("Wifi DHCP info: {:?}", ip_info);
-
-        let mut mdns = EspMdns::take()?;
-        mdns.set_hostname("esp32")?;
-        mdns.add_service(Some("esp32"), "_modbus", "_tcp", 502, &[("board", "esp32")])?;
 
         Self::connect_wifi(&mut wifi, ssid, password)?;
 
@@ -70,4 +69,11 @@ impl<'a> Services<'a> {
     pub fn netif(&self) -> &EspNetif {
         self.wifi.wifi().sta_netif()
     }
+}
+
+fn mdns_init() -> anyhow::Result<EspMdns> {
+    let mut mdns = EspMdns::take()?;
+    mdns.set_hostname("esp32")?;
+    mdns.add_service(Some("esp32"), "_modbus", "_tcp", 502, &[("board", "esp32")])?;
+    Ok(mdns)
 }

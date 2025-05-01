@@ -1,7 +1,6 @@
 #include "esp_err.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "esp_wifi.h"
 #include "mdns.h"
 #include "nvs_flash.h"
 
@@ -71,6 +70,7 @@ esp_err_t services_init(services_t *self) {
   err = my_mdns_init();
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "my_mdns_init fail (0x%x)", (int)err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_loop_delete_default());
     ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_flash_deinit());
     return err;
   }
@@ -79,6 +79,7 @@ esp_err_t services_init(services_t *self) {
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "my_wifi_init fail (0x%x)", (int)err);
     my_mdns_deinit();
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_loop_delete_default());
     ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_flash_deinit());
     return err;
   }

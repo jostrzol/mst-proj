@@ -1,6 +1,7 @@
 use std::num::NonZeroU32;
 use std::pin::Pin;
 
+use anyhow::anyhow;
 use esp_idf_hal::adc::oneshot::config::Calibration;
 use esp_idf_hal::adc::Adc;
 use esp_idf_hal::delay;
@@ -205,7 +206,11 @@ where
         if value < self.opts.revolution_treshold_close && !self.is_close {
             // gone close
             self.is_close = true;
-            *self.revolutions.back_mut().expect("Revolutions empty") += 1;
+            let back = self
+                .revolutions
+                .back_mut()
+                .ok_or(anyhow!("Revolutions empty"))?;
+            *back += 1;
         } else if value > self.opts.revolution_treshold_far && self.is_close {
             // gone far
             self.is_close = false;
