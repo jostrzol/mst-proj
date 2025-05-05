@@ -26,10 +26,15 @@ TAG_SUBSTITUTIONS = {
 
 HIGHLIGHTED_TAGS = {
     "c": {
-        "black": {"arrays", "pointers", "malloc", "seg-fault", "memory", "mem-manag."}
+        "crimson": {"arrays", "pointers", "malloc", "seg-fault", "memory", "mem-manag."}
     },
-    "zig": {},
-    "rust": {},
+    "zig": {
+        "crimson": {"compiler-errors", "compilation", "metaprog.", "compile-time"},
+        "green": {"arrays", "pointers", "malloc", "seg-fault", "memory", "mem-manag."},
+    },
+    "rust": {
+        "crimson": {"lifetime", "borrow-checker", "reference", "ownership"},
+    },
 }
 
 
@@ -49,7 +54,6 @@ def main():
         ax.bar(
             tags,
             counts,
-            width=0.65,
             facecolor=colors(language["slug"], tags),
         )
         ax.set_xticks(
@@ -73,7 +77,7 @@ def colors(language: str, tags: list[str]) -> list[ColorType]:
     result: list[ColorType] = []
     highlights = HIGHLIGHTED_TAGS[language]
     for tag in tags:
-        color = "grey"
+        color = "cornflowerblue"
         for hcolor, htags in highlights.items():
             if tag in htags:
                 color = hcolor

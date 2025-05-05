@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
+# pyright: reportAny=false
 # pyright: reportUnusedCallResult=false
 
 import csv
-from math import ceil
+from collections.abc import Iterable
+from itertools import groupby
 
 from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 from lib.plot import add_bar_texts, savefig
@@ -20,50 +22,57 @@ def main():
         reader = csv.reader(file)
         it = iter(reader)
         head = next(it)
-        rows = [(tag, *map(int, values)) for [tag, *values] in it]
+        rows = [[tag, *map(int, values)] for [tag, *values] in it]
 
-    langs = [lang.split("-") for lang in head[1:]]
-    names, colors = zip(*langs)  # pyright: ignore[reportAssignmentType]
+    langs = [lang.split("-") for lang in head[2:]]
+    names, colors = [*zip(*langs)]  # pyright: ignore[reportAssignmentType]
     names: list[str]
     colors: list[str]
 
-    totals = rows[0][1:]
-    tags, *n_questions = zip(*rows[1:])  # pyright: ignore[reportAssignmentType]
-    tags: list[str]
+    totals = rows[0][2:]  # pyright: ignore[reportAssignmentType]
+    totals: list[int]
+    tags, groups, *n_questions = zip(*rows[1:])
+    tags: Iterable[str]
 
-    n_questions_per_tag = zip(*n_questions)  # pyright: ignore[reportAssignmentType]
-    n_questions_per_tag: list[list[int]]
+    n_questions_per_tag = [*zip(*n_questions)]
+    n_questions_per_tag: list[Iterable[int]]
 
-    fig = plt.figure(figsize=(10, 9))
-    fig.suptitle("Liczba pytań na forum")
+    fig, ax = plt.subplots(layout="tight")
+    ax.bar(names, totals, facecolor=colors, edgecolor="black")
+    add_bar_texts(ax, totals, totals)
+    ax.set_ylabel("Liczba pytań")
+    savefig(fig, OUT_PATH.with_name(f"{OUT_PATH.name}-0-totals"))
 
-    ncols = 3
-    nrows = ceil((1 + len(tags)) / ncols)
-    axs = fig.subplots(nrows=nrows, ncols=ncols)
-    axs: list[list[Axes]]
-    ax1, *rest_axs = [ax for row in axs for ax in row]
+    i = 0
+    for group, members in groupby(groups):
+        n_group = len([*members])
+        group_tags = tags[i : i + n_group]
+        group_n_questions_per_tag = n_questions_per_tag[i : i + n_group]
+        i += n_group
 
-    ax1.bar(names, totals, facecolor=colors, edgecolor="black")
-    add_bar_texts(ax1, totals, totals)
-    ax1.set_ylabel("Liczba pytań")
-    ax1.set_title("Łącznie")
+        ncols = n_group if n_group != 4 else 2
+        nrows = 1 if n_group != 4 else 2
+        width = 4.8 + 2.8 * (ncols - 1)
+        height = 3.6 + 1.8 * (nrows - 1)
+        figsize = (width, height)
+        fig, axs = plt.subplots(
+            nrows=nrows, ncols=ncols, layout="tight", figsize=figsize
+        )
+        axs_flat: Iterable[Axes] = (
+            [ax for row in axs for ax in row] if nrows > 1 else axs
+        )
 
-    ax_it = iter(rest_axs)
-    for tag, ys, ax in zip(tags, n_questions_per_tag, ax_it):
-        ax.set_title(f"Tag: {tag}")
+        for tag, ys, ax in zip(group_tags, group_n_questions_per_tag, axs_flat):
+            ax.set_title(f"Tag: {tag}")
 
-        ys_percent = [y / total * 100 for y, total in zip(ys, totals)]
-        ax.bar(names, ys_percent, facecolor=colors, edgecolor="black")
-        add_bar_texts(ax, ys_percent, ys)
+            ys_percent = [y / total * 100 for y, total in zip(ys, totals)]
+            ax.bar(names, ys_percent, facecolor=colors, edgecolor="black")
+            add_bar_texts(ax, ys_percent, ys)
 
-        ax.set_ylabel("Część")
-        ax.yaxis.set_major_formatter(PercentFormatter(decimals=2))
+            ax.set_ylabel("Część")
+            ax.yaxis.set_major_formatter(PercentFormatter(decimals=2))
 
-    for ax in ax_it:
-        ax.remove()
-
-    fig.tight_layout()
-    savefig(fig, OUT_PATH)
+        savefig(fig, OUT_PATH.with_name(f"{OUT_PATH.name}-{group}"))
 
 
 if __name__ == "__main__":

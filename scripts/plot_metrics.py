@@ -128,24 +128,26 @@ def plot_experiment(experiment: str):
 
     fig = plt.figure()
 
-    titles = ["CCN'", "NLOC", "Liczba tokenów"]
-    fields = ["ccn_prim", "nloc_count", "token_count"]
     labels = [lang["name"] for lang in LANGUAGES.values()]
     colors = [lang["color"] for lang in LANGUAGES.values()]
-    for i, (title, field) in enumerate(zip(titles, fields)):
-        values = [getattr(infos, field) for infos in langs_to_infos.values()]
-        plt.subplot(2, 2, i + 1)
-        plt.bar(labels, values, edgecolor="black", facecolor=colors)
-        plt.title(title)
 
     execs = [
         ARTIFACTS_DIR / "small" / f"{experiment}-{lang['slug']}"
         for lang in LANGUAGES.values()
     ]
     sizes = [exec.stat().st_size / 1000 for exec in execs]
-    plt.subplot(2, 2, 4)
+    plt.subplot(2, 2, 1)
     plt.bar(labels, sizes, edgecolor="black", facecolor=colors)
-    plt.title("Rozmiar [KB]")
+    plt.title("Rozmiar pliku binarnego")
+    plt.ylabel("Rozmiar [KB]")
+
+    titles = ["CCN'", "NLOC", "Liczba tokenów"]
+    fields = ["ccn_prim", "nloc_count", "token_count"]
+    for i, (title, field) in enumerate(zip(titles, fields)):
+        values = [getattr(infos, field) for infos in langs_to_infos.values()]
+        plt.subplot(2, 2, i + 2)
+        plt.bar(labels, values, edgecolor="black", facecolor=colors)
+        plt.title(title)
 
     plt.tight_layout()
 
