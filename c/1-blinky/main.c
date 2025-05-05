@@ -4,11 +4,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/resource.h>
 #include <unistd.h>
+
+#include "memory.h"
 
 const char CONSUMER[] = "Consumer";
 const char CHIPNAME[] = "gpiochip0";
 const int32_t LINE_NUMBER = 13;
+
+static const size_t CONTROL_ITERS_PER_PERF_REPORT = 20;
 
 const int64_t PERIOD_MS = 100;
 const int64_t SLEEP_DURATION_US = PERIOD_MS * 1000 / 2;
@@ -57,25 +62,28 @@ int main(int, char **) {
 
   uint8_t is_on = 0;
   while (do_continue) {
-    usleep(SLEEP_DURATION_US);
+    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+      usleep(SLEEP_DURATION_US);
 
 #ifdef DEBUG
-    printf("Turning the LED %s", led_state ? "ON" : "OFF");
+      printf("Turning the LED %s", led_state ? "ON" : "OFF");
 #endif
 
-    res = gpiod_line_set_value(line, is_on);
-    if (res < 0) {
-      perror("Set line output failed\n");
-      continue;
+      res = gpiod_line_set_value(line, is_on);
+      if (res < 0) {
+        perror("Set line output failed\n");
+        continue;
+      }
+
+      is_on = !is_on;
     }
 
-    is_on = !is_on;
+    memory_report();
   }
 
   res = gpiod_line_set_value(line, 0);
-  if (res < 0) {
+  if (res < 0)
     perror("Set line output failed\n");
-  }
 
   gpiod_line_release(line);
   gpiod_chip_close(chip);
