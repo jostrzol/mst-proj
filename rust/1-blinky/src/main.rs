@@ -1,3 +1,5 @@
+mod memory;
+
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -9,6 +11,7 @@ use rppal::gpio::Gpio;
 const GPIO_LED: u8 = 13;
 const PERIOD_MS: u64 = 100;
 const SLEEP_DURATION: Duration = Duration::from_millis(PERIOD_MS / 2);
+const CONTROL_ITERS_PER_PERF_REPORT: usize = 20;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Controlling an LED from Rust");
@@ -26,15 +29,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     while more_work.load(Ordering::Relaxed) {
-        thread::sleep(SLEEP_DURATION);
+        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+            thread::sleep(SLEEP_DURATION);
 
-        #[cfg(debug_assertions)]
-        println!(
-            "Turning the LED {}",
-            if pin.is_set_low() { "ON" } else { "OFF" }
-        );
+            #[cfg(debug_assertions)]
+            println!(
+                "Turning the LED {}",
+                if pin.is_set_low() { "ON" } else { "OFF" }
+            );
 
-        pin.toggle();
+            pin.toggle();
+        }
+
+        memory::report();
     }
 
     pin.set_low();

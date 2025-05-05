@@ -25,11 +25,11 @@ void *calloc(size_t count, size_t size) {
 }
 
 void *realloc(void *ptr, size_t size) {
-  heap_usage += size - sizeof(ptr);
+  heap_usage += size - malloc_usable_size(ptr);
   return __libc_realloc(ptr, size);
 }
 
 void free(void *ptr) {
-  heap_usage -= sizeof(ptr);
+  heap_usage -= malloc_usable_size(ptr);
   __libc_free(ptr);
 }
