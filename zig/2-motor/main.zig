@@ -60,6 +60,8 @@ fn read_potentiometer_value(i2c_file: std.fs.File) ?u8 {
 }
 
 pub fn main() !void {
+    std.log.info("Controlling motor from Zig\n", .{});
+
     if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0)
         return error.SigactionNotSet;
 
@@ -75,8 +77,6 @@ pub fn main() !void {
     if (linux.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0)
         return error.SettingI2cSlave;
 
-    std.debug.print("Controlling motor from Zig.\n", .{});
-
     var channel = try chip.channel(motor_pwm_channel);
     defer channel.deinit();
 
@@ -91,13 +91,20 @@ pub fn main() !void {
 
         const value = read_potentiometer_value(i2c_file) orelse continue;
         const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
-        std.debug.print("selected duty cycle: {d:.2}\n", .{duty_cycle});
+        std.log.debug("selected duty cycle: {d:.2}\n", .{duty_cycle});
 
         channel.setParameters(.{
             .frequency = null,
             .duty_cycle_ratio = duty_cycle,
         }) catch |err| {
-            std.debug.print("error updating duty cycle: {}\n", .{err});
+            std.log.err("Error: {}\n", .{err});
         };
     }
 }
+
+pub const std_options: std.Options = .{
+    .log_level = switch (@import("builtin").mode) {
+        .Debug => .debug,
+        .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .info,
+    },
+};

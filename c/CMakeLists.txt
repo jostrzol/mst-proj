@@ -16,6 +16,11 @@ include(./dependencies/pigpio.cmake)
 include(./dependencies/i2c-tools.cmake)
 include(./dependencies/modbus.cmake)
 
+# ===== COMPILE DEFINITIONS ===================================================
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(DEBUG=1)
+endif()
+
 # ===== MAKE TARGETS ==========================================================
 add_subdirectory(1-blinky)
 add_subdirectory(2-motor)

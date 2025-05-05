@@ -6,12 +6,12 @@ use std::time::Duration;
 
 use rppal::gpio::Gpio;
 
-const GPIO_LED: u8 = 14;
+const GPIO_LED: u8 = 13;
 const PERIOD_MS: u64 = 100;
 const SLEEP_DURATION: Duration = Duration::from_millis(PERIOD_MS / 2);
 
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("Blinking an LED from Rust.");
+    println!("Controlling an LED from Rust");
 
     let gpio = Gpio::new()?;
     let mut pin = gpio.get(GPIO_LED)?.into_output();
@@ -26,8 +26,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     while more_work.load(Ordering::Relaxed) {
-        pin.toggle();
         thread::sleep(SLEEP_DURATION);
+
+        #[cfg(debug_assertions)]
+        println!(
+            "Turning the LED {}",
+            if pin.is_set_low() { "ON" } else { "OFF" }
+        );
+
+        pin.toggle();
     }
 
     pin.set_low();

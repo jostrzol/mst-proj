@@ -8,7 +8,7 @@
 
 const char CONSUMER[] = "Consumer";
 const char CHIPNAME[] = "gpiochip0";
-const int32_t LINE_NUMBER = 14;
+const int32_t LINE_NUMBER = 13;
 
 const int64_t PERIOD_MS = 100;
 const int64_t SLEEP_DURATION_US = PERIOD_MS * 1000 / 2;
@@ -24,10 +24,12 @@ const struct sigaction interrupt_sigaction = {
 };
 
 int main(int, char **) {
-  int ret;
+  int res;
 
-  ret = sigaction(SIGINT, &interrupt_sigaction, NULL);
-  if (ret < 0) {
+  printf("Controlling an LED from C\n");
+
+  res = sigaction(SIGINT, &interrupt_sigaction, NULL);
+  if (res < 0) {
     perror("Setting sigaction failed\n");
     return EXIT_FAILURE;
   }
@@ -45,31 +47,33 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
-  ret = gpiod_line_request_output(line, CONSUMER, 0);
-  if (ret < 0) {
+  res = gpiod_line_request_output(line, CONSUMER, 0);
+  if (res < 0) {
     perror("Request line as output failed\n");
     gpiod_line_release(line);
     gpiod_chip_close(chip);
     return EXIT_FAILURE;
   }
 
-  printf("Blinking an LED from C\n");
-
-  uint8_t line_value = 0;
+  uint8_t is_on = 0;
   while (do_continue) {
     usleep(SLEEP_DURATION_US);
 
-    ret = gpiod_line_set_value(line, line_value);
-    if (ret < 0) {
+#ifdef DEBUG
+    printf("Turning the LED %s", led_state ? "ON" : "OFF");
+#endif
+
+    res = gpiod_line_set_value(line, is_on);
+    if (res < 0) {
       perror("Set line output failed\n");
       continue;
     }
 
-    line_value = !line_value;
+    is_on = !is_on;
   }
 
-  ret = gpiod_line_set_value(line, 0);
-  if (ret < 0) {
+  res = gpiod_line_set_value(line, 0);
+  if (res < 0) {
     perror("Set line output failed\n");
   }
 

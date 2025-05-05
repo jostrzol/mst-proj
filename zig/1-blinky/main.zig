@@ -4,6 +4,7 @@ const signal = @cImport(@cInclude("signal.h"));
 
 const period_ms = 100;
 const sleep_time_ns = period_ms * std.time.ns_per_ms / 2;
+const line_number = 13;
 
 var do_continue = true;
 pub fn interrupt_handler(_: c_int) callconv(.C) void {
@@ -15,23 +16,33 @@ const interrupt_sigaction = signal.struct_sigaction{
 };
 
 pub fn main() !void {
+    std.log.info("Controlling an LED from Zig\n", .{});
+
     if (signal.sigaction(signal.SIGINT, &interrupt_sigaction, null) != 0) {
         return error.SigactionNotSet;
     }
 
     var chip = try gpio.getChip("/dev/gpiochip0");
     defer chip.close();
-    std.debug.print("Blinking an LED from Zig.\n", .{});
 
-    var line = try chip.requestLine(14, .{ .output = true });
+    var line = try chip.requestLine(line_number, .{ .output = true });
     defer line.close();
 
+    var is_on = false;
     while (do_continue) {
-        try line.setHigh();
         std.time.sleep(sleep_time_ns);
-        try line.setLow();
-        std.time.sleep(sleep_time_ns);
+
+        std.log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
+        line.setValue(is_on) catch |err| std.log.err("Error: {}", .{err});
+        is_on = !is_on;
     }
 
     try line.setLow();
 }
+
+pub const std_options: std.Options = .{
+    .log_level = switch (@import("builtin").mode) {
+        .Debug => .debug,
+        .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .info,
+    },
+};

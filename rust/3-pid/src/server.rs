@@ -75,7 +75,6 @@ pub async fn serve(
     socket_addr: SocketAddr,
     state: Arc<Mutex<State>>,
 ) -> Result<(), Box<dyn Error>> {
-    println!("Starting up server on {socket_addr}");
     let listener = TcpListener::bind(socket_addr).await?;
     let server = Server::new(listener);
     let new_service = |_socket_addr| Ok(Some(PidService::new(state.clone())));

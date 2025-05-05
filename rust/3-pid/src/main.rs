@@ -33,6 +33,8 @@ const CONTROLLER_SETTINGS: ControllerSettings = ControllerSettings {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Controlling motor using PID from Rust");
+
     let state = Arc::new(Mutex::new(State::new()));
     let socket_addr = "0.0.0.0:5502".parse()?;
 
@@ -47,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         result = ctrl_c() => match result {
             Ok(_) => {
-                println!("Gracefully stopping\n");
+                println!("\nGracefully stopping");
                 Ok(())
             },
             Err(err) => Err(err.into()),

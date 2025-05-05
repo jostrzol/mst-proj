@@ -79,11 +79,14 @@ int main(int, char **) {
 
   while (do_continue) {
     usleep(SLEEP_DURATION_US);
+
     int32_t value = read_potentiometer_value(i2c_file);
     if (value < 0)
       continue;
 
+#ifdef DEBUG
     printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
+#endif
 
     const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
     if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) < 0)

@@ -145,6 +145,7 @@ async fn control_loop(
 
         let revolutions_sum = sum_and_push_new(revolutions);
         let frequency = revolutions_sum as f32 / all_bins_interval_s;
+        #[cfg(debug_assertions)]
         println!("frequency: {} Hz", frequency);
 
         let (control_signal, new_feedback) = {
@@ -154,7 +155,9 @@ async fn control_loop(
             let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
 
             let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
+            #[cfg(debug_assertions)]
             println!("control_signal_limited: {:.2}", control_signal_limited);
+
             state.write_input_registers(.., [frequency, control_signal_limited]);
 
             (control_signal_limited, new_feedback)
@@ -211,7 +214,9 @@ impl ControlCalculator {
         let control_signal =
             proportional_component + integration_component + differentiation_component;
 
+        #[cfg(debug_assertions)]
         println!("delta: {:.2}", delta);
+        #[cfg(debug_assertions)]
         println!(
             "control signal: {:.2} = {:.2} + {:.2} + {:.2}",
             control_signal,

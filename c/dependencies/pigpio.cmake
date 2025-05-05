@@ -18,6 +18,7 @@ ExternalProject_Add(
   UPDATE_DISCONNECTED ON
   CMAKE_ARGS --install-prefix=${PIGPIO_PREFIX}
              --toolchain=${CMAKE_SOURCE_DIR}/toolchain.cmake
+             -DCMAKE_POLICY_VERSION_MINIMUM=3.5
   BUILD_BYPRODUCTS "${PIGPIO_LIBRARY}")
 
 # ===== MAKE TARGET ===========================================================

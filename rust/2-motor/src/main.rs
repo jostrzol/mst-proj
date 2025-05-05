@@ -65,6 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         let duty_cycle = value as f64 / u8::MAX as f64;
+        #[cfg(debug_assertions)]
         println!("selected duty cycle: {duty_cycle:.2}");
 
         if let Err(err) = pwm.set_frequency(PWM_FREQUENCY, duty_cycle) {

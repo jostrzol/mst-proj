@@ -39,6 +39,8 @@ void interrupt_handler(int) {
 int main(int, char **) {
   int res;
 
+  printf("Controlling motor using PID from C\n");
+
   res = gpioInitialise();
   if (res < 0) {
     perror("Failed to initialize gpio\n");

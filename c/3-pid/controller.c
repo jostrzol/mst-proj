@@ -129,7 +129,9 @@ control_t calculate_control(
       params->proportional_factor * params->differentiation_time / interval_s;
 
   const float delta = params->target_frequency - frequency;
+#ifdef DEBUG
   printf("delta: %.2f\n", delta);
+#endif
 
   const float proportional_component = params->proportional_factor * delta;
   const float integration_component = self->feedback.integration_component +
@@ -139,10 +141,12 @@ control_t calculate_control(
 
   const float control_signal = proportional_component + integration_component +
                                differentiation_component;
+#ifdef DEBUG
   printf(
       "control_signal: %.2f = %.2f + %.2f + %.2f\n", control_signal,
       proportional_component, integration_component, differentiation_component
   );
+#endif
 
   return (control_t
   ){.signal = control_signal,
@@ -260,7 +264,9 @@ int controller_handle(controller_t *self, int fd) {
 
     const float frequency = calculate_frequency(self);
     ringbuffer_push(self->revolutions, 0);
+#ifdef DEBUG
     printf("frequency: %.2f\n", frequency);
+#endif
 
     const control_params_t control_params = read_control_params(self);
 
@@ -269,7 +275,9 @@ int controller_handle(controller_t *self, int fd) {
 
     const float control_signal_limited =
         limit(control.signal, PWM_MIN, PWM_MAX);
+#ifdef DEBUG
     printf("control_signal_limited: %.2f\n", control_signal_limited);
+#endif
 
     write_state(self, frequency, control_signal_limited);
     controller_set_duty_cycle(self, control_signal_limited);

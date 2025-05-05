@@ -32,7 +32,7 @@ void app_main(void) {
     abort();
   }
 
-  uint8_t led_state = 0;
+  uint8_t is_on = 0;
 
   TaskHandle_t task = xTaskGetCurrentTaskHandle();
 
@@ -49,14 +49,14 @@ void app_main(void) {
 
       const perf_start_mark_t start = perf_counter_mark_start();
 
-      ESP_LOGD(TAG, "Turning the LED %s", led_state == true ? "ON" : "OFF");
+      ESP_LOGD(TAG, "Turning the LED %s", is_on == true ? "ON" : "OFF");
 
-      err = gpio_set_level(BLINK_GPIO, led_state);
+      err = gpio_set_level(BLINK_GPIO, is_on);
       if (err != ESP_OK) {
         ESP_LOGE(TAG, "gpio_set_level fail (0x%x)", (int)err);
         continue;
       }
-      led_state = !led_state;
+      is_on = !is_on;
 
       perf_counter_add_sample(&perf, start);
     }
