@@ -1,12 +1,28 @@
 const std = @import("std");
 
+const c = @import("c.zig");
+
 var heap_usage: usize = 0;
 
 pub fn report() void {
+    var stack_frame: u8 = undefined;
+
+    var attr: c.pthread_attr_t = undefined;
+    _ = c.pthread_getattr_np(c.pthread_self(), &attr);
+    defer _ = c.pthread_attr_destroy(&attr);
+
+    var stack_addr: *void = undefined;
+    var stack_capcity: usize = undefined;
+    _ = c.pthread_attr_getstack(&attr, @ptrCast(&stack_addr), &stack_capcity);
+
+    const stack_end: *void = @ptrFromInt(@intFromPtr(stack_addr) + stack_capcity);
+    const stack_pointer = &stack_frame;
+    const stack_size = @intFromPtr(stack_end) - @intFromPtr(stack_pointer);
+
+    std.log.info("MAIN stack usage: {} B", .{stack_size});
     std.log.info("Heap usage: {} B", .{heap_usage});
 }
 
-pub extern "c" fn malloc_usable_size(ptr: *void) usize;
 pub extern "c" fn __libc_malloc(size: usize) *void;
 pub extern "c" fn __libc_calloc(count: usize, size: usize) *void;
 pub extern "c" fn __libc_realloc(ptr: *void, size: usize) *void;
@@ -14,22 +30,22 @@ pub extern "c" fn __libc_free(ptr: *void) void;
 
 export fn malloc(size: usize) *void {
     const ptr = __libc_malloc(size);
-    heap_usage += malloc_usable_size(ptr);
+    heap_usage += c.malloc_usable_size(ptr);
     return ptr;
 }
 export fn calloc(count: usize, size: usize) *void {
     const ptr = __libc_calloc(count, size);
-    heap_usage += malloc_usable_size(ptr);
+    heap_usage += c.malloc_usable_size(ptr);
     return ptr;
 }
 export fn realloc(ptr: *void, size: usize) *void {
-    const old_size = malloc_usable_size(ptr);
+    const old_size = c.malloc_usable_size(ptr);
     const new_ptr = __libc_realloc(ptr, size);
-    heap_usage += malloc_usable_size(ptr) - old_size;
+    heap_usage += c.malloc_usable_size(new_ptr) - old_size;
     return new_ptr;
 }
 export fn free(ptr: *void) void {
-    heap_usage -= malloc_usable_size(ptr);
+    heap_usage -= c.malloc_usable_size(ptr);
     __libc_free(ptr);
 }
 

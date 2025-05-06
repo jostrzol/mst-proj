@@ -9,6 +9,8 @@
 size_t heap_usage = 0;
 
 void memory_report() {
+  char stack_frame_start;
+
   pthread_attr_t attr;
   pthread_getattr_np(pthread_self(), &attr);
 
@@ -17,7 +19,7 @@ void memory_report() {
   pthread_attr_getstack(&attr, &stack_addr, &stack_capcity);
 
   void *stack_end = (void *)((char *)stack_addr + stack_capcity);
-  void *stack_pointer = &stack_pointer;
+  void *stack_pointer = &stack_frame_start;
   size_t stack_size = (char *)stack_end - (char *)stack_pointer;
 
   printf("MAIN stack usage: %d B\n", stack_size);

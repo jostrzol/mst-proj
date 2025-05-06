@@ -8,12 +8,7 @@ const Registers = @import("Registers.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const pwm = @import("pwm");
 const memory = @import("memory.zig");
-
-const c = @cImport({
-    @cInclude("sys/ioctl.h");
-    @cInclude("linux/i2c-dev.h");
-    @cInclude("i2c/smbus.h");
-});
+const c = @import("c.zig");
 
 const Self = @This();
 

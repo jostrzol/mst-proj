@@ -1,9 +1,7 @@
 const std = @import("std");
 const posix = std.posix;
 
-const c = @cImport({
-    @cInclude("modbus.h");
-});
+const c = @import("c.zig");
 
 const Self = @This();
 

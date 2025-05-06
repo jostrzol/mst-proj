@@ -8,10 +8,7 @@ const Server = @import("Server.zig");
 const Registers = @import("Registers.zig");
 const Controller = @import("Controller.zig");
 const memory = @import("memory.zig");
-
-const c = @cImport({
-    @cInclude("signal.h");
-});
+const c = @import("c.zig");
 
 const n_fds_system = 3;
 const n_connections_max = 5;

@@ -3,14 +3,8 @@ const linux = std.os.linux;
 
 const pwm = @import("pwm");
 
+const c = @import("c.zig");
 const memory = @import("memory.zig");
-
-const c = @cImport({
-    @cInclude("signal.h");
-    @cInclude("linux/i2c-dev.h");
-    @cInclude("i2c/smbus.h");
-    @cInclude("sys/ioctl.h");
-});
 
 const i2c_adapter_number = 1;
 const i2c_adapter_path = std.fmt.comptimePrint("/dev/i2c-{}", .{i2c_adapter_number});

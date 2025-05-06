@@ -1,10 +1,7 @@
 const std = @import("std");
 const gpio = @import("gpio");
-const signal = @cImport({
-    @cInclude("signal.h");
-    @cInclude("malloc.h");
-});
 
+const c = @import("c.zig");
 const memory = @import("memory.zig");
 
 const period_ms = 100;
@@ -18,14 +15,14 @@ pub fn interrupt_handler(_: c_int) callconv(.C) void {
     std.debug.print("\nGracefully stopping\n", .{});
     do_continue = false;
 }
-const interrupt_sigaction = signal.struct_sigaction{
+const interrupt_sigaction = c.struct_sigaction{
     .__sigaction_handler = .{ .sa_handler = &interrupt_handler },
 };
 
 pub fn main() !void {
     std.log.info("Controlling an LED from Zig\n", .{});
 
-    if (signal.sigaction(signal.SIGINT, &interrupt_sigaction, null) != 0) {
+    if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0) {
         return error.SigactionNotSet;
     }
 

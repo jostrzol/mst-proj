@@ -5,11 +5,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 
 const Registers = @import("Registers.zig");
-
-const c = @cImport({
-    @cInclude("modbus.h");
-    @cInclude("arpa/inet.h");
-});
+const c = @import("c.zig");
 
 const Self = @This();
 
