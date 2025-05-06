@@ -1,3 +1,5 @@
+#![feature(sync_unsafe_cell)]
+
 mod memory;
 
 use std::error::Error;

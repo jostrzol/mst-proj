@@ -11,14 +11,18 @@
 #include <linux/i2c-dev.h>
 #include <pigpio.h>
 
+#include "memory.h"
+
 #define I2C_ADAPTER_NUMBER "1"
 const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
 const uint32_t ADS7830_ADDRESS = 0x48;
 const uint32_t MOTOR_LINE_NUMBER = 13;
 
 const uint64_t PWM_FREQUENCY = 1000;
-const uint64_t REFRESH_RATE = 60;
+const uint64_t REFRESH_RATE = 10;
 const uint64_t SLEEP_DURATION_US = 1e6 / REFRESH_RATE;
+
+static const size_t CONTROL_ITERS_PER_PERF_REPORT = 10;
 
 bool do_continue = true;
 
@@ -78,19 +82,23 @@ int main(int, char **) {
   }
 
   while (do_continue) {
-    usleep(SLEEP_DURATION_US);
+    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+      usleep(SLEEP_DURATION_US);
 
-    int32_t value = read_potentiometer_value(i2c_file);
-    if (value < 0)
-      continue;
+      int32_t value = read_potentiometer_value(i2c_file);
+      if (value < 0)
+        continue;
 
 #ifdef DEBUG
-    printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
+      printf("selected duty cycle: %.2f\n", (double)value / UINT8_MAX);
 #endif
 
-    const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
-    if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) < 0)
-      perror("Setting PWM failed\n");
+      const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
+      if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) < 0)
+        perror("Setting PWM failed\n");
+    }
+
+    memory_report();
   }
 
   if (gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0))

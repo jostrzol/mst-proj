@@ -12,6 +12,7 @@
 #include <pigpio.h>
 
 #include "controller.h"
+#include "memory.h"
 #include "registers.h"
 #include "units.h"
 
@@ -30,6 +31,8 @@ const uint32_t ADS7830_ADDRESS = 0x48;
 // bits 1-0: unused
 const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
 #define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
+
+static const size_t CONTROL_ITERS_PER_PERF_REPORT = 10;
 
 int32_t read_potentiometer_value(int i2c_file) {
   uint8_t write_value = MAKE_READ_COMMAND(0);
@@ -220,6 +223,7 @@ int controller_init(
       .read_timer_fd = read_timer_fd,
       .io_timer_fd = io_timer_fd,
       .feedback = {.delta = 0, .integration_component = 0},
+      .iteration = 0,
   };
 
   return EXIT_SUCCESS;
@@ -283,6 +287,11 @@ int controller_handle(controller_t *self, int fd) {
     controller_set_duty_cycle(self, control_signal_limited);
 
     self->feedback = control.feedback;
+
+    if (self->iteration % CONTROL_ITERS_PER_PERF_REPORT == 0) {
+      memory_report();
+    }
+    self->iteration += 1;
 
     return 1;
   }

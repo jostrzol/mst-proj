@@ -13,16 +13,20 @@ pub extern "c" fn __libc_realloc(ptr: *void, size: usize) *void;
 pub extern "c" fn __libc_free(ptr: *void) void;
 
 export fn malloc(size: usize) *void {
-    heap_usage += size;
-    return __libc_malloc(size);
+    const ptr = __libc_malloc(size);
+    heap_usage += malloc_usable_size(ptr);
+    return ptr;
 }
 export fn calloc(count: usize, size: usize) *void {
-    heap_usage += count * size;
-    return __libc_calloc(count, size);
+    const ptr = __libc_calloc(count, size);
+    heap_usage += malloc_usable_size(ptr);
+    return ptr;
 }
 export fn realloc(ptr: *void, size: usize) *void {
-    heap_usage += size - malloc_usable_size(ptr);
-    return __libc_realloc(ptr, size);
+    const old_size = malloc_usable_size(ptr);
+    const new_ptr = __libc_realloc(ptr, size);
+    heap_usage += malloc_usable_size(ptr) - old_size;
+    return new_ptr;
 }
 export fn free(ptr: *void) void {
     heap_usage -= malloc_usable_size(ptr);

@@ -21,6 +21,8 @@ const pwm_min = 0.2;
 const pwm_max = 1.0;
 const limit_min_deadzone = 0.001;
 
+const control_iters_per_perf_report: usize = 10;
+
 allocator: Allocator,
 options: Options,
 revolutions: RingBuffer(u32),
@@ -181,11 +183,6 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
             },
         }
 
-        if ((self.iteration % 1000) == 0) {
-            memory.report();
-        }
-        self.iteration += 1;
-
         return .handled;
     } else if (fd == self.control_timer.handle) {
         var expirations: u64 = undefined;
@@ -213,6 +210,11 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
         self.write_status(frequency, control_signal_limited);
 
         self.feedback = control.feedback;
+
+        if (self.iteration % control_iters_per_perf_report == 0) {
+            memory.report();
+        }
+        self.iteration += 1;
 
         return .handled;
     }

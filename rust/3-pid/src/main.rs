@@ -3,6 +3,9 @@
 #![feature(variant_count)]
 #![feature(iter_array_chunks)]
 #![feature(range_into_bounds)]
+#![feature(sync_unsafe_cell)]
+
+mod memory;
 
 mod controller;
 mod server;

@@ -33,7 +33,7 @@ pub unsafe extern "C" fn calloc(count: usize, size: usize) -> *mut c_void {
 
 #[no_mangle]
 pub unsafe extern "C" fn realloc(ptr: *mut c_void, size: usize) -> *mut c_void {
-    let old_size = malloc_usable_size(ptr);
+    let old_size =malloc_usable_size(ptr) ;
     let new_ptr = __libc_realloc(ptr, size);
     *HEAP_USAGE.get() += malloc_usable_size(new_ptr) - old_size;
     new_ptr

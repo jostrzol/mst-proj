@@ -1,4 +1,7 @@
+#![feature(sync_unsafe_cell)]
 #![feature(duration_constants)]
+
+mod memory;
 
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,9 +14,10 @@ use rppal::pwm::{Channel, Pwm};
 
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
 const PWM_FREQUENCY: f64 = 1000.;
-const REFRESH_RATE: u64 = 60;
+const REFRESH_RATE: u64 = 10;
 const SLEEP_DURATION: Duration =
     Duration::from_millis(Duration::SECOND.as_millis() as u64 / REFRESH_RATE);
+const CONTROL_ITERS_PER_PERF_REPORT: usize = 10;
 
 fn read_potentiometer_value(i2c: &mut I2c) -> Option<u8> {
     const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
@@ -58,19 +62,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     while more_work.load(Ordering::Relaxed) {
-        thread::sleep(SLEEP_DURATION);
+        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+            thread::sleep(SLEEP_DURATION);
 
-        let Some(value) = read_potentiometer_value(&mut i2c) else {
-            continue;
-        };
+            let Some(value) = read_potentiometer_value(&mut i2c) else {
+                continue;
+            };
 
-        let duty_cycle = value as f64 / u8::MAX as f64;
-        #[cfg(debug_assertions)]
-        println!("selected duty cycle: {duty_cycle:.2}");
+            let duty_cycle = value as f64 / u8::MAX as f64;
+            #[cfg(debug_assertions)]
+            println!("selected duty cycle: {duty_cycle:.2}");
 
-        if let Err(err) = pwm.set_frequency(PWM_FREQUENCY, duty_cycle) {
-            eprintln!("error setting pwm frequency: {err}");
+            if let Err(err) = pwm.set_frequency(PWM_FREQUENCY, duty_cycle) {
+                eprintln!("error setting pwm frequency: {err}");
+            }
         }
+
+        memory::report();
     }
 
     Ok(())

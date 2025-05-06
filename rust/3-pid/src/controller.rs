@@ -8,12 +8,15 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{interval, MissedTickBehavior};
 
+use crate::memory;
 use crate::state::State;
 
 const PWM_MIN: f32 = 0.2;
 const PWM_MAX: f32 = 1.0;
 
 const LIMIT_MIN_DEADZONE: f32 = 0.001;
+
+const CONTROL_ITERS_PER_PERF_REPORT: usize = 10;
 
 pub struct ControllerSettings {
     /// Interval between ADC reads.
@@ -141,34 +144,38 @@ async fn control_loop(
     let mut feedback = Feedback::default();
 
     loop {
-        interval.tick().await;
+        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+            interval.tick().await;
 
-        let revolutions_sum = sum_and_push_new(revolutions);
-        let frequency = revolutions_sum as f32 / all_bins_interval_s;
-        #[cfg(debug_assertions)]
-        println!("frequency: {} Hz", frequency);
-
-        let (control_signal, new_feedback) = {
-            let mut state = state.lock().await;
-
-            let calculator = ControlCalculator::from_state(&state, interval_duration_s);
-            let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
-
-            let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
+            let revolutions_sum = sum_and_push_new(revolutions);
+            let frequency = revolutions_sum as f32 / all_bins_interval_s;
             #[cfg(debug_assertions)]
-            println!("control_signal_limited: {:.2}", control_signal_limited);
+            println!("frequency: {} Hz", frequency);
 
-            state.write_input_registers(.., [frequency, control_signal_limited]);
+            let (control_signal, new_feedback) = {
+                let mut state = state.lock().await;
 
-            (control_signal_limited, new_feedback)
-        };
+                let calculator = ControlCalculator::from_state(&state, interval_duration_s);
+                let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
 
-        let result = pwm.set_frequency(settings.pwm_frequency, control_signal as f64);
-        if let Err(err) = result {
-            eprintln!("error setting pwm duty cycle: {err}");
+                let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
+                #[cfg(debug_assertions)]
+                println!("control_signal_limited: {:.2}", control_signal_limited);
+
+                state.write_input_registers(.., [frequency, control_signal_limited]);
+
+                (control_signal_limited, new_feedback)
+            };
+
+            let result = pwm.set_frequency(settings.pwm_frequency, control_signal as f64);
+            if let Err(err) = result {
+                eprintln!("error setting pwm duty cycle: {err}");
+            }
+
+            feedback = new_feedback;
         }
 
-        feedback = new_feedback;
+        memory::report();
     }
 }
 

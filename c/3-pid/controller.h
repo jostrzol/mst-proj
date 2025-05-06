@@ -56,6 +56,7 @@ typedef struct {
   int io_timer_fd;
   bool is_close;
   feedback_t feedback;
+  size_t iteration;
 } controller_t;
 
 int controller_init(
