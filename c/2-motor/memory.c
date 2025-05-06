@@ -1,11 +1,30 @@
+#define _GNU_SOURCE
+
 #include <malloc.h>
+#include <pthread.h>
 #include <stdio.h>
 
 #include "memory.h"
 
 size_t heap_usage = 0;
 
-void memory_report() { printf("Heap usage: %d B\n", heap_usage); }
+void memory_report() {
+  pthread_attr_t attr;
+  pthread_getattr_np(pthread_self(), &attr);
+
+  void *stack_addr;
+  size_t stack_capcity;
+  pthread_attr_getstack(&attr, &stack_addr, &stack_capcity);
+
+  void *stack_end = (void *)((char *)stack_addr + stack_capcity);
+  void *stack_pointer = &stack_pointer;
+  size_t stack_size = (char *)stack_end - (char *)stack_pointer;
+
+  printf("MAIN stack usage: %d B\n", stack_size);
+  pthread_attr_destroy(&attr);
+
+  printf("Heap usage: %d B\n", heap_usage);
+}
 
 extern void *__libc_malloc(size_t size);
 extern void *__libc_calloc(size_t count, size_t size);
