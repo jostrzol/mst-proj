@@ -3,6 +3,8 @@ const linux = std.os.linux;
 
 const pwm = @import("pwm");
 
+const memory = @import("memory.zig");
+
 const c = @cImport({
     @cInclude("signal.h");
     @cInclude("linux/i2c-dev.h");
@@ -16,8 +18,10 @@ const ads7830_address: c_int = 0x48;
 const motor_pwm_channel: u8 = 1; // gpio 13
 
 const pwm_frequency: f32 = 1000;
-const refresh_rate: u64 = 60;
-const sleep_time_ns: u64 = std.time.ns_per_ms / refresh_rate;
+const refresh_rate: u64 = 10;
+const sleep_time_ns: u64 = std.time.ns_per_s / refresh_rate;
+
+const control_iters_per_perf_report: usize = 10;
 
 var do_continue = true;
 pub fn interrupt_handler(_: c_int) callconv(.C) void {
@@ -87,18 +91,22 @@ pub fn main() !void {
     try channel.enable();
 
     while (do_continue) {
-        std.time.sleep(sleep_time_ns);
+        for (0..control_iters_per_perf_report) |_| {
+            std.time.sleep(sleep_time_ns);
 
-        const value = read_potentiometer_value(i2c_file) orelse continue;
-        const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
-        std.log.debug("selected duty cycle: {d:.2}\n", .{duty_cycle});
+            const value = read_potentiometer_value(i2c_file) orelse continue;
+            const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
+            std.log.debug("selected duty cycle: {d:.2}\n", .{duty_cycle});
 
-        channel.setParameters(.{
-            .frequency = null,
-            .duty_cycle_ratio = duty_cycle,
-        }) catch |err| {
-            std.log.err("Error: {}\n", .{err});
-        };
+            channel.setParameters(.{
+                .frequency = null,
+                .duty_cycle_ratio = duty_cycle,
+            }) catch |err| {
+                std.log.err("Error: {}\n", .{err});
+            };
+        }
+
+        memory.report();
     }
 }
 

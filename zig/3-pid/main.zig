@@ -7,6 +7,7 @@ const pwm = @import("pwm");
 const Server = @import("Server.zig");
 const Registers = @import("Registers.zig");
 const Controller = @import("Controller.zig");
+const memory = @import("memory.zig");
 
 const c = @cImport({
     @cInclude("signal.h");
@@ -54,7 +55,8 @@ pub fn main() !void {
     }
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const alloc = gpa.allocator();
+    var counting = memory.CountingAllocator.init(gpa.allocator());
+    const alloc = counting.allocator();
 
     var registers = try Registers.init();
     defer registers.deinit();
@@ -135,3 +137,10 @@ pub fn main() !void {
 fn pollfd_init(fd: posix.fd_t) posix.pollfd {
     return .{ .fd = fd, .events = POLL.IN, .revents = 0 };
 }
+
+pub const std_options: std.Options = .{
+    .log_level = switch (@import("builtin").mode) {
+        .Debug => .debug,
+        .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .info,
+    },
+};

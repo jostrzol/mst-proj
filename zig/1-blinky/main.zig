@@ -1,10 +1,17 @@
 const std = @import("std");
 const gpio = @import("gpio");
-const signal = @cImport(@cInclude("signal.h"));
+const signal = @cImport({
+    @cInclude("signal.h");
+    @cInclude("malloc.h");
+});
+
+const memory = @import("memory.zig");
 
 const period_ms = 100;
 const sleep_time_ns = period_ms * std.time.ns_per_ms / 2;
 const line_number = 13;
+
+const control_iters_per_perf_report: usize = 20;
 
 var do_continue = true;
 pub fn interrupt_handler(_: c_int) callconv(.C) void {
@@ -30,11 +37,15 @@ pub fn main() !void {
 
     var is_on = false;
     while (do_continue) {
-        std.time.sleep(sleep_time_ns);
+        for (0..control_iters_per_perf_report) |_| {
+            std.time.sleep(sleep_time_ns);
 
-        std.log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
-        line.setValue(is_on) catch |err| std.log.err("Error: {}", .{err});
-        is_on = !is_on;
+            std.log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
+            line.setValue(is_on) catch |err| std.log.err("Error: {}", .{err});
+            is_on = !is_on;
+        }
+
+        memory.report();
     }
 
     try line.setLow();

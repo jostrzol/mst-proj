@@ -10,7 +10,7 @@ void memory_report() { printf("Heap usage: %d\n", heap_usage); }
 extern void *__libc_malloc(size_t size);
 extern void *__libc_calloc(size_t count, size_t size);
 extern void *__libc_realloc(void *ptr, size_t size);
-extern void *__libc_free(void *ptr);
+extern void __libc_free(void *ptr);
 
 int malloc_hook_active = 0;
 

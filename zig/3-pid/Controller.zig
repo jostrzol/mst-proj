@@ -7,6 +7,7 @@ const Allocator = std.mem.Allocator;
 const Registers = @import("Registers.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const pwm = @import("pwm");
+const memory = @import("memory.zig");
 
 const c = @cImport({
     @cInclude("sys/ioctl.h");
@@ -31,6 +32,7 @@ read_timer: File,
 control_timer: File,
 is_close: bool = false,
 feedback: Feedback = .{ .delta = 0, .integration_component = 0 },
+iteration: usize = 0,
 
 pub const Options = struct {
     /// Path to I2C adapter that the ADC device is connected to.
@@ -179,6 +181,11 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
             },
         }
 
+        if ((self.iteration % 1000) == 0) {
+            memory.report();
+        }
+        self.iteration += 1;
+
         return .handled;
     } else if (fd == self.control_timer.handle) {
         var expirations: u64 = undefined;
@@ -297,7 +304,7 @@ fn calculate_control(
         params.proportional_factor * params.differentiation_time / interval_s;
 
     const delta: f32 = params.target_frequency - frequency;
-    std.log.info("delta: {d:.2}", .{delta});
+    std.log.debug("delta: {d:.2}", .{delta});
 
     const proportional_component: f32 = params.proportional_factor * delta;
     const integration_component: f32 =
@@ -310,7 +317,7 @@ fn calculate_control(
         integration_component +
         differentiation_component;
 
-    std.log.info("control_signal: {d:.2} = {d:.2} + {d:.2} + {d:.2}", .{
+    std.log.debug("control_signal: {d:.2} = {d:.2} + {d:.2} + {d:.2}", .{
         control_signal,
         proportional_component,
         integration_component,
