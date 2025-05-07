@@ -1,14 +1,17 @@
+set(GCC_VERSION 12.2.0)
+set(TOOLCHAIN_HOME "${CMAKE_BINARY_DIR}/cross-pi-gcc-${GCC_VERSION}-0")
+
 set(TARGET_TRIPLET arm-linux-gnueabihf)
 
 # the name of the target operating system
 set(CMAKE_SYSTEM_NAME Linux)
 
 # which compilers to use for C and C++
-set(CMAKE_C_COMPILER ${TARGET_TRIPLET}-gcc)
-set(CMAKE_CXX_COMPILER ${TARGET_TRIPLET}-g++)
+set(CMAKE_C_COMPILER ${TOOLCHAIN_HOME}/bin/${TARGET_TRIPLET}-gcc)
+set(CMAKE_CXX_COMPILER ${TOOLCHAIN_HOME}/bin/${TARGET_TRIPLET}-g++)
 
 # where is the target environment located
-set(CMAKE_FIND_ROOT_PATH /usr/${TARGET_TRIPLET})
+set(CMAKE_FIND_ROOT_PATH ${TOOLCHAIN_HOME}/${TARGET_TRIPLET})
 
 # adjust the default behavior of the FIND_XXX() commands: search programs in the
 # host environment

@@ -8,8 +8,9 @@
 # C
 /c/build/
 /c/.cache/
-/c/*/build
-/c/*/.cache
+/c/*/build/
+/c/*/.cache/
+/c/toolchain/
 
 # Rust
 /rust/target/

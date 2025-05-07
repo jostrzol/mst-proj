@@ -11,6 +11,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # ===== ADD DEPENDENCIES ======================================================
+include(./dependencies/toolchain.cmake)
 include(./dependencies/libgpio.cmake)
 include(./dependencies/pigpio.cmake)
 include(./dependencies/i2c-tools.cmake)
@@ -18,7 +19,7 @@ include(./dependencies/modbus.cmake)
 
 # ===== COMPILE DEFINITIONS ===================================================
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_definitions(DEBUG=1)
+  add_compile_definitions(DEBUG=1)
 endif()
 
 # ===== MAKE TARGETS ==========================================================
