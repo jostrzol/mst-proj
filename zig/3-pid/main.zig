@@ -45,7 +45,7 @@ const interrupt_sigaction = c.struct_sigaction{
 };
 
 pub fn main() !void {
-    std.debug.print("Controlling motor using PID from Zig\n", .{});
+    std.log.info("Controlling motor using PID from Zig", .{});
 
     if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0) {
         return error.SigactionNotSet;
