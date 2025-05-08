@@ -13,11 +13,14 @@ ExternalProject_Add(
   libmodbus_src
   PREFIX "${LIBMODBUS_PREFIX}"
   GIT_REPOSITORY "https://github.com/stephane/libmodbus.git"
-  GIT_TAG v3.1.11
+  GIT_TAG v3.1.6
   UPDATE_DISCONNECTED ON
   BUILD_IN_SOURCE true
-  CONFIGURE_COMMAND ./autogen.sh && ./configure --host=${TARGET_TRIPLET}
+  CONFIGURE_COMMAND ./autogen.sh && ./configure
+                    --host=${TARGET_TRIPLET}
                     --prefix=<INSTALL_DIR>
+                    CC=${CMAKE_C_COMPILER}
+                    CXX=${CMAKE_CXX_COMPILER}
   BUILD_COMMAND make
   INSTALL_COMMAND make install INSTALL_BYPRODUCTS "${LIBMODBUS_LIBRARY}"
                   "${LIBMODBUS_HEADER}")

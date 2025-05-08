@@ -1,0 +1,2 @@
+Diagnostics:
+  Suppress: ["machine_mode", "type_unsupported", "attribute_regparm_wrong_platform"]

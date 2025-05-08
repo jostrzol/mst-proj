@@ -1,6 +1,7 @@
 #include <bits/types/siginfo_t.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

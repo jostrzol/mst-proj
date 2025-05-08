@@ -71,8 +71,8 @@ _watch PROJECT:
 
 _build PROJECT: _make_artifact_dir
   mkdir -p build && cd build \
-  && cmake -Werror=dev --warn-uninitialized {{build_flags_os}} -G Ninja .. \
-  && ninja {{PROJECT}} \
+  && cmake -Werror=dev --warn-uninitialized {{build_flags_os}} .. \
+  && make {{PROJECT}} \
   && cp ./bin/{{PROJECT}} ../{{artifacts_dir}}/{{PROJECT}}-c
 
 _watch-bm NUM PROJECT:

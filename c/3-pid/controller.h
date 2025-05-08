@@ -1,9 +1,12 @@
 #pragma once
 
-#include "ringbuffer.h"
-#include <modbus.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include <modbus.h>
+
+#include "ringbuffer.h"
 
 typedef struct {
   /// Interval between ADC reads.
