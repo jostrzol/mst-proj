@@ -68,7 +68,7 @@ pub fn main() !void {
     );
     defer server.deinit();
 
-    var poll_fds = try std.BoundedArray(posix.pollfd, n_connections_max).init(0);
+    var poll_fds = try std.BoundedArray(posix.pollfd, n_fds).init(0);
     const initial_fds = try poll_fds.addManyAsArray(n_fds_system);
     initial_fds.* = .{
         pollfd_init(server.socket.handle),
