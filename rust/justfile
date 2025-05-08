@@ -7,6 +7,14 @@ profile := if env("BUILD_PROFILE", "") == "SMALL" {
 }
 build_flags := "--profile="+profile
 
+profile_dirname := if env("BUILD_PROFILE", "") == "SMALL" {
+  "small"
+} else if env("BUILD_PROFILE", "") == "FAST" {
+  "fast"
+} else {
+  "debug"
+}
+
 export RUSTFLAGS := if env("BUILD_PROFILE", "") == "SMALL" {
   "-Zfmt-debug=none -Zlocation-detail=none"
 } else if env("BUILD_PROFILE", "") == "FAST" {
@@ -82,7 +90,7 @@ _watch NUM PACKAGE:
 
 _build NUM PACKAGE: _make_artifact_dir
   cross build --package {{PACKAGE}} {{build_flags}} --target={{arch}} \
-  && cp ./target/{{arch}}/{{profile}}/{{PACKAGE}} {{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust
+  && cp ./target/{{arch}}/{{profile_dirname}}/{{PACKAGE}} {{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust
 
 _watch-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
@@ -95,10 +103,10 @@ _build-bm NUM PACKAGE: _make_artifact_dir
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   cd ./{{NUM}}-{{PACKAGE}}/ && cargo build {{build_flags}} \
   && espflash save-image --chip esp32 \
-    ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} \
-    ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}}.bin \
-  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}}.bin ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust \
-  && cp ./target/{{arch_bm}}/{{profile}}/{{NUM}}-{{PACKAGE}} ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust.elf
+    ./target/{{arch_bm}}/{{profile_dirname}}/{{NUM}}-{{PACKAGE}} \
+    ./target/{{arch_bm}}/{{profile_dirname}}/{{NUM}}-{{PACKAGE}}.bin \
+  && cp ./target/{{arch_bm}}/{{profile_dirname}}/{{NUM}}-{{PACKAGE}}.bin ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust \
+  && cp ./target/{{arch_bm}}/{{profile_dirname}}/{{NUM}}-{{PACKAGE}} ../{{artifacts_dir}}/{{NUM}}-{{PACKAGE}}-rust.elf
 
 _run-bm NUM PACKAGE:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
