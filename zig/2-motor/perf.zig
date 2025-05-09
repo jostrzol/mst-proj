@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 const c = @import("c.zig");
 
@@ -17,10 +18,9 @@ pub const Counter = struct {
     const Self = @This();
 
     name: []const u8,
-    total_time_ns: u64,
-    sample_count: u32,
+    samples_ns: std.ArrayList(u32),
 
-    pub fn init(name: []const u8) !Self {
+    pub fn init(allocator: Allocator, name: []const u8, length: usize) !Self {
         var resolution: c.struct_timespec = undefined;
         const res = c.clock_getres(c.CLOCK_THREAD_CPUTIME_ID, &resolution);
         if (res != 0)
@@ -31,34 +31,57 @@ pub const Counter = struct {
             .{ name, ns_from_timespec(&resolution) },
         );
 
+        const samples_ns = try std.ArrayList(u32).initCapacity(allocator, length);
+
         return .{
             .name = name,
-            .total_time_ns = 0,
-            .sample_count = 0,
+            .samples_ns = samples_ns,
         };
+    }
+
+    pub fn deinit(self: *const Counter) void {
+        self.samples_ns.deinit();
     }
 
     pub fn add_sample(self: *Self, start: Marker) void {
         const end = Marker.now();
-        const cycles = end.time_ns - start.time_ns;
+        const diff = end.time_ns - start.time_ns;
 
-        self.total_time_ns += cycles;
-        self.sample_count += 1;
+        if (self.samples_ns.items.len >= self.samples_ns.capacity) {
+            std.log.err("perf.Counter.add_sample: buffer is full", .{});
+            return;
+        }
+
+        const sample = self.samples_ns.addOneAssumeCapacity();
+        sample.* += @truncate(diff);
     }
 
     pub fn report(self: *const Self) void {
-        const total_time_ns: f64 = @floatFromInt(self.total_time_ns);
-        const sample_count: f64 = @floatFromInt(self.sample_count);
-        const time_us = total_time_ns / 1000.0 / sample_count;
         std.log.info(
-            "Performance counter {s}: {d:.3} us ({} sampl.)",
-            .{ self.name, time_us, self.sample_count },
+            "Performance counter {s}: {}",
+            .{ self.name, SampleFormatter{ .data = self.samples_ns.items } },
         );
     }
 
+    const SampleFormatter = std.fmt.Formatter(formatSamples);
+
+    fn formatSamples(
+        data: []const u32,
+        comptime _: []const u8,
+        _: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        try writer.writeAll("[");
+        for (data, 0..) |sample, i| {
+            try std.fmt.format(writer, "{d}", .{sample / 1000});
+            if (i < data.len - 1)
+                try writer.writeAll(",");
+        }
+        try writer.writeAll("] us");
+    }
+
     pub fn reset(self: *Self) void {
-        self.total_time_ns = 0;
-        self.sample_count = 0;
+        self.samples_ns.clearRetainingCapacity();
     }
 };
 

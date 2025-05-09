@@ -20,6 +20,10 @@ pub fn interrupt_handler(_: c_int) callconv(.C) void {
 pub fn main() !void {
     std.log.info("Controlling an LED from Zig\n", .{});
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var counting = memory.CountingAllocator.init(gpa.allocator());
+    const allocator = counting.allocator();
+
     const signal = @intFromPtr(c.signal(c.SIGINT, &interrupt_handler));
     if (signal < 0)
         return std.posix.unexpectedErrno(std.posix.errno(signal));
@@ -32,7 +36,9 @@ pub fn main() !void {
 
     var is_on = false;
 
-    var perf_main = try perf.Counter.init("MAIN");
+    var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
+    defer perf_main.deinit();
+
     while (do_continue) {
         for (0..update_frequency) |_| {
             std.time.sleep(sleep_time_ns);

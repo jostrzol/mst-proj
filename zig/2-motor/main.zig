@@ -26,6 +26,10 @@ pub fn interrupt_handler(_: c_int) callconv(.C) void {
 pub fn main() !void {
     std.log.info("Controlling motor from Zig\n", .{});
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var counting = memory.CountingAllocator.init(gpa.allocator());
+    const allocator = counting.allocator();
+
     const signal = @intFromPtr(c.signal(c.SIGINT, &interrupt_handler));
     if (signal < 0)
         return std.posix.unexpectedErrno(std.posix.errno(signal));
@@ -51,7 +55,9 @@ pub fn main() !void {
     });
     try channel.enable();
 
-    var perf_main = try perf.Counter.init("MAIN");
+    var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
+    defer perf_main.deinit();
+
     while (do_continue) {
         for (0..update_frequency) |_| {
             std.time.sleep(sleep_time_ns);
@@ -60,7 +66,7 @@ pub fn main() !void {
 
             const value = read_adc(i2c_file) orelse continue;
             const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
-            std.log.debug("selected duty cycle: {d:.2}\n", .{duty_cycle});
+            std.log.debug("selected duty cycle: {d:.2}", .{duty_cycle});
 
             channel.setParameters(.{
                 .frequency = null,
