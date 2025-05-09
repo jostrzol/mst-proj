@@ -53,7 +53,7 @@ pub const Counter = struct {
         }
 
         const sample = self.samples_ns.addOneAssumeCapacity();
-        sample.* += @truncate(diff);
+        sample.* = @truncate(diff);
     }
 
     pub fn report(self: *const Self) void {
