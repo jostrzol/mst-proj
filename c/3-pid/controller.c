@@ -34,7 +34,7 @@ const uint32_t ADS7830_ADDRESS = 0x48;
 const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
 #define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
 
-int read_adc(controller_t *self, uint16_t *value) {
+int read_adc(controller_t *self, uint8_t *value) {
   int res;
 
   uint8_t write_value = MAKE_READ_COMMAND(0);
@@ -54,7 +54,7 @@ int read_adc(controller_t *self, uint16_t *value) {
     return -1;
   }
 
-  *value = res;
+  *value = read_value;
 
   return 0;
 }
@@ -301,7 +301,7 @@ void controller_deinit(controller_t *self) {
 int read_phase(controller_t *self) {
   int res;
 
-  uint16_t value;
+  uint8_t value;
   res = read_adc(self, &value);
   if (res != 0) {
     fprintf(stderr, "read_adc fail (%d)\n", res);

@@ -42,7 +42,7 @@ void interrupt_handler(int) {
 const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
 #define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
 
-int read_adc(int i2c_file, uint16_t *value) {
+int read_adc(int i2c_file, uint8_t *value) {
   int res;
 
   uint8_t write_value = MAKE_READ_COMMAND(0);
@@ -62,7 +62,7 @@ int read_adc(int i2c_file, uint16_t *value) {
     return -1;
   }
 
-  *value = res;
+  *value = read_value;
 
   return 0;
 }
@@ -112,7 +112,7 @@ int main(int, char **) {
 
       perf_mark_t start = perf_mark();
 
-      uint16_t value;
+      uint8_t value;
       res = read_adc(i2c_file, &value);
       if (res != 0) {
         fprintf(stderr, "read_adc fail (%d): %s\n", res, strerror(errno));
