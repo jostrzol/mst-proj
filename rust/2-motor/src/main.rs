@@ -15,10 +15,9 @@ use rppal::pwm::{Channel, Pwm};
 
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
 const PWM_FREQUENCY: f64 = 1000.;
-const REFRESH_RATE: u64 = 10;
-const SLEEP_DURATION: Duration =
-    Duration::from_millis(Duration::SECOND.as_millis() as u64 / REFRESH_RATE);
-const CONTROL_ITERS_PER_PERF_REPORT: usize = 10;
+
+const CONTROL_FREQUENCY: u64 = 10;
+const SLEEP_DURATION: Duration = Duration::from_micros(1000000 / CONTROL_FREQUENCY);
 
 fn read_potentiometer_value(i2c: &mut I2c) -> Option<u8> {
     const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
@@ -64,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut perf = perf::Counter::new("MAIN")?;
     while more_work.load(Ordering::Relaxed) {
-        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+        for _ in 0..CONTROL_FREQUENCY {
             thread::sleep(SLEEP_DURATION);
 
             let _measure = perf.measure();

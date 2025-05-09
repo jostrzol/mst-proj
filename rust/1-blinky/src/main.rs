@@ -12,9 +12,10 @@ use std::time::Duration;
 use rppal::gpio::Gpio;
 
 const GPIO_LED: u8 = 13;
-const PERIOD_MS: u64 = 100;
-const SLEEP_DURATION: Duration = Duration::from_millis(PERIOD_MS / 2);
-const CONTROL_ITERS_PER_PERF_REPORT: usize = 20;
+
+const BLINK_FREQUENCY: u64 = 10;
+const UPDATE_FREQUENCY: u64 = BLINK_FREQUENCY * 2;
+const SLEEP_DURATION: Duration = Duration::from_micros(1000000 / UPDATE_FREQUENCY);
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Controlling an LED from Rust");
@@ -33,7 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut perf = perf::Counter::new("MAIN")?;
     while more_work.load(Ordering::Relaxed) {
-        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+        for _ in 0..UPDATE_FREQUENCY {
             thread::sleep(SLEEP_DURATION);
 
             let _measure = perf.measure();
