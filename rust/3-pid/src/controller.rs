@@ -94,6 +94,7 @@ impl Controller {
         let mut perf_read = perf::Counter::new("READ", perf_read_size)?;
         let mut perf_control = perf::Counter::new("CONTROL", perf_control_size)?;
 
+        let mut report_number: u64 = 0;
         loop {
             for _ in 0..self.options.control_frequency {
                 for _ in 0..self.options.reads_per_bin {
@@ -112,11 +113,14 @@ impl Controller {
                     eprintln!("Error while running controller control phase: {}", err);
                 }
             }
+
+            println!("# REPORT {report_number}");
             memory::report();
             perf_read.report();
             perf_control.report();
             perf_read.reset();
             perf_control.reset();
+            report_number += 1;
         }
     }
 

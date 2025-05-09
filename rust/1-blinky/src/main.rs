@@ -34,6 +34,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let mut perf = perf::Counter::new("MAIN", UPDATE_FREQUENCY as usize * 2)?;
+    let mut report_number: u64 = 0;
     while more_work.load(Ordering::Relaxed) {
         for _ in 0..UPDATE_FREQUENCY {
             thread::sleep(SLEEP_DURATION);
@@ -49,9 +50,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             pin.toggle();
         }
 
+        println!("# REPORT {report_number}");
         memory::report();
         perf.report();
         perf.reset();
+        report_number += 1;
     }
 
     pin.set_low();

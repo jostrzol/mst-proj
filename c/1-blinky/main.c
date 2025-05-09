@@ -65,8 +65,6 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
-  bool is_on = false;
-
   perf_counter_t *perf;
   res = perf_counter_init(&perf, "MAIN", UPDATE_FREQUENCY * 2);
   if (res != 0) {
@@ -74,6 +72,9 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
+  int64_t report_number = 0;
+
+  bool is_on = false;
   while (do_continue) {
     for (size_t i = 0; i < UPDATE_FREQUENCY; ++i) {
       usleep(SLEEP_DURATION_US);
@@ -97,9 +98,11 @@ int main(int, char **) {
       perf_counter_add_sample(perf, start);
     }
 
+    printf("# REPORT %lld\n", report_number);
     memory_report();
     perf_counter_report(perf);
     perf_counter_reset(perf);
+    report_number += 1;
   }
 
   perf_counter_deinit(perf);

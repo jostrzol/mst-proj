@@ -106,6 +106,8 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
+  int64_t report_number = 0;
+
   while (do_continue) {
     for (size_t i = 0; i < CONTROL_FREQUENCY; ++i) {
       usleep(SLEEP_DURATION_US);
@@ -135,9 +137,11 @@ int main(int, char **) {
       perf_counter_add_sample(perf, start);
     }
 
+    printf("# REPORT %lld\n", report_number);
     memory_report();
     perf_counter_report(perf);
     perf_counter_reset(perf);
+    report_number += 1;
   }
 
   perf_counter_deinit(perf);

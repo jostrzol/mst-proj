@@ -34,11 +34,12 @@ pub fn main() !void {
     var line = try chip.requestLine(line_number, .{ .output = true });
     defer line.close();
 
-    var is_on = false;
-
     var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
     defer perf_main.deinit();
 
+    var report_number: u64 = 0;
+
+    var is_on = false;
     while (do_continue) {
         for (0..update_frequency) |_| {
             std.time.sleep(sleep_time_ns);
@@ -52,9 +53,11 @@ pub fn main() !void {
             perf_main.add_sample(start);
         }
 
+        std.log.info("# REPORT {}", .{report_number});
         memory.report();
         perf_main.report();
         perf_main.reset();
+        report_number += 1;
     }
 
     try line.setLow();

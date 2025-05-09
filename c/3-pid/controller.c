@@ -379,6 +379,8 @@ int controller_handle(controller_t *self, int fd) {
   const size_t reads_per_report =
       self->options.reads_per_bin * self->options.control_frequency;
   if (self->state.iteration % reads_per_report == 0) {
+    const uint64_t report_number = self->state.iteration / reads_per_report;
+    printf("# REPORT %lld\n", report_number);
     memory_report();
     perf_counter_report(self->perf.read);
     perf_counter_report(self->perf.control);

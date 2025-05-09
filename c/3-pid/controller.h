@@ -57,7 +57,7 @@ typedef struct {
     ringbuffer_t *revolutions;
     bool is_close;
     feedback_t feedback;
-    size_t iteration;
+    uint64_t iteration;
   } state;
   struct {
     perf_counter_t *read;
