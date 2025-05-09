@@ -4,52 +4,50 @@
 #![feature(iter_array_chunks)]
 #![feature(range_into_bounds)]
 #![feature(sync_unsafe_cell)]
+#![feature(never_type)]
 
 mod memory;
+mod perf;
 
 mod controller;
 mod server;
 mod state;
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use async_mutex::Mutex;
-use controller::{run_controller, ControllerSettings};
+use controller::{Controller, ControllerSettings};
 use rppal::pwm;
 use server::serve;
 use state::State;
 use tokio::signal::ctrl_c;
 
-const READ_RATE: u128 = 1000;
-const READ_INTERVAL: Duration =
-    Duration::from_nanos((Duration::SECOND.as_nanos() / READ_RATE) as u64);
+const READ_FREQUENCY: u32 = 1000;
+const CONTROL_FREQUENCY: u32 = 10;
+const READS_PER_BIN: u32 = READ_FREQUENCY / CONTROL_FREQUENCY;
 
 const CONTROLLER_SETTINGS: ControllerSettings = ControllerSettings {
-    read_interval: READ_INTERVAL,
+    control_frequency: CONTROL_FREQUENCY,
+    time_window_bins: 10,
+    reads_per_bin: READS_PER_BIN,
     revolution_treshold_close: 105,
     revolution_treshold_far: 118,
-    revolution_bins: 10,
-    control_interval: Duration::from_millis(100),
     pwm_channel: pwm::Channel::Pwm1,
     pwm_frequency: 1000.,
 };
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     println!("Controlling motor using PID from Rust");
 
     let state = Arc::new(Mutex::new(State::new()));
     let socket_addr = "0.0.0.0:5502".parse()?;
 
+    let mut controller = Controller::new(CONTROLLER_SETTINGS, state.clone())?;
+
     tokio::select! {
-        result = serve(socket_addr, state.clone()) => match result {
-            Ok(_) => unreachable!(),
-            err => err,
-        },
-        result = run_controller(CONTROLLER_SETTINGS, state) => match result {
-            Ok(_) => unreachable!(),
-            err => err,
-        },
+        Err(err) = serve(socket_addr, state.clone()) => Err(err),
+        Err(err) = controller.run() => Err(err),
         result = ctrl_c() => match result {
             Ok(_) => {
                 println!("\nGracefully stopping");

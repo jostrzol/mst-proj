@@ -1,4 +1,4 @@
-use std::{error::Error, future::Future, net::SocketAddr, sync::Arc};
+use std::{future::Future, net::SocketAddr, sync::Arc};
 
 use async_mutex::Mutex;
 use tokio::net::TcpListener;
@@ -71,10 +71,7 @@ impl PidService {
     }
 }
 
-pub async fn serve(
-    socket_addr: SocketAddr,
-    state: Arc<Mutex<State>>,
-) -> Result<(), Box<dyn Error>> {
+pub async fn serve(socket_addr: SocketAddr, state: Arc<Mutex<State>>) -> anyhow::Result<()> {
     let listener = TcpListener::bind(socket_addr).await?;
     let server = Server::new(listener);
     let new_service = |_socket_addr| Ok(Some(PidService::new(state.clone())));

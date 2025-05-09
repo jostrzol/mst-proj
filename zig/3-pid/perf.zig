@@ -63,5 +63,7 @@ pub const Counter = struct {
 };
 
 fn ns_from_timespec(timespec: *const c.struct_timespec) u64 {
-    return @intCast(timespec.tv_nsec + timespec.tv_sec * std.time.ns_per_s);
+    const tv_sec: u64 = @intCast(timespec.tv_sec);
+    const tv_nsec: u64 = @intCast(timespec.tv_nsec);
+    return tv_nsec + tv_sec * std.time.ns_per_s;
 }

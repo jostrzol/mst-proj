@@ -2,6 +2,7 @@
 #![feature(duration_constants)]
 
 mod memory;
+mod perf;
 
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -61,9 +62,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         })?;
     }
 
+    let mut perf = perf::Counter::new("MAIN")?;
     while more_work.load(Ordering::Relaxed) {
         for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
             thread::sleep(SLEEP_DURATION);
+
+            let _measure = perf.measure();
 
             let Some(value) = read_potentiometer_value(&mut i2c) else {
                 continue;
@@ -79,6 +83,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         memory::report();
+        perf.report();
+        perf.reset();
     }
 
     Ok(())

@@ -1,14 +1,14 @@
+use anyhow::anyhow;
 use async_mutex::Mutex;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use rppal::i2c::I2c;
 use rppal::pwm::{self, Pwm};
-use std::cell::RefCell;
-use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{interval, MissedTickBehavior};
 
 use crate::memory;
+use crate::perf;
 use crate::state::State;
 
 const PWM_MIN: f32 = 0.2;
@@ -16,207 +16,180 @@ const PWM_MAX: f32 = 1.0;
 
 const LIMIT_MIN_DEADZONE: f32 = 0.001;
 
-const CONTROL_ITERS_PER_PERF_REPORT: usize = 10;
-
 pub struct ControllerSettings {
-    /// Interval between ADC reads.
-    pub read_interval: Duration,
+    /// Frequency of control phase, during which the following happens:
+    /// * calculating the frequency for the current time window,
+    /// * moving the time window forward,
+    /// * updating duty cycle,
+    /// * updating modbus registers.
+    pub control_frequency: u32,
+    /// Frequency is estimated for the current time window. That window is broken into
+    /// [time_window_bins] bins and is moved every time the control phase takes place.
+    pub time_window_bins: usize,
+    /// Each bin in the time window gets [reads_per_bin] reads, before the next control phase
+    /// fires. That means, that the read phase occurs with frequency equal to:
+    ///     `control_frequency * reads_per_bin`
+    /// , because every time the window moves (control phase), there must be [reads_per_bin] reads
+    /// in the last bin already (read phase).
+    pub reads_per_bin: u32,
     /// When ADC reads below this signal, the state is set to `close` to the motor magnet. If the
     /// state has changed, a new revolution is counted.
     pub revolution_treshold_close: u8,
     /// When ADC reads above this signal, the state is set to `far` from the motor magnet.
     pub revolution_treshold_far: u8,
-    /// Revolutions are binned in a ring buffer based on when they happened. More recent
-    /// revolutions are in the tail of the buffer, while old ones are in the head of the buffer
-    /// (soon to be replaced).
-    ///
-    /// [revolution_bins] is the number of bins in the ring buffer.
-    pub revolution_bins: usize,
-    /// [control_interval] is the interval at which all the following happens:
-    /// * calculating the frequency for the current time window,
-    /// * updating duty cycle,
-    /// * updating duty cycle.
-    ///
-    /// [control_interval] also is the interval that each of the bins in the
-    /// time window correspond to.
-    ///
-    /// If `control_interval = Duration::from_ms(100)`, then:
-    /// * the last bin corresponds to range `0..-100 ms` from now,
-    /// * the second-to-last bin corresponds to range `-100..-200 ms` from now,
-    /// * and so on.
-    ///
-    /// In total, frequency is counted from revolutions in all bins, across the
-    /// total interval of [revolution_bins] * [control_interval].
-    pub control_interval: Duration,
     /// Linux PWM channel to use.
     pub pwm_channel: pwm::Channel,
     /// Frequency of the PWM signal.
     pub pwm_frequency: f64,
 }
 
-fn read_potentiometer_value(i2c: &mut I2c) -> Option<u8> {
-    const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
-    let mut read_buffer = [0];
-
-    i2c.write_read(&WRITE_BUFFER, &mut read_buffer)
-        .inspect_err(|err| eprintln!("error reading potentiometer value: {err}"))
-        .ok()?;
-    Some(read_buffer[0])
-}
-
-const fn make_read_command(channel: u8) -> u8 {
-    assert!(channel < 8);
-
-    // bit    7: single-ended inputs mode
-    // bits 6-4: channel selection
-    // bit    3: is internal reference enabled
-    // bit    2: is converter enabled
-    // bits 1-0: unused
-    const DEFAULT_READ_COMMAND: u8 = 0b10001100;
-
-    DEFAULT_READ_COMMAND & (channel << 4)
-}
-
-pub async fn run_controller(
+pub struct Controller {
     settings: ControllerSettings,
     state: Arc<Mutex<State>>,
-) -> Result<(), Box<dyn Error>> {
-    let mut i2c = I2c::new()?;
-    i2c.set_slave_address(0x48)?;
-
-    let pwm = Pwm::new(settings.pwm_channel)?;
-    pwm.set_frequency(settings.pwm_frequency, 0.)?;
-    pwm.enable()?;
-
-    let mut revolutions = AllocRingBuffer::<u32>::new(settings.revolution_bins);
-    revolutions.fill_default();
-    let revolutions = RefCell::new(revolutions);
-
-    tokio::select! {
-        _ = read_loop(&settings, &revolutions, &mut i2c) => unreachable!(),
-        _ = control_loop(&settings, &revolutions, pwm, state) => unreachable!(),
-    }
-}
-
-async fn read_loop(
-    settings: &ControllerSettings,
-    revolutions: &RefCell<impl RingBuffer<u32>>,
-    i2c: &mut I2c,
-) -> ! {
-    let mut interval = interval(settings.read_interval);
-    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-
-    let mut is_close: bool = false;
-
-    loop {
-        interval.tick().await;
-
-        let Some(value) = read_potentiometer_value(i2c) else {
-            continue;
-        };
-
-        if value < settings.revolution_treshold_close && !is_close {
-            // gone close
-            is_close = true;
-            let mut revolutions = revolutions.borrow_mut();
-            let last = revolutions.back_mut().expect("revolutions is empty");
-            *last += 1;
-        } else if value > settings.revolution_treshold_far && is_close {
-            // gone far
-            is_close = false;
-        }
-    }
-}
-
-async fn control_loop(
-    settings: &ControllerSettings,
-    revolutions: &RefCell<impl RingBuffer<u32>>,
     pwm: Pwm,
-    state: Arc<Mutex<State>>,
-) -> ! {
-    let interval_duration = settings.control_interval;
-    let interval_duration_s = interval_duration.as_secs_f32();
-    let all_bins_interval_s = interval_duration_s * settings.revolution_bins as f32;
+    i2c: I2c,
+    revolutions: AllocRingBuffer<u32>,
+    interval_rotate_once_s: f32,
+    interval_rotate_all_s: f32,
+    is_close: bool,
+    feedback: Feedback,
+}
 
-    let mut interval = interval(interval_duration);
-    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+impl Controller {
+    pub fn new(settings: ControllerSettings, state: Arc<Mutex<State>>) -> anyhow::Result<Self> {
+        let mut i2c = I2c::new()?;
+        i2c.set_slave_address(0x48)?;
 
-    let mut feedback = Feedback::default();
+        let pwm = Pwm::new(settings.pwm_channel)?;
+        pwm.set_frequency(settings.pwm_frequency, 0.)?;
+        pwm.enable()?;
 
-    loop {
-        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
-            interval.tick().await;
+        let mut revolutions = AllocRingBuffer::<u32>::new(settings.time_window_bins);
+        revolutions.fill_default();
 
-            let revolutions_sum = sum_and_push_new(revolutions);
-            let frequency = revolutions_sum as f32 / all_bins_interval_s;
-            #[cfg(debug_assertions)]
-            println!("frequency: {} Hz", frequency);
+        let interval_rotate_once_s: f32 = 1. / settings.control_frequency as f32;
+        let interval_rotate_all_s: f32 = interval_rotate_once_s * settings.time_window_bins as f32;
 
-            let (control_signal, new_feedback) = {
-                let mut state = state.lock().await;
+        Ok(Self {
+            settings,
+            state,
+            pwm,
+            i2c,
+            is_close: false,
+            revolutions,
+            interval_rotate_once_s,
+            interval_rotate_all_s,
+            feedback: Feedback::default(),
+        })
+    }
 
-                let calculator = ControlCalculator::from_state(&state, interval_duration_s);
-                let (control_signal, new_feedback) = calculator.calculate(frequency, &feedback);
+    pub async fn run(&mut self) -> anyhow::Result<!> {
+        let read_frequency = self.settings.control_frequency * self.settings.reads_per_bin;
+        let read_interval = Duration::SECOND / read_frequency;
+        let mut interval = interval(read_interval);
+        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-                let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
-                #[cfg(debug_assertions)]
-                println!("control_signal_limited: {:.2}", control_signal_limited);
+        let mut perf_read = perf::Counter::new("READ")?;
+        let mut perf_control = perf::Counter::new("CONTROL")?;
 
-                state.write_input_registers(.., [frequency, control_signal_limited]);
+        loop {
+            for _ in 0..self.settings.control_frequency {
+                for _ in 0..self.settings.reads_per_bin {
+                    interval.tick().await;
 
-                (control_signal_limited, new_feedback)
-            };
+                    let _read_measure = perf_read.measure();
 
-            let result = pwm.set_frequency(settings.pwm_frequency, control_signal as f64);
-            if let Err(err) = result {
-                eprintln!("error setting pwm duty cycle: {err}");
+                    if let Err(err) = self.read_phase().await {
+                        eprintln!("Error while running controller read phase: {}", err);
+                    }
+                }
+
+                let _control_measure = perf_control.measure();
+
+                if let Err(err) = self.control_phase().await {
+                    eprintln!("Error while running controller control phase: {}", err);
+                }
             }
+            memory::report();
+            perf_read.report();
+            perf_control.report();
+            perf_read.reset();
+            perf_control.reset();
+        }
+    }
 
-            feedback = new_feedback;
+    async fn read_phase(&mut self) -> anyhow::Result<()> {
+        let value = self.read_adc()?;
+
+        if value < self.settings.revolution_treshold_close && !self.is_close {
+            // gone close
+            self.is_close = true;
+            let back = self
+                .revolutions
+                .back_mut()
+                .ok_or(anyhow!("Revolutions empty"))?;
+            *back += 1;
+        } else if value > self.settings.revolution_treshold_far && self.is_close {
+            // gone far
+            self.is_close = false;
         }
 
-        memory::report();
+        Ok(())
     }
-}
 
-struct ControlCalculator {
-    target_frequency: f32,
-    proportional_factor: f32,
-    integration_factor: f32,
-    differentiation_factor: f32,
-}
+    fn read_adc(&mut self) -> anyhow::Result<u8> {
+        const WRITE_BUFFER: [u8; 1] = [adc_read_command(0)];
+        let mut read_buffer = [0];
 
-impl ControlCalculator {
-    fn from_state(state: &State, interval_duration_s: f32) -> ControlCalculator {
-        let registers = state.read_holding_registers(..);
+        self.i2c.write_read(&WRITE_BUFFER, &mut read_buffer)?;
+        Ok(read_buffer[0])
+    }
 
-        #[rustfmt::skip]
-        let &[
-            target_frequency,
-            proportional_factor,
-            integration_time,
-            differentiation_time
-        ] = registers else { panic!("expected to read 4 registers") };
+    async fn control_phase(&mut self) -> anyhow::Result<()> {
+        let frequency = self.calculate_frequency();
+        self.revolutions.push(0);
 
-        let integration_factor = proportional_factor / integration_time * interval_duration_s;
+        #[cfg(debug_assertions)]
+        println!("frequency: {}", frequency);
+
+        let mut state = self.state.lock().await;
+        let params = ControlParams::read(&state);
+
+        let (control_signal, feedback) = self.calculate_control(&params, frequency, &self.feedback);
+
+        let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
+        #[cfg(debug_assertions)]
+        println!("control_signal_limited: {:.2}", control_signal_limited);
+        self.write_registers(&mut state, frequency, control_signal_limited);
+
+        self.update_duty_cycle(control_signal_limited)?;
+        self.feedback = feedback;
+
+        Ok(())
+    }
+
+    fn calculate_frequency(&self) -> f32 {
+        let sum: u32 = self.revolutions.iter().sum();
+        sum as f32 / self.interval_rotate_all_s
+    }
+
+    fn calculate_control(
+        &self,
+        params: &ControlParams,
+        frequency: f32,
+        feedback: &Feedback,
+    ) -> (f32, Feedback) {
+        let delta = params.target_frequency - frequency;
+
+        let integration_factor =
+            params.proportional_factor / params.integration_time * self.interval_rotate_once_s;
         let differentiation_factor =
-            proportional_factor * differentiation_time / interval_duration_s;
+            params.proportional_factor * params.differentiation_time / self.interval_rotate_once_s;
 
-        ControlCalculator {
-            target_frequency,
-            proportional_factor,
-            integration_factor,
-            differentiation_factor,
-        }
-    }
-
-    fn calculate(&self, frequency: f32, feedback: &Feedback) -> (f32, Feedback) {
-        let delta = self.target_frequency - frequency;
-
-        let proportional_component = self.proportional_factor * delta;
+        let proportional_component = params.proportional_factor * delta;
         let integration_component =
-            feedback.integration_component + self.integration_factor * feedback.delta;
-        let differentiation_component = self.differentiation_factor * (delta - feedback.delta);
+            feedback.integration_component + integration_factor * feedback.delta;
+        let differentiation_component = differentiation_factor * (delta - feedback.delta);
 
         let control_signal =
             proportional_component + integration_component + differentiation_component;
@@ -238,19 +211,49 @@ impl ControlCalculator {
         };
         (control_signal, new_feedback)
     }
+
+    fn write_registers(&self, state: &mut State, frequency: f32, control_signal_limited: f32) {
+        state.write_input_registers(.., [frequency, control_signal_limited]);
+    }
+
+    fn update_duty_cycle(&self, value: f32) -> anyhow::Result<()> {
+        self.pwm.set_duty_cycle(value.into())?;
+        Ok(())
+    }
+}
+
+struct ControlParams {
+    target_frequency: f32,
+    proportional_factor: f32,
+    integration_time: f32,
+    differentiation_time: f32,
+}
+
+impl ControlParams {
+    fn read(state: &State) -> Self {
+        let registers = state.read_holding_registers(..);
+
+        #[rustfmt::skip]
+        let &[
+            target_frequency,
+            proportional_factor,
+            integration_time,
+            differentiation_time
+        ] = registers else { panic!("expected to read 4 registers") };
+
+        Self {
+            target_frequency,
+            proportional_factor,
+            integration_time,
+            differentiation_time,
+        }
+    }
 }
 
 #[derive(Default)]
 struct Feedback {
     delta: f32,
     integration_component: f32,
-}
-
-fn sum_and_push_new(revolutions: &RefCell<impl RingBuffer<u32>>) -> u32 {
-    let mut revolutions = revolutions.borrow_mut();
-    let sum = revolutions.iter().sum();
-    revolutions.push(0);
-    sum
 }
 
 fn finite_or_zero(value: f32) -> f32 {
@@ -267,4 +270,17 @@ fn limit(signal: f32, min: f32, max: f32) -> f32 {
     } else {
         (signal + min).clamp(min, max)
     }
+}
+
+const fn adc_read_command(channel: u8) -> u8 {
+    assert!(channel < 8);
+
+    // bit    7: single-ended inputs mode
+    // bits 6-4: channel selection
+    // bit    3: is internal reference enabled
+    // bit    2: is converter enabled
+    // bits 1-0: unused
+    const DEFAULT_READ_COMMAND: u8 = 0b10001100;
+
+    DEFAULT_READ_COMMAND & (channel << 4)
 }
