@@ -89,8 +89,10 @@ impl Controller {
         let mut interval = interval(read_interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-        let mut perf_read = perf::Counter::new("READ")?;
-        let mut perf_control = perf::Counter::new("CONTROL")?;
+        let perf_read_size = read_frequency as usize * 2;
+        let perf_control_size = self.options.control_frequency as usize * 2;
+        let mut perf_read = perf::Counter::new("READ", perf_read_size)?;
+        let mut perf_control = perf::Counter::new("CONTROL", perf_control_size)?;
 
         loop {
             for _ in 0..self.options.control_frequency {

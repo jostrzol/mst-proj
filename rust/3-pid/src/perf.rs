@@ -13,17 +13,18 @@ impl Drop for Measurement<'_> {
 
 pub struct Counter {
     name: &'static str,
-    total_time_ns: u64,
-    sample_count: u32,
+    samples_ns: Vec<u32>,
 }
 
 impl Counter {
-    pub fn new(name: &'static str) -> Result<Self, io::Error> {
+    pub fn new(name: &'static str, length: usize) -> Result<Self, io::Error> {
         let mut resolution = MaybeUninit::uninit();
         let res = unsafe { clock_getres(Clock::ThreadCputime, resolution.as_mut_ptr()) };
         if res != 0 {
             return Err(io::Error::from_raw_os_error(res));
         }
+
+        let samples_ns = Vec::with_capacity(length);
 
         println!(
             "Performance counter {}, resolution: {} ns",
@@ -31,11 +32,7 @@ impl Counter {
             unsafe { resolution.assume_init() }.to_ns()
         );
 
-        Ok(Counter {
-            name,
-            total_time_ns: 0,
-            sample_count: 0,
-        })
+        Ok(Counter { name, samples_ns })
     }
 
     pub fn measure(&mut self) -> Measurement {
@@ -47,24 +44,26 @@ impl Counter {
 
     fn add_sample(&mut self, start_ns: u64) {
         let end = Timespec::now().to_ns();
-        let diff = end - start_ns;
+        let diff = (end - start_ns) as u32;
 
-        self.total_time_ns += diff;
-        self.sample_count += 1;
+        if let Err(err) = self.samples_ns.push_within_capacity(diff) {
+            eprintln!("perf::Counter::add_sample: {err}");
+        }
     }
 
     pub fn report(&self) {
-        let time_us = self.total_time_ns as f64 / self.sample_count as f64 / 1000.0;
-
-        println!(
-            "Performance counter {}: {:.3} us ({} sampl.)",
-            self.name, time_us, self.sample_count
-        );
+        print!("Performance counter {}: [", self.name);
+        for (i, sample) in self.samples_ns.iter().enumerate() {
+            print!("{}", sample / 1000);
+            if i < self.samples_ns.len() - 1 {
+                print!(",");
+            }
+        }
+        println!("] us");
     }
 
     pub fn reset(&mut self) {
-        self.total_time_ns = 0;
-        self.sample_count = 0;
+        self.samples_ns.clear();
     }
 }
 

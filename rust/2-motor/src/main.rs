@@ -1,5 +1,6 @@
 #![feature(sync_unsafe_cell)]
 #![feature(duration_constants)]
+#![feature(vec_push_within_capacity)]
 
 mod memory;
 mod perf;
@@ -61,7 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })?;
     }
 
-    let mut perf = perf::Counter::new("MAIN")?;
+    let mut perf = perf::Counter::new("MAIN", CONTROL_FREQUENCY as usize * 2)?;
     while more_work.load(Ordering::Relaxed) {
         for _ in 0..CONTROL_FREQUENCY {
             thread::sleep(SLEEP_DURATION);

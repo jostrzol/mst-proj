@@ -5,6 +5,7 @@
 #![feature(range_into_bounds)]
 #![feature(sync_unsafe_cell)]
 #![feature(never_type)]
+#![feature(vec_push_within_capacity)]
 
 mod memory;
 mod perf;
