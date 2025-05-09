@@ -16,9 +16,9 @@ const n_fds = n_fds_system + n_connections_max;
 
 const i2c_adapter_number = 1;
 const i2c_adapter_path = std.fmt.comptimePrint("/dev/i2c-{}", .{i2c_adapter_number});
-const ads7830_address: c_int = 0x48;
-const motor_pwm_channel: u8 = 1; // gpio 13
+const ads7830_address = 0x48;
 
+const motor_pwm_channel = 1; // gpio 13
 const pwm_frequency: f32 = 1000;
 
 const read_frequency: u32 = 1000;

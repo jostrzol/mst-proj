@@ -19,7 +19,7 @@ use esp_idf_svc::log::EspLogger;
 use esp_idf_sys::xTaskGetHandle;
 use log::info;
 
-use controller::{Controller, ControllerOpts};
+use controller::{Controller, ControllerOptions};
 use memory::memory_report;
 use registers::Registers;
 use server::Server;
@@ -28,7 +28,7 @@ use services::Services;
 const SSID: &str = env!("WIFI_SSID");
 const PASSWORD: &str = env!("WIFI_PASS");
 
-const CONTROLLER_OPTS: ControllerOpts = ControllerOpts {
+const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
     frequency: 1000,
     revolution_treshold_close: 0.36,
     revolution_treshold_far: 0.40,
@@ -88,7 +88,7 @@ fn main() -> anyhow::Result<()> {
                 peripherals.ledc.channel0,
                 peripherals.timer00,
                 registers.as_mut(),
-                CONTROLLER_OPTS,
+                CONTROLLER_OPTIONS,
             )
             .expect("Controller setup failed");
             controller.run().expect("Controller loop failed")

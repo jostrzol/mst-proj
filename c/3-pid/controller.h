@@ -45,7 +45,7 @@ typedef struct {
 } feedback_t;
 
 typedef struct {
-  controller_options_t opts;
+  controller_options_t options;
   modbus_mapping_t *registers;
   int i2c_fd;
   int timer_fd;

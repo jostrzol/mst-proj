@@ -44,7 +44,7 @@ pub struct ControllerOptions {
 }
 
 pub struct Controller {
-    opts: ControllerOptions,
+    options: ControllerOptions,
     registers: Arc<Mutex<Registers>>,
     pwm: Pwm,
     i2c: I2c,
@@ -56,22 +56,22 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(opts: ControllerOptions, state: Arc<Mutex<Registers>>) -> anyhow::Result<Self> {
+    pub fn new(options: ControllerOptions, state: Arc<Mutex<Registers>>) -> anyhow::Result<Self> {
         let mut i2c = I2c::new()?;
         i2c.set_slave_address(0x48)?;
 
-        let pwm = Pwm::new(opts.pwm_channel)?;
-        pwm.set_frequency(opts.pwm_frequency, 0.)?;
+        let pwm = Pwm::new(options.pwm_channel)?;
+        pwm.set_frequency(options.pwm_frequency, 0.)?;
         pwm.enable()?;
 
-        let mut revolutions = AllocRingBuffer::<u32>::new(opts.time_window_bins);
+        let mut revolutions = AllocRingBuffer::<u32>::new(options.time_window_bins);
         revolutions.fill_default();
 
-        let interval_rotate_once_s: f32 = 1. / opts.control_frequency as f32;
-        let interval_rotate_all_s: f32 = interval_rotate_once_s * opts.time_window_bins as f32;
+        let interval_rotate_once_s: f32 = 1. / options.control_frequency as f32;
+        let interval_rotate_all_s: f32 = interval_rotate_once_s * options.time_window_bins as f32;
 
         Ok(Self {
-            opts,
+            options,
             registers: state,
             pwm,
             i2c,
@@ -84,7 +84,7 @@ impl Controller {
     }
 
     pub async fn run(&mut self) -> anyhow::Result<!> {
-        let read_frequency = self.opts.control_frequency * self.opts.reads_per_bin;
+        let read_frequency = self.options.control_frequency * self.options.reads_per_bin;
         let read_interval = Duration::SECOND / read_frequency;
         let mut interval = interval(read_interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -93,8 +93,8 @@ impl Controller {
         let mut perf_control = perf::Counter::new("CONTROL")?;
 
         loop {
-            for _ in 0..self.opts.control_frequency {
-                for _ in 0..self.opts.reads_per_bin {
+            for _ in 0..self.options.control_frequency {
+                for _ in 0..self.options.reads_per_bin {
                     interval.tick().await;
 
                     let _read_measure = perf_read.measure();
@@ -121,7 +121,7 @@ impl Controller {
     async fn read_phase(&mut self) -> anyhow::Result<()> {
         let value = self.read_adc()?;
 
-        if value < self.opts.revolution_treshold_close && !self.is_close {
+        if value < self.options.revolution_treshold_close && !self.is_close {
             // gone close
             self.is_close = true;
             let back = self
@@ -129,7 +129,7 @@ impl Controller {
                 .back_mut()
                 .ok_or(anyhow!("Revolutions empty"))?;
             *back += 1;
-        } else if value > self.opts.revolution_treshold_far && self.is_close {
+        } else if value > self.options.revolution_treshold_far && self.is_close {
             // gone far
             self.is_close = false;
         }

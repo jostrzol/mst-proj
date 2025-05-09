@@ -55,7 +55,7 @@ where
     timer: TimerDriver<'a>,
 }
 
-pub struct ControllerOpts {
+pub struct ControllerOptions {
     pub frequency: u64,
     pub revolution_treshold_close: f32,
     pub revolution_treshold_far: f32,
@@ -77,7 +77,7 @@ where
     revolutions: AllocRingBuffer<u32>,
     is_close: bool,
     feedback: Feedback,
-    opts: ControllerOpts,
+    options: ControllerOptions,
 }
 
 impl<'a, TAdc, TAdcPin> Drop for Controller<'a, TAdc, TAdcPin>
@@ -104,7 +104,7 @@ where
         ledc_channel: impl Peripheral<P = TLedcChannel> + 'a,
         timer: impl Peripheral<P = TTimer> + 'a,
         registers: Pin<&'a mut Registers>,
-        opts: ControllerOpts,
+        options: ControllerOptions,
     ) -> anyhow::Result<Self>
     where
         TLedcTimer: LedcTimer + 'a,
@@ -127,7 +127,7 @@ where
         let timer_config = TimerConfig::new().auto_reload(true);
         let mut timer_driver = TimerDriver::new(timer, &timer_config)?;
 
-        timer_driver.set_alarm(timer_driver.tick_hz() / opts.frequency)?;
+        timer_driver.set_alarm(timer_driver.tick_hz() / options.frequency)?;
         let notification = Notification::new();
         let notifier = notification.notifier();
         // Safety: make sure the `Notification` object is not dropped while the subscription is active
@@ -147,11 +147,12 @@ where
         }
         .try_build()?;
 
-        let mut revolutions = AllocRingBuffer::<u32>::new(opts.revolution_bins);
+        let mut revolutions = AllocRingBuffer::<u32>::new(options.revolution_bins);
         revolutions.fill_default();
 
-        let interval_rotate_once_s: f32 = 1. / opts.frequency as f32 * opts.reads_per_bin as f32;
-        let interval_rotate_all_s: f32 = interval_rotate_once_s * opts.revolution_bins as f32;
+        let interval_rotate_once_s: f32 =
+            1. / options.frequency as f32 * options.reads_per_bin as f32;
+        let interval_rotate_all_s: f32 = interval_rotate_once_s * options.revolution_bins as f32;
 
         Ok(Self {
             hal,
@@ -163,7 +164,7 @@ where
             revolutions,
             is_close: false,
             feedback: Feedback::default(),
-            opts,
+            options,
         })
     }
 
@@ -177,7 +178,7 @@ where
 
         loop {
             for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
-                for _ in 0..self.opts.reads_per_bin {
+                for _ in 0..self.options.reads_per_bin {
                     while let None = self.notification.wait(delay::BLOCK) {}
 
                     let _read_measure = perf_read.measure();
@@ -203,7 +204,7 @@ where
     pub fn read_phase(&mut self) -> anyhow::Result<()> {
         let value = self.read_adc()?;
 
-        if value < self.opts.revolution_treshold_close && !self.is_close {
+        if value < self.options.revolution_treshold_close && !self.is_close {
             // gone close
             self.is_close = true;
             let back = self
@@ -211,7 +212,7 @@ where
                 .back_mut()
                 .ok_or(anyhow!("Revolutions empty"))?;
             *back += 1;
-        } else if value > self.opts.revolution_treshold_far && self.is_close {
+        } else if value > self.options.revolution_treshold_far && self.is_close {
             // gone far
             self.is_close = false;
         }

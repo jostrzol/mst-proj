@@ -18,7 +18,7 @@
 
 static const char TAG[] = "server";
 
-esp_err_t server_init(server_t *self, server_opts_t *opts) {
+esp_err_t server_init(server_t *self, server_options_t *options) {
   esp_err_t err;
 
   // Init
@@ -33,7 +33,7 @@ esp_err_t server_init(server_t *self, server_opts_t *opts) {
       .ip_mode = MB_MODE_TCP,
       .ip_port = SERVER_PORT_NUMBER,
       .ip_addr = NULL, // Bind to any address
-      .ip_netif_ptr = opts->netif,
+      .ip_netif_ptr = options->netif,
       .slave_uid = SERVER_MODBUS_ADDRESS,
   };
   err = mbc_slave_setup(&comm_info);
@@ -47,8 +47,8 @@ esp_err_t server_init(server_t *self, server_opts_t *opts) {
   err = mbc_slave_set_descriptor((mb_register_area_descriptor_t){
       .type = MB_PARAM_INPUT,
       .start_offset = 0,
-      .address = &opts->regs->input,
-      .size = sizeof(opts->regs->input),
+      .address = &options->registers->input,
+      .size = sizeof(options->registers->input),
   });
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "mbc_slave_set_descriptor (input) fail (0x%x)", (int)err);
@@ -59,8 +59,8 @@ esp_err_t server_init(server_t *self, server_opts_t *opts) {
   err = mbc_slave_set_descriptor((mb_register_area_descriptor_t){
       .type = MB_PARAM_HOLDING,
       .start_offset = 0,
-      .address = &opts->regs->holding,
-      .size = sizeof(opts->regs->holding),
+      .address = &options->registers->holding,
+      .size = sizeof(options->registers->holding),
   });
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "mbc_slave_set_descriptor (holding) fail (0x%x)", (int)err);

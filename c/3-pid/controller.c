@@ -62,7 +62,8 @@ int read_adc(controller_t *self, uint16_t *value) {
 int set_duty_cycle(controller_t *self, float value) {
   int res;
   res = gpioHardwarePWM(
-      self->opts.pwm_channel, self->opts.pwm_frequency, PI_HW_PWM_RANGE * value
+      self->options.pwm_channel, self->options.pwm_frequency,
+      PI_HW_PWM_RANGE * value
   );
   if (res != 0) {
     fprintf(stderr, "gpioHardwarePWM fail (%d)\n", res);
@@ -173,10 +174,11 @@ void write_state(controller_t *self, float frequency, float control_signal) {
 }
 
 int controller_init(
-    controller_t *self, modbus_mapping_t *registers, controller_options_t opts
+    controller_t *self, modbus_mapping_t *registers,
+    controller_options_t options
 ) {
   int res = 0;
-  ringbuffer_t *revolutions = ringbuffer_alloc(opts.time_window_bins);
+  ringbuffer_t *revolutions = ringbuffer_alloc(options.time_window_bins);
 
   const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_fd < 0) {
@@ -198,7 +200,8 @@ int controller_init(
     return -1;
   }
 
-  const uint64_t read_frequency = opts.control_frequency * opts.reads_per_bin;
+  const uint64_t read_frequency =
+      options.control_frequency * options.reads_per_bin;
   const uint64_t read_interval_us = MICRO_PER_1 / read_frequency;
 
   const struct itimerspec timerspec = interval_from_us(read_interval_us);
@@ -228,13 +231,13 @@ int controller_init(
     return -1;
   }
 
-  const float interval_rotate_once_s = (float)1 / opts.control_frequency;
+  const float interval_rotate_once_s = (float)1 / options.control_frequency;
   const float interval_rotate_all_s =
-      interval_rotate_once_s * opts.time_window_bins;
+      interval_rotate_once_s * options.time_window_bins;
 
   *self = (controller_t){
       .registers = registers,
-      .opts = opts,
+      .options = options,
       .i2c_fd = i2c_fd,
       .timer_fd = timer_fd,
       .interval =
@@ -270,7 +273,7 @@ void controller_deinit(controller_t *self) {
   if (res != 0)
     fprintf(stderr, "close(i2c_fd) fail (%d): %s\n", res, strerror(errno));
 
-  res = gpioHardwarePWM(self->opts.pwm_channel, 0, 0);
+  res = gpioHardwarePWM(self->options.pwm_channel, 0, 0);
   if (res != 0)
     fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));
 }
@@ -285,11 +288,12 @@ int read_phase(controller_t *self) {
     return -1;
   }
 
-  if (value < self->opts.revolution_treshold_close && !self->state.is_close) {
+  if (value < self->options.revolution_treshold_close &&
+      !self->state.is_close) {
     // gone close
     self->state.is_close = true;
     *ringbuffer_back(self->state.revolutions) += 1;
-  } else if (value > self->opts.revolution_treshold_far &&
+  } else if (value > self->options.revolution_treshold_far &&
              self->state.is_close) {
     // gone far
     self->state.is_close = false;
@@ -346,14 +350,14 @@ int controller_handle(controller_t *self, int fd) {
   read_phase(self);
   perf_counter_add_sample(&self->perf.read, read_start);
 
-  if (self->state.iteration % self->opts.reads_per_bin == 0) {
+  if (self->state.iteration % self->options.reads_per_bin == 0) {
     perf_mark_t control_start = perf_mark();
     control_phase(self);
     perf_counter_add_sample(&self->perf.control, control_start);
   }
 
   const size_t reads_per_report =
-      self->opts.reads_per_bin * self->opts.control_frequency;
+      self->options.reads_per_bin * self->options.control_frequency;
   if (self->state.iteration % reads_per_report == 0) {
     memory_report();
     perf_counter_report(&self->perf.read);

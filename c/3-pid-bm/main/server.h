@@ -9,10 +9,10 @@ typedef struct {
 
 typedef struct {
   void *netif;
-  regs_t *regs;
-} server_opts_t;
+  registers_t *registers;
+} server_options_t;
 
-esp_err_t server_init(server_t *self, server_opts_t *opts);
+esp_err_t server_init(server_t *self, server_options_t *options);
 void server_deinit(server_t *self);
 
 void server_loop(void *params);

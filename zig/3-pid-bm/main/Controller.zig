@@ -28,7 +28,7 @@ const limit_min_deadzone = 0.001;
 
 var controller_task: sys.TaskHandle_t = null;
 
-opts: InitOpts,
+options: InitOptions,
 registers: *Registers,
 adc: struct {
     unit: adc_m.Unit,
@@ -49,7 +49,7 @@ state: struct {
     feedback: Feedback,
 },
 
-pub const InitOpts = struct {
+pub const InitOptions = struct {
     frequency: u64,
     revolution_treshold_close: f32,
     revolution_treshold_far: f32,
@@ -64,7 +64,7 @@ const Feedback = struct {
 
 const Self = @This();
 
-pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
+pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !Self {
     const adc_unit = try adc_m.Unit.init(c.ADC_UNIT_1);
     errdefer adc_unit.deinit();
     const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
@@ -104,21 +104,21 @@ pub fn init(allocator: Allocator, registers: *Registers, opts: InitOpts) !Self {
     errdefer c.espLogError(c.gptimer_disable(timer));
 
     try c.espCheckError(gptimer_set_alarm_action(timer, &.{
-        .alarm_count = timer_frequency / opts.frequency,
+        .alarm_count = timer_frequency / options.frequency,
         .reload_count = 0,
         .flags = .{ .auto_reload_on_alarm = true },
     }));
 
     const interval_rotate_once_s: f32 =
-        1.0 / @as(f32, @floatFromInt(opts.frequency)) * @as(f32, @floatFromInt(opts.reads_per_bin));
+        1.0 / @as(f32, @floatFromInt(options.frequency)) * @as(f32, @floatFromInt(options.reads_per_bin));
     const interval_rotate_all_s: f32 =
-        interval_rotate_once_s * @as(f32, @floatFromInt(opts.revolution_bins));
+        interval_rotate_once_s * @as(f32, @floatFromInt(options.revolution_bins));
 
-    const revolutions = try RingBuffer(u32).init(allocator, opts.revolution_bins);
+    const revolutions = try RingBuffer(u32).init(allocator, options.revolution_bins);
     errdefer revolutions.deinit(allocator);
 
     return .{
-        .opts = opts,
+        .options = options,
         .registers = registers,
         .adc = .{
             .unit = adc_unit,
@@ -168,7 +168,7 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
 
     while (true) {
         for (0..control_iters_per_perf_report) |_| {
-            for (0..self.opts.reads_per_bin) |_| {
+            for (0..self.options.reads_per_bin) |_| {
                 while (idf.ulTaskGenericNotifyTake(
                     c.tskDEFAULT_INDEX_TO_NOTIFY,
                     c.pdTRUE,
@@ -195,11 +195,11 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
 fn read_phase(self: *Self) !void {
     const value = try self.read_adc();
 
-    if (!self.state.is_close and value < self.opts.revolution_treshold_close) {
+    if (!self.state.is_close and value < self.options.revolution_treshold_close) {
         // gone close
         self.state.is_close = true;
         self.state.revolutions.back().* += 1;
-    } else if (self.state.is_close and value > self.opts.revolution_treshold_far) {
+    } else if (self.state.is_close and value > self.options.revolution_treshold_far) {
         // gone far
         self.state.is_close = false;
     }

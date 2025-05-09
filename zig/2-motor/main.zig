@@ -9,13 +9,13 @@ const perf = @import("perf.zig");
 
 const i2c_adapter_number = 1;
 const i2c_adapter_path = std.fmt.comptimePrint("/dev/i2c-{}", .{i2c_adapter_number});
-const ads7830_address: c_int = 0x48;
+const ads7830_address = 0x48;
 
-const motor_pwm_channel: u8 = 1; // gpio 13
-const pwm_frequency: f32 = 1000;
+const motor_pwm_channel = 1; // gpio 13
+const pwm_frequency = 1000;
 
-const update_frequency: u64 = 10;
-const sleep_time_ns: u64 = std.time.ns_per_s / update_frequency;
+const update_frequency = 10;
+const sleep_time_ns = std.time.ns_per_s / update_frequency;
 
 var do_continue = true;
 pub fn interrupt_handler(_: c_int) callconv(.C) void {

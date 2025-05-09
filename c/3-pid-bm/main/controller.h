@@ -14,7 +14,7 @@ typedef struct {
   float revolution_treshold_far;
   size_t revolution_bins;
   size_t reads_per_bin;
-} controller_opts_t;
+} controller_options_t;
 
 typedef struct {
   float delta;
@@ -22,8 +22,8 @@ typedef struct {
 } feedback_t;
 
 typedef struct {
-  controller_opts_t opts;
-  regs_t *regs;
+  controller_options_t options;
+  registers_t *registers;
   adc_oneshot_unit_handle_t adc;
   gptimer_handle_t timer;
   struct {
@@ -38,8 +38,9 @@ typedef struct {
   TaskHandle_t task;
 } controller_t;
 
-esp_err_t
-controller_init(controller_t *self, regs_t *regs, controller_opts_t opts);
+esp_err_t controller_init(
+    controller_t *self, registers_t *registers, controller_options_t options
+);
 void controller_deinit(controller_t *self);
 
 void controller_loop(void *params);

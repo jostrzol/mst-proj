@@ -84,8 +84,9 @@ bool IRAM_ATTR on_timer_fired(
   return high_task_awoken == pdTRUE;
 }
 
-esp_err_t
-controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
+esp_err_t controller_init(
+    controller_t *self, registers_t *registers, controller_options_t options
+) {
   esp_err_t err;
 
   adc_oneshot_unit_handle_t adc;
@@ -137,7 +138,7 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
     return err;
   }
 
-  ringbuffer_t *revolutions = ringbuffer_alloc(opts.revolution_bins);
+  ringbuffer_t *revolutions = ringbuffer_alloc(options.revolution_bins);
 
   gptimer_handle_t timer;
   err = gptimer_new_timer(
@@ -177,7 +178,7 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
   err = gptimer_set_alarm_action(
       timer,
       &(gptimer_alarm_config_t){
-          .alarm_count = TIMER_FREQUENCY / opts.frequency,
+          .alarm_count = TIMER_FREQUENCY / options.frequency,
           .reload_count = 0,
           .flags.auto_reload_on_alarm = true,
       }
@@ -191,13 +192,13 @@ controller_init(controller_t *self, regs_t *regs, controller_opts_t opts) {
   }
 
   const float interval_rotate_once_s =
-      (float)1 / opts.frequency * opts.reads_per_bin;
+      (float)1 / options.frequency * options.reads_per_bin;
   const float interval_rotate_all_s =
-      interval_rotate_once_s * opts.revolution_bins;
+      interval_rotate_once_s * options.revolution_bins;
 
   *self = (controller_t){
-      .opts = opts,
-      .regs = regs,
+      .options = options,
+      .registers = registers,
       .adc = adc,
       .timer = timer,
       .interval =
@@ -251,7 +252,7 @@ typedef struct {
 } control_params_t;
 
 control_params_t read_control_params(controller_t *self) {
-  regs_holding_t *holding = &self->regs->holding;
+  registers_holding_t *holding = &self->registers->holding;
   return (control_params_t){
       .target_frequency = mb_get_float_cdab(&holding->target_frequency),
       .proportional_factor = mb_get_float_cdab(&holding->proportional_factor),
@@ -301,7 +302,7 @@ control_t calculate_control(
 }
 
 void write_state(controller_t *self, float frequency, float control_signal) {
-  regs_input_t *input = &self->regs->input;
+  registers_input_t *input = &self->registers->input;
   mb_set_float_cdab(&input->frequency, frequency);
   mb_set_float_cdab(&input->control_signal, control_signal);
 }
@@ -316,11 +317,12 @@ esp_err_t read_phase(controller_t *self) {
     return err;
   }
 
-  if (value < self->opts.revolution_treshold_close && !self->state.is_close) {
+  if (value < self->options.revolution_treshold_close &&
+      !self->state.is_close) {
     // gone close
     self->state.is_close = true;
     *ringbuffer_back(self->state.revolutions) += 1;
-  } else if (value > self->opts.revolution_treshold_far &&
+  } else if (value > self->options.revolution_treshold_far &&
              self->state.is_close) {
     // gone far
     self->state.is_close = false;
@@ -390,7 +392,7 @@ void controller_loop(void *params) {
 
   while (true) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
-      for (size_t j = 0; j < self->opts.reads_per_bin; ++j) {
+      for (size_t j = 0; j < self->options.reads_per_bin; ++j) {
         while (ulTaskNotifyTake(pdTRUE, portMAX_DELAY) == 0)
           ;
 

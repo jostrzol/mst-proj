@@ -15,12 +15,12 @@ const par_info_get_tout_ms = 10; // timeout for get parameter info
 
 handle: *const anyopaque,
 
-const ServerInitOpts = struct {
+const ServerInitOptions = struct {
     netif: *sys.esp_netif_obj,
     registers: *Registers,
 };
 
-pub fn init(opts: *const ServerInitOpts) !Self {
+pub fn init(options: *const ServerInitOptions) !Self {
     var handle: *const anyopaque = undefined;
     try c.espCheckError(c.mbc_slave_init_tcp(@ptrCast(&handle)));
     errdefer c.espLogError(c.mbc_slave_destroy());
@@ -30,7 +30,7 @@ pub fn init(opts: *const ServerInitOpts) !Self {
         .ip_mode = c.MB_MODE_TCP,
         .ip_port = port_number,
         .ip_addr = null,
-        .ip_netif_ptr = opts.netif,
+        .ip_netif_ptr = options.netif,
         .slave_uid = modbus_address,
     } };
     try c.espCheckError(c.mbc_slave_setup(&comm_info));
@@ -38,14 +38,14 @@ pub fn init(opts: *const ServerInitOpts) !Self {
     try c.espCheckError(mbc_slave_set_descriptor(.{
         .start_offset = 0,
         .type = c.MB_PARAM_INPUT,
-        .address = &opts.registers.input,
+        .address = &options.registers.input,
         .size = @sizeOf(Registers.Input),
     }));
 
     try c.espCheckError(mbc_slave_set_descriptor(.{
         .start_offset = 0,
         .type = c.MB_PARAM_HOLDING,
-        .address = &opts.registers.holding,
+        .address = &options.registers.holding,
         .size = @sizeOf(Registers.Holding),
     }));
 

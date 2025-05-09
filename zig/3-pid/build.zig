@@ -29,20 +29,20 @@ pub fn build(b: *std.Build) !void {
     check_step.dependOn(&exe.step);
 }
 
-const MakeOpts = struct {
+const MakeOptions = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode = .Debug,
 };
 
-fn make_i2c_tools(b: *std.Build, opts: MakeOpts) !*std.Build.Step.Compile {
+fn make_i2c_tools(b: *std.Build, options: MakeOptions) !*std.Build.Step.Compile {
     const src = b.dependency("i2c-tools", .{});
 
     const lib = b.addSharedLibrary(.{
         .name = "i2c",
         .version = .{ .major = 0, .minor = 1, .patch = 1 },
         .pic = true,
-        .target = opts.target,
-        .optimize = opts.optimize,
+        .target = options.target,
+        .optimize = options.optimize,
     });
     lib.bundle_compiler_rt = false;
     lib.addIncludePath(src.path("include"));
@@ -53,7 +53,7 @@ fn make_i2c_tools(b: *std.Build, opts: MakeOpts) !*std.Build.Step.Compile {
     return lib;
 }
 
-fn make_modbus(b: *std.Build, opts: MakeOpts) !struct {
+fn make_modbus(b: *std.Build, options: MakeOptions) !struct {
     step: *std.Build.Step,
     includedir: std.Build.LazyPath,
     libname: []const u8,
@@ -67,7 +67,7 @@ fn make_modbus(b: *std.Build, opts: MakeOpts) !struct {
     const configure = b.addSystemCommand(&[_][]const u8{"./configure"});
     configure.stdio = .{ .check = .{} };
     configure.addFileInput(write.getDirectory().path(b, "configure"));
-    const triple = try opts.target.query.zigTriple(b.allocator);
+    const triple = try options.target.query.zigTriple(b.allocator);
     defer b.allocator.free(triple);
     const hostArg = try std.fmt.allocPrint(b.allocator, "--host={s}", .{triple});
     defer b.allocator.free(hostArg);

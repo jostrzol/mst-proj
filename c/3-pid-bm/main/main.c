@@ -31,12 +31,14 @@ void app_main(void) {
     abort();
   }
 
-  regs_t regs;
-  regs_init(&regs);
+  registers_t registers;
+  registers_init(&registers);
 
   server_t server;
-  server_opts_t server_opts = {.regs = &regs, .netif = services.wifi.netif};
-  err = server_init(&server, &server_opts);
+  server_options_t server_options = {
+      .registers = &registers, .netif = services.wifi.netif
+  };
+  err = server_init(&server, &server_options);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "server_init fail (0x%x)", err);
     services_deinit(&services);
@@ -45,8 +47,8 @@ void app_main(void) {
 
   controller_t controller;
   err = controller_init(
-      &controller, &regs,
-      (controller_opts_t){
+      &controller, &registers,
+      (controller_options_t){
           .frequency = 1000,
           .revolution_treshold_close = 0.36,
           .revolution_treshold_far = 0.40,
