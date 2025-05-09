@@ -178,11 +178,18 @@ int controller_init(
     controller_options_t options
 ) {
   int res = 0;
-  ringbuffer_t *revolutions = ringbuffer_alloc(options.time_window_bins);
+
+  ringbuffer_t *revolutions;
+  res = ringbuffer_init(&revolutions, options.time_window_bins);
+  if (res != 0) {
+    fprintf(stderr, "ringbuffer_init fail (%d)\n", res);
+    return -1;
+  }
 
   const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_fd < 0) {
     fprintf(stderr, "i2c_fd fail (%d)\n", i2c_fd);
+    ringbuffer_deinit(revolutions);
     return -1;
   }
 
@@ -190,6 +197,7 @@ int controller_init(
   if (res != 0) {
     fprintf(stderr, "ioctl fail (%d)\n", res);
     close(i2c_fd);
+    ringbuffer_deinit(revolutions);
     return -1;
   }
 
@@ -197,6 +205,7 @@ int controller_init(
   if (timer_fd < 0) {
     fprintf(stderr, "timerfd_create fail (%d)\n", timer_fd);
     close(i2c_fd);
+    ringbuffer_deinit(revolutions);
     return -1;
   }
 
@@ -210,6 +219,7 @@ int controller_init(
     fprintf(stderr, "timerfd_settime fail (%d)\n", res);
     close(timer_fd);
     close(i2c_fd);
+    ringbuffer_deinit(revolutions);
     return -1;
   }
 
@@ -219,6 +229,7 @@ int controller_init(
     fprintf(stderr, "perf_counter_init fail (%d)\n", res);
     close(timer_fd);
     close(i2c_fd);
+    ringbuffer_deinit(revolutions);
     return -1;
   }
 
@@ -228,6 +239,7 @@ int controller_init(
     fprintf(stderr, "perf_counter_init fail (%d)\n", res);
     close(timer_fd);
     close(i2c_fd);
+    ringbuffer_deinit(revolutions);
     return -1;
   }
 
@@ -276,6 +288,8 @@ void controller_deinit(controller_t *self) {
   res = gpioHardwarePWM(self->options.pwm_channel, 0, 0);
   if (res != 0)
     fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));
+
+  ringbuffer_deinit(self->state.revolutions);
 }
 
 int read_phase(controller_t *self) {

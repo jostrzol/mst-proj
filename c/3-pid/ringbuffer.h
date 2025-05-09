@@ -9,7 +9,8 @@ typedef struct {
   uint32_t array[];
 } ringbuffer_t;
 
-ringbuffer_t *ringbuffer_alloc(size_t length);
+int ringbuffer_init(ringbuffer_t **const self, size_t length);
+void ringbuffer_deinit(ringbuffer_t *self);
 
 uint32_t *ringbuffer_back(ringbuffer_t *self);
 

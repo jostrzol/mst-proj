@@ -89,11 +89,19 @@ esp_err_t controller_init(
 ) {
   esp_err_t err;
 
+  ringbuffer_t *revolutions;
+  err = ringbuffer_init(&revolutions, options.revolution_bins);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "ringbuffer_init fail (0x%x)", err);
+    return err;
+  }
+
   adc_oneshot_unit_handle_t adc;
   adc_oneshot_unit_init_cfg_t init_config1 = {.unit_id = ADC_UNIT};
   err = adc_oneshot_new_unit(&init_config1, &adc);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "adc_oneshot_new_unit fail (0x%x)", err);
+    ringbuffer_deinit(revolutions);
     return err;
   }
 
@@ -105,6 +113,7 @@ esp_err_t controller_init(
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "adc_oneshot_config_channel fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    ringbuffer_deinit(revolutions);
     return err;
   }
 
@@ -119,6 +128,7 @@ esp_err_t controller_init(
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "ledc_timer_config fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    ringbuffer_deinit(revolutions);
     return err;
   }
 
@@ -135,10 +145,9 @@ esp_err_t controller_init(
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "ledc_channel_config fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    ringbuffer_deinit(revolutions);
     return err;
   }
-
-  ringbuffer_t *revolutions = ringbuffer_alloc(options.revolution_bins);
 
   gptimer_handle_t timer;
   err = gptimer_new_timer(
@@ -152,6 +161,7 @@ esp_err_t controller_init(
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "timer_init fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    ringbuffer_deinit(revolutions);
     return err;
   }
 
@@ -166,6 +176,7 @@ esp_err_t controller_init(
     ESP_LOGE(TAG, "gptimer_register_event_callbacks fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    ringbuffer_deinit(revolutions);
     return err;
   }
   err = gptimer_enable(timer);
@@ -173,6 +184,7 @@ esp_err_t controller_init(
     ESP_LOGE(TAG, "gptimer_enable fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    ringbuffer_deinit(revolutions);
     return err;
   }
   err = gptimer_set_alarm_action(
@@ -188,6 +200,7 @@ esp_err_t controller_init(
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
+    ringbuffer_deinit(revolutions);
     return err;
   }
 
@@ -224,6 +237,7 @@ void controller_deinit(controller_t *self) {
   ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(self->timer));
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
   ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(self->adc));
+  ringbuffer_deinit(self->state.revolutions);
 }
 
 float finite_or_zero(float value) { return isfinite(value) ? value : 0; }
