@@ -5,27 +5,24 @@ const c = @import("c.zig");
 const memory = @import("memory.zig");
 const perf = @import("perf.zig");
 
-const period_ms = 100;
-const sleep_time_ns = period_ms * std.time.ns_per_ms / 2;
 const line_number = 13;
 
-const control_iters_per_perf_report: usize = 20;
+const blink_frequency = 10;
+const update_frequency = 2 * blink_frequency;
+const sleep_time_ns = std.time.ns_per_s / update_frequency;
 
 var do_continue = true;
 pub fn interrupt_handler(_: c_int) callconv(.C) void {
     std.debug.print("\nGracefully stopping\n", .{});
     do_continue = false;
 }
-const interrupt_sigaction = c.struct_sigaction{
-    .__sigaction_handler = .{ .sa_handler = &interrupt_handler },
-};
 
 pub fn main() !void {
     std.log.info("Controlling an LED from Zig\n", .{});
 
-    if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0) {
-        return error.SigactionNotSet;
-    }
+    const signal = @intFromPtr(c.signal(c.SIGINT, &interrupt_handler));
+    if (signal < 0)
+        return std.posix.unexpectedErrno(std.posix.errno(signal));
 
     var chip = try gpio.getChip("/dev/gpiochip0");
     defer chip.close();
@@ -37,7 +34,7 @@ pub fn main() !void {
 
     var perf_main = try perf.Counter.init("MAIN");
     while (do_continue) {
-        for (0..control_iters_per_perf_report) |_| {
+        for (0..update_frequency) |_| {
             std.time.sleep(sleep_time_ns);
 
             const start = perf.Marker.now();

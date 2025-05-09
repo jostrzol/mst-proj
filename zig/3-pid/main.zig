@@ -10,7 +10,7 @@ const Controller = @import("Controller.zig");
 const memory = @import("memory.zig");
 const c = @import("c.zig");
 
-const n_fds_system = 3;
+const n_fds_system = 2;
 const n_connections_max = 5;
 const n_fds = n_fds_system + n_connections_max;
 
@@ -20,17 +20,19 @@ const ads7830_address: c_int = 0x48;
 const motor_pwm_channel: u8 = 1; // gpio 13
 
 const pwm_frequency: f32 = 1000;
-const read_rate: u64 = 1000;
-const read_interval_us: u64 = std.time.us_per_s / read_rate;
+
+const read_frequency: u32 = 1000;
+const control_frequency: u32 = 10;
+const reads_per_bin: u32 = read_frequency / control_frequency;
 
 const controller_options: Controller.Options = .{
-    .i2c_adapter_path = i2c_adapter_path,
-    .i2c_address = ads7830_address,
-    .read_interval_us = read_interval_us,
+    .control_frequency = control_frequency,
+    .time_window_bins = 10,
+    .reads_per_bin = reads_per_bin,
     .revolution_treshold_close = 105,
     .revolution_treshold_far = 118,
-    .revolution_bins = 10,
-    .control_interval_us = 100 * std.time.us_per_ms,
+    .i2c_adapter_path = i2c_adapter_path,
+    .i2c_address = ads7830_address,
     .pwm_channel = motor_pwm_channel,
     .pwm_frequency = 1000,
 };
@@ -40,16 +42,13 @@ pub fn interrupt_handler(_: c_int) callconv(.C) void {
     std.debug.print("\nGracefully stopping\n", .{});
     do_continue = false;
 }
-const interrupt_sigaction = c.struct_sigaction{
-    .__sigaction_handler = .{ .sa_handler = &interrupt_handler },
-};
 
 pub fn main() !void {
     std.log.info("Controlling motor using PID from Zig", .{});
 
-    if (c.sigaction(c.SIGINT, &interrupt_sigaction, null) != 0) {
-        return error.SigactionNotSet;
-    }
+    const signal = @intFromPtr(c.signal(c.SIGINT, &interrupt_handler));
+    if (signal < 0)
+        return std.posix.unexpectedErrno(std.posix.errno(signal));
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     var counting = memory.CountingAllocator.init(gpa.allocator());
@@ -72,8 +71,7 @@ pub fn main() !void {
     const initial_fds = try poll_fds.addManyAsArray(n_fds_system);
     initial_fds.* = .{
         pollfd_init(server.socket.handle),
-        pollfd_init(controller.read_timer.handle),
-        pollfd_init(controller.control_timer.handle),
+        pollfd_init(controller.timer.handle),
     };
 
     while (do_continue) {

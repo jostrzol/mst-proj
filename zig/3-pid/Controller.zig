@@ -17,58 +17,56 @@ const pwm_min = 0.2;
 const pwm_max = 1.0;
 const limit_min_deadzone = 0.001;
 
-const control_iters_per_perf_report: usize = 10;
-
 allocator: Allocator,
 options: Options,
-revolutions: RingBuffer(u32),
 registers: *Registers,
 i2c_file: File,
 pwm_chip: *pwm.Chip,
 pwm_channel: *pwm.Channel,
-read_timer: File,
-control_timer: File,
-is_close: bool = false,
-feedback: Feedback = .{ .delta = 0, .integration_component = 0 },
-iteration: usize = 0,
-perf_read: perf.Counter,
-perf_control: perf.Counter,
+timer: File,
+interval: struct {
+    rotate_once_s: f32,
+    rotate_all_s: f32,
+},
+state: struct {
+    revolutions: RingBuffer(u32),
+    is_close: bool = false,
+    feedback: Feedback = .{ .delta = 0, .integration_component = 0 },
+    iteration: usize = 0,
+},
+perf: struct {
+    read: perf.Counter,
+    control: perf.Counter,
+},
 
 pub const Options = struct {
-    /// Path to I2C adapter that the ADC device is connected to.
-    i2c_adapter_path: []const u8,
-    /// Address on the I2C bus of the ADC device.
-    i2c_address: u8,
-    /// Interval between ADC reads.
-    read_interval_us: u64,
+    /// Frequency of control phase, during which the following happens:
+    /// * calculating the frequency for the current time window,
+    /// * moving the time window forward,
+    /// * updating duty cycle,
+    /// * updating modbus registers.
+    control_frequency: u32,
+    /// Frequency is estimated for the current time window. That window is broken
+    /// into [time_window_bins] bins and is moved every time the control phase
+    /// takes place.
+    time_window_bins: u32,
+    /// Each bin in the time window gets [reads_per_bin] reads, before the next
+    /// control phase fires. That means, that the read phase occurs with frequency
+    /// equal to:
+    ///     `control_frequency * reads_per_bin`
+    /// , because every time the window moves (control phase), there must be
+    /// [reads_per_bin] reads in the last bin already (read phase).
+    reads_per_bin: u32,
     /// When ADC reads below this signal, the state is set to `close` to the
     /// motor magnet. If the state has changed, a new revolution is counted.
     revolution_treshold_close: u8,
     /// When ADC reads above this signal, the state is set to `far` from the
     /// motor magnet.
     revolution_treshold_far: u8,
-    /// Revolutions are binned in a ring buffer based on when they happened.
-    /// More recent revolutions are in the tail of the buffer, while old ones
-    /// are in the head of the buffer (soon to be replaced).
-    ///
-    /// [revolution_bins] is the number of bins in the ring buffer.
-    revolution_bins: u32,
-    /// [control_interval_us] is the interval at which all the following happens:
-    /// * calculating the frequency for the current time window,
-    /// * updating duty cycle,
-    /// * updating duty cycle.
-    ///
-    /// [control_interval_us] also is the interval that each of the bins in the
-    /// time window correspond to.
-    ///
-    /// If `control_interval_us = 100 * std.time.us_per_ms`, then:
-    /// * the last bin corresponds to range `0..-100 ms` from now,
-    /// * the second-to-last bin corresponds to range `-100..-200 ms` from now,
-    /// * and so on.
-    ///
-    /// In total, frequency is counted from revolutions in all bins, across the
-    /// total interval of [revolution_bins] * [control_interval_us].
-    control_interval_us: u64,
+    /// Path to I2C adapter that the ADC device is connected to.
+    i2c_adapter_path: []const u8,
+    /// Address on the I2C bus of the ADC device.
+    i2c_address: u8,
     /// Linux PWM channel to use.
     pwm_channel: u8,
     /// Frequency of the PWM signal.
@@ -82,7 +80,7 @@ pub fn init(
     registers: *Registers,
     options: Options,
 ) !Self {
-    var revolutions = try RingBuffer(u32).init(allocator, options.revolution_bins);
+    var revolutions = try RingBuffer(u32).init(allocator, options.time_window_bins);
     errdefer revolutions.deinit(allocator);
 
     const i2c_file = try std.fs.openFileAbsolute(
@@ -103,141 +101,105 @@ pub fn init(
     var channel = try chip.channel(options.pwm_channel);
     errdefer channel.deinit();
 
-    const read_timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
-    const read_timer = File{ .handle = read_timer_fd };
-    errdefer read_timer.close();
+    const timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
+    const timer = File{ .handle = timer_fd };
+    errdefer timer.close();
 
-    const read_timerspec = timerspec_from_us(options.read_interval_us);
-    try posix.timerfd_settime(read_timer_fd, .{}, &read_timerspec, null);
+    const read_frequency = options.control_frequency * options.reads_per_bin;
+    const read_interval_us = std.time.us_per_s / read_frequency;
 
-    const control_timer_fd = try posix.timerfd_create(linux.CLOCK.REALTIME, .{});
-    const control_timer = File{ .handle = control_timer_fd };
-    errdefer control_timer.close();
-
-    const control_timerspec = timerspec_from_us(options.control_interval_us);
-    try posix.timerfd_settime(control_timer_fd, .{}, &control_timerspec, null);
+    const timerspec = timerspec_from_us(read_interval_us);
+    try posix.timerfd_settime(timer_fd, .{}, &timerspec, null);
 
     try channel.setParameters(.{
         .frequency = options.pwm_frequency,
-        .duty_cycle_ratio = 0.3,
+        .duty_cycle_ratio = 0.0,
     });
     try channel.enable();
+
+    const interval_rotate_once_s: f32 =
+        1.0 / @as(f32, @floatFromInt(options.control_frequency));
+    const interval_rotate_all_s: f32 =
+        interval_rotate_once_s * @as(f32, @floatFromInt(options.time_window_bins));
 
     const perf_read = try perf.Counter.init("READ");
     const perf_control = try perf.Counter.init("CONTROL");
 
     return .{
         .allocator = allocator,
-        .revolutions = revolutions,
         .options = options,
         .registers = registers,
         .i2c_file = i2c_file,
         .pwm_chip = chip,
         .pwm_channel = channel,
-        .read_timer = read_timer,
-        .control_timer = control_timer,
-        .perf_read = perf_read,
-        .perf_control = perf_control,
+        .timer = timer,
+        .interval = .{
+            .rotate_once_s = interval_rotate_once_s,
+            .rotate_all_s = interval_rotate_all_s,
+        },
+        .state = .{ .revolutions = revolutions },
+        .perf = .{
+            .read = perf_read,
+            .control = perf_control,
+        },
     };
 }
 
 pub fn deinit(self: *Self) void {
-    self.revolutions.deinit(self.allocator);
-    self.control_timer.close();
-    self.read_timer.close();
+    self.state.revolutions.deinit(self.allocator);
+    self.timer.close();
     self.pwm_channel.deinit();
     self.pwm_chip.deinit();
     self.allocator.destroy(self.pwm_chip);
     self.i2c_file.close();
 }
 
-fn timerspec_from_us(interval_us: u64) linux.itimerspec {
-    const s = interval_us / std.time.us_per_s;
-    const ns = (interval_us * std.time.ns_per_us) % std.time.ns_per_s;
-    const timespec = linux.timespec{
-        .tv_sec = @truncate(@as(i64, @bitCast(s))),
-        .tv_nsec = @truncate(@as(i64, @bitCast(ns))),
-    };
-    return .{
-        .it_interval = timespec,
-        .it_value = timespec,
-    };
-}
-
 pub const HandleResult = enum { handled, skipped };
 
 pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
-    if (fd == self.read_timer.handle) {
-        var expirations: u64 = undefined;
-        _ = try self.read_timer.readAll(std.mem.asBytes(&expirations));
+    if (fd != self.timer.handle) return .skipped;
 
-        const read_start = perf.Marker.now();
+    var expirations: u64 = undefined;
+    _ = try self.timer.readAll(std.mem.asBytes(&expirations));
 
-        const value = read_potentiometer_value(self) orelse return error.I2cRead;
+    const read_start = perf.Marker.now();
+    try self.read_phase();
+    self.perf.read.add_sample(read_start);
 
-        switch (self.get_hystheresis(value)) {
-            .below => if (!self.is_close) {
-                // gone close
-                self.is_close = true;
-                self.revolutions.back().* += 1;
-            },
-            .between => {},
-            .above => if (self.is_close) {
-                // gone far
-                self.is_close = false;
-            },
-        }
-
-        self.perf_read.add_sample(read_start);
-
-        return .handled;
-    } else if (fd == self.control_timer.handle) {
-        var expirations: u64 = undefined;
-        _ = try self.control_timer.readAll(std.mem.asBytes(&expirations));
-
+    if (self.state.iteration % self.options.reads_per_bin == 0) {
         const control_start = perf.Marker.now();
-
-        const frequency = self.calculate_frequency();
-        try self.revolutions.push(0);
-        std.log.debug("frequency: {d:.2} Hz", .{frequency});
-
-        const control_params = self.read_control_params();
-        // inline for (std.meta.fields(ControlParams)) |field| {
-        //     const value = @field(control_params, field.name);
-        //     std.log.debug("{s}: {d:.2}", .{ field.name, value });
-        // }
-
-        const control = self.calculate_control(&control_params, frequency);
-
-        const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
-
-        try self.pwm_channel.setParameters(.{
-            .frequency = null,
-            .duty_cycle_ratio = control_signal_limited,
-        });
-
-        self.write_status(frequency, control_signal_limited);
-
-        self.feedback = control.feedback;
-
-        self.perf_control.add_sample(control_start);
-
-        if (self.iteration % control_iters_per_perf_report == 0) {
-            memory.report();
-            self.perf_read.report();
-            self.perf_control.report();
-            self.perf_read.reset();
-            self.perf_control.reset();
-        }
-        self.iteration += 1;
-
-        return .handled;
+        try self.control_phase();
+        self.perf.control.add_sample(control_start);
     }
 
-    return .skipped;
+    const reads_per_report = self.options.reads_per_bin * self.options.control_frequency;
+    if (self.state.iteration % reads_per_report == 0) {
+        memory.report();
+        self.perf.control.report();
+        self.perf.read.report();
+        self.perf.control.reset();
+        self.perf.read.reset();
+    }
+
+    self.state.iteration += 1;
+
+    return .handled;
 }
 
-fn read_potentiometer_value(self: *Self) ?u8 {
+fn read_phase(self: *Self) !void {
+    const value = try self.read_adc();
+
+    if (!self.state.is_close and value < self.options.revolution_treshold_close) {
+        // gone close
+        self.state.is_close = true;
+        self.state.revolutions.back().* += 1;
+    } else if (self.state.is_close and value > self.options.revolution_treshold_far) {
+        // gone far
+        self.state.is_close = false;
+    }
+}
+
+fn read_adc(self: *Self) !u8 {
     var write_value = make_read_command(0);
     var read_value: u8 = undefined;
 
@@ -250,8 +212,9 @@ fn read_potentiometer_value(self: *Self) ?u8 {
     };
     var data = c.i2c_rdwr_ioctl_data{ .msgs = &msgs, .nmsgs = 2 };
 
-    if (linux.ioctl(self.i2c_file.handle, c.I2C_RDWR, @intFromPtr(&data)) < 0)
-        return null;
+    const res = linux.ioctl(self.i2c_file.handle, c.I2C_RDWR, @intFromPtr(&data));
+    if (res < 0)
+        return posix.unexpectedErrno(posix.errno(res));
 
     return read_value;
 }
@@ -269,25 +232,31 @@ fn make_read_command(comptime channel: u8) u8 {
     return default_read_command & (channel << 4);
 }
 
-const Hysteresis = enum { below, between, above };
+fn control_phase(self: *Self) !void {
+    const frequency = self.calculate_frequency();
+    try self.state.revolutions.push(0);
+    std.log.debug("frequency: {d:.2} Hz", .{frequency});
 
-fn get_hystheresis(self: *Self, value: u8) Hysteresis {
-    if (value < self.options.revolution_treshold_close) return .below;
-    if (value > self.options.revolution_treshold_far) return .above;
-    return .between;
+    const control_params = self.read_control_params();
+
+    const control = self.calculate_control(&control_params, frequency);
+
+    const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
+    std.log.debug("control signal limited: {d:.2}", .{control_signal_limited});
+
+    try self.set_duty_cycle(control_signal_limited);
+
+    self.write_registers(frequency, control_signal_limited);
+
+    self.state.feedback = control.feedback;
 }
 
 fn calculate_frequency(self: *Self) f32 {
     var sum: u32 = 0;
-    for (self.revolutions.items) |value|
+    for (self.state.revolutions.items) |value|
         sum += value;
 
-    const interval_s =
-        @as(f32, @floatFromInt(self.options.control_interval_us)) / std.time.us_per_s;
-    const all_bins_interval_s: f32 =
-        interval_s * @as(f32, @floatFromInt(self.options.revolution_bins));
-
-    return @as(f32, @floatFromInt(sum)) / all_bins_interval_s;
+    return @as(f32, @floatFromInt(sum)) / self.interval.rotate_all_s;
 }
 
 pub const ControlParams = struct {
@@ -312,8 +281,7 @@ fn calculate_control(
     params: *const ControlParams,
     frequency: f32,
 ) struct { signal: f32, feedback: Feedback } {
-    const interval_s =
-        @as(f32, @floatFromInt(self.options.control_interval_us)) / std.time.us_per_s;
+    const interval_s = self.interval.rotate_once_s;
 
     const integration_factor: f32 =
         params.proportional_factor / params.integration_time * interval_s;
@@ -325,10 +293,10 @@ fn calculate_control(
 
     const proportional_component: f32 = params.proportional_factor * delta;
     const integration_component: f32 =
-        self.feedback.integration_component +
-        integration_factor * self.feedback.delta;
+        self.state.feedback.integration_component +
+        integration_factor * self.state.feedback.delta;
     const differentiation_component: f32 =
-        differentiation_factor * (delta - self.feedback.delta);
+        differentiation_factor * (delta - self.state.feedback.delta);
 
     const control_signal: f32 = proportional_component +
         integration_component +
@@ -350,6 +318,13 @@ fn calculate_control(
     };
 }
 
+fn set_duty_cycle(self: *Self, value: f32) !void {
+    try self.pwm_channel.setParameters(.{
+        .frequency = null,
+        .duty_cycle_ratio = value,
+    });
+}
+
 fn finite_or_zero(value: f32) f32 {
     return if (std.math.isFinite(value)) 0 else value;
 }
@@ -362,7 +337,20 @@ fn limit(value: f32, min: f32, max: f32) f32 {
     return if (result < min) min else if (result > max) max else result;
 }
 
-fn write_status(self: *Self, frequency: f32, control_signal: f32) void {
+fn write_registers(self: *Self, frequency: f32, control_signal: f32) void {
     self.registers.set_input(Registers.Input.frequency, frequency);
     self.registers.set_input(Registers.Input.control_signal, control_signal);
+}
+
+fn timerspec_from_us(interval_us: u64) linux.itimerspec {
+    const s = interval_us / std.time.us_per_s;
+    const ns = (interval_us * std.time.ns_per_us) % std.time.ns_per_s;
+    const timespec = linux.timespec{
+        .tv_sec = @truncate(@as(i64, @bitCast(s))),
+        .tv_nsec = @truncate(@as(i64, @bitCast(ns))),
+    };
+    return .{
+        .it_interval = timespec,
+        .it_value = timespec,
+    };
 }

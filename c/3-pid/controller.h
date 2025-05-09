@@ -59,8 +59,10 @@ typedef struct {
     feedback_t feedback;
     size_t iteration;
   } state;
-  perf_counter_t perf_read;
-  perf_counter_t perf_control;
+  struct {
+    perf_counter_t read;
+    perf_counter_t control;
+  } perf;
 } controller_t;
 
 int controller_init(

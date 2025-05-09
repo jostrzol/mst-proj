@@ -249,8 +249,11 @@ int controller_init(
               .feedback = {.delta = 0, .integration_component = 0},
               .iteration = 0,
           },
-      .perf_read = perf_read,
-      .perf_control = perf_control,
+      .perf =
+          {
+              .read = perf_read,
+              .control = perf_control,
+          },
   };
 
   return 0;
@@ -341,22 +344,22 @@ int controller_handle(controller_t *self, int fd) {
 
   perf_mark_t read_start = perf_mark();
   read_phase(self);
-  perf_counter_add_sample(&self->perf_read, read_start);
+  perf_counter_add_sample(&self->perf.read, read_start);
 
   if (self->state.iteration % self->opts.reads_per_bin == 0) {
     perf_mark_t control_start = perf_mark();
     control_phase(self);
-    perf_counter_add_sample(&self->perf_control, control_start);
+    perf_counter_add_sample(&self->perf.control, control_start);
   }
 
   const size_t reads_per_report =
       self->opts.reads_per_bin * self->opts.control_frequency;
   if (self->state.iteration % reads_per_report == 0) {
     memory_report();
-    perf_counter_report(&self->perf_read);
-    perf_counter_report(&self->perf_control);
-    perf_counter_reset(&self->perf_read);
-    perf_counter_reset(&self->perf_control);
+    perf_counter_report(&self->perf.read);
+    perf_counter_report(&self->perf.control);
+    perf_counter_reset(&self->perf.read);
+    perf_counter_reset(&self->perf.control);
   }
 
   self->state.iteration += 1;
