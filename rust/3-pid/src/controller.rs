@@ -9,14 +9,14 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::memory;
 use crate::perf;
-use crate::state::State;
+use crate::registers::Registers;
 
 const PWM_MIN: f32 = 0.2;
 const PWM_MAX: f32 = 1.0;
 
 const LIMIT_MIN_DEADZONE: f32 = 0.001;
 
-pub struct ControllerSettings {
+pub struct ControllerOptions {
     /// Frequency of control phase, during which the following happens:
     /// * calculating the frequency for the current time window,
     /// * moving the time window forward,
@@ -44,8 +44,8 @@ pub struct ControllerSettings {
 }
 
 pub struct Controller {
-    settings: ControllerSettings,
-    state: Arc<Mutex<State>>,
+    opts: ControllerOptions,
+    registers: Arc<Mutex<Registers>>,
     pwm: Pwm,
     i2c: I2c,
     revolutions: AllocRingBuffer<u32>,
@@ -56,23 +56,23 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(settings: ControllerSettings, state: Arc<Mutex<State>>) -> anyhow::Result<Self> {
+    pub fn new(opts: ControllerOptions, state: Arc<Mutex<Registers>>) -> anyhow::Result<Self> {
         let mut i2c = I2c::new()?;
         i2c.set_slave_address(0x48)?;
 
-        let pwm = Pwm::new(settings.pwm_channel)?;
-        pwm.set_frequency(settings.pwm_frequency, 0.)?;
+        let pwm = Pwm::new(opts.pwm_channel)?;
+        pwm.set_frequency(opts.pwm_frequency, 0.)?;
         pwm.enable()?;
 
-        let mut revolutions = AllocRingBuffer::<u32>::new(settings.time_window_bins);
+        let mut revolutions = AllocRingBuffer::<u32>::new(opts.time_window_bins);
         revolutions.fill_default();
 
-        let interval_rotate_once_s: f32 = 1. / settings.control_frequency as f32;
-        let interval_rotate_all_s: f32 = interval_rotate_once_s * settings.time_window_bins as f32;
+        let interval_rotate_once_s: f32 = 1. / opts.control_frequency as f32;
+        let interval_rotate_all_s: f32 = interval_rotate_once_s * opts.time_window_bins as f32;
 
         Ok(Self {
-            settings,
-            state,
+            opts,
+            registers: state,
             pwm,
             i2c,
             is_close: false,
@@ -84,7 +84,7 @@ impl Controller {
     }
 
     pub async fn run(&mut self) -> anyhow::Result<!> {
-        let read_frequency = self.settings.control_frequency * self.settings.reads_per_bin;
+        let read_frequency = self.opts.control_frequency * self.opts.reads_per_bin;
         let read_interval = Duration::SECOND / read_frequency;
         let mut interval = interval(read_interval);
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -93,8 +93,8 @@ impl Controller {
         let mut perf_control = perf::Counter::new("CONTROL")?;
 
         loop {
-            for _ in 0..self.settings.control_frequency {
-                for _ in 0..self.settings.reads_per_bin {
+            for _ in 0..self.opts.control_frequency {
+                for _ in 0..self.opts.reads_per_bin {
                     interval.tick().await;
 
                     let _read_measure = perf_read.measure();
@@ -121,7 +121,7 @@ impl Controller {
     async fn read_phase(&mut self) -> anyhow::Result<()> {
         let value = self.read_adc()?;
 
-        if value < self.settings.revolution_treshold_close && !self.is_close {
+        if value < self.opts.revolution_treshold_close && !self.is_close {
             // gone close
             self.is_close = true;
             let back = self
@@ -129,7 +129,7 @@ impl Controller {
                 .back_mut()
                 .ok_or(anyhow!("Revolutions empty"))?;
             *back += 1;
-        } else if value > self.settings.revolution_treshold_far && self.is_close {
+        } else if value > self.opts.revolution_treshold_far && self.is_close {
             // gone far
             self.is_close = false;
         }
@@ -152,7 +152,7 @@ impl Controller {
         #[cfg(debug_assertions)]
         println!("frequency: {}", frequency);
 
-        let mut state = self.state.lock().await;
+        let mut state = self.registers.lock().await;
         let params = ControlParams::read(&state);
 
         let (control_signal, feedback) = self.calculate_control(&params, frequency, &self.feedback);
@@ -212,7 +212,7 @@ impl Controller {
         (control_signal, new_feedback)
     }
 
-    fn write_registers(&self, state: &mut State, frequency: f32, control_signal_limited: f32) {
+    fn write_registers(&self, state: &mut Registers, frequency: f32, control_signal_limited: f32) {
         state.write_input_registers(.., [frequency, control_signal_limited]);
     }
 
@@ -230,7 +230,7 @@ struct ControlParams {
 }
 
 impl ControlParams {
-    fn read(state: &State) -> Self {
+    fn read(state: &Registers) -> Self {
         let registers = state.read_holding_registers(..);
 
         #[rustfmt::skip]

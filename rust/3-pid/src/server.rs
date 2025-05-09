@@ -11,10 +11,10 @@ use tokio_modbus::{
     },
 };
 
-use crate::state::{range_from_addr_count, State};
+use crate::registers::{range_from_addr_count, Registers};
 
 struct PidService {
-    state: Arc<Mutex<State>>,
+    state: Arc<Mutex<Registers>>,
 }
 
 impl Service for PidService {
@@ -66,12 +66,12 @@ impl Service for PidService {
 }
 
 impl PidService {
-    fn new(state: Arc<Mutex<State>>) -> Self {
+    fn new(state: Arc<Mutex<Registers>>) -> Self {
         Self { state }
     }
 }
 
-pub async fn serve(socket_addr: SocketAddr, state: Arc<Mutex<State>>) -> anyhow::Result<()> {
+pub async fn serve(socket_addr: SocketAddr, state: Arc<Mutex<Registers>>) -> anyhow::Result<()> {
     let listener = TcpListener::bind(socket_addr).await?;
     let server = Server::new(listener);
     let new_service = |_socket_addr| Ok(Some(PidService::new(state.clone())));

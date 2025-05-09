@@ -10,23 +10,23 @@ mod memory;
 mod perf;
 
 mod controller;
+mod registers;
 mod server;
-mod state;
 
 use std::sync::Arc;
 
 use async_mutex::Mutex;
-use controller::{Controller, ControllerSettings};
+use controller::{Controller, ControllerOptions};
+use registers::Registers;
 use rppal::pwm;
 use server::serve;
-use state::State;
 use tokio::signal::ctrl_c;
 
 const READ_FREQUENCY: u32 = 1000;
 const CONTROL_FREQUENCY: u32 = 10;
 const READS_PER_BIN: u32 = READ_FREQUENCY / CONTROL_FREQUENCY;
 
-const CONTROLLER_SETTINGS: ControllerSettings = ControllerSettings {
+const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
     control_frequency: CONTROL_FREQUENCY,
     time_window_bins: 10,
     reads_per_bin: READS_PER_BIN,
@@ -40,10 +40,10 @@ const CONTROLLER_SETTINGS: ControllerSettings = ControllerSettings {
 async fn main() -> anyhow::Result<()> {
     println!("Controlling motor using PID from Rust");
 
-    let state = Arc::new(Mutex::new(State::new()));
+    let state = Arc::new(Mutex::new(Registers::new()));
     let socket_addr = "0.0.0.0:5502".parse()?;
 
-    let mut controller = Controller::new(CONTROLLER_SETTINGS, state.clone())?;
+    let mut controller = Controller::new(CONTROLLER_OPTIONS, state.clone())?;
 
     tokio::select! {
         Err(err) = serve(socket_addr, state.clone()) => Err(err),

@@ -20,21 +20,21 @@ pub enum HoldingRegister {
     DifferentiationTime,
 }
 
-pub struct State {
-    input_registers: [f32; variant_count::<InputRegister>()],
-    holding_registers: [f32; variant_count::<HoldingRegister>()],
+pub struct Registers {
+    input: [f32; variant_count::<InputRegister>()],
+    holding: [f32; variant_count::<HoldingRegister>()],
 }
 
-impl State {
+impl Registers {
     pub fn new() -> Self {
         Self {
-            input_registers: Default::default(),
-            holding_registers: [0., 0., f32::INFINITY, 0.],
+            input: Default::default(),
+            holding: [0., 0., f32::INFINITY, 0.],
         }
     }
 
     pub fn read_input_registers(&self, range: impl IntoBounds<InputRegister>) -> &[f32] {
-        &self.input_registers[into_usize_bounds(range)]
+        &self.input[into_usize_bounds(range)]
     }
 
     pub fn write_input_registers(
@@ -42,14 +42,14 @@ impl State {
         range: impl IntoBounds<InputRegister>,
         values: impl IntoIterator<Item = f32>,
     ) {
-        self.input_registers[into_usize_bounds(range)]
+        self.input[into_usize_bounds(range)]
             .iter_mut()
             .zip(values)
             .for_each(|(reg, value)| *reg = value);
     }
 
     pub fn read_holding_registers(&self, range: impl IntoBounds<HoldingRegister>) -> &[f32] {
-        &self.holding_registers[into_usize_bounds(range)]
+        &self.holding[into_usize_bounds(range)]
     }
 
     pub fn write_holding_registers(
@@ -57,7 +57,7 @@ impl State {
         range: impl IntoBounds<HoldingRegister>,
         values: impl IntoIterator<Item = f32>,
     ) {
-        self.holding_registers[into_usize_bounds(range)]
+        self.holding[into_usize_bounds(range)]
             .iter_mut()
             .zip(values)
             .for_each(|(reg, value)| *reg = value);
