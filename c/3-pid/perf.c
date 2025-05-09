@@ -16,7 +16,8 @@ int perf_counter_init(perf_counter_t *self, const char *name) {
   struct timespec resolution;
   res = clock_getres(CLOCK_THREAD_CPUTIME_ID, &resolution);
   if (res != 0) {
-    return res;
+    fprintf(stderr, "clock_getres fail (%d)", res);
+    return -1;
   }
 
   printf(

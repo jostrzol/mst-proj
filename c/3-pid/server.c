@@ -1,9 +1,11 @@
 #include <arpa/inet.h>
+#include <errno.h>
 #include <memory.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "server.h"
@@ -12,13 +14,16 @@ int server_init(
     server_t *self, modbus_mapping_t *registers, server_options_t options
 ) {
   modbus_t *ctx = modbus_new_tcp("0.0.0.0", 5502);
-  if (ctx == NULL)
-    return EXIT_FAILURE;
+  if (ctx == NULL) {
+    fprintf(stderr, "modbus_new_tcp fail\n");
+    return -1;
+  }
 
   int socket_fd = modbus_tcp_listen(ctx, options.n_connections);
-  if (socket_fd == -1) {
+  if (socket_fd < 0) {
+    fprintf(stderr, "modbus_tcp_listen fail (%d)\n", socket_fd);
     modbus_free(ctx);
-    return EXIT_FAILURE;
+    return -1;
   }
 
   int *connection_fds = malloc(options.n_connections * sizeof(int));
@@ -32,14 +37,23 @@ int server_init(
       .connection_fds = connection_fds,
   };
 
-  return EXIT_SUCCESS;
+  return 0;
 }
 
-void server_close(server_t *self) {
-  for (size_t i = 0; i < self->n_connections_active; ++i)
-    close(self->connection_fds[i]);
+void server_deinit(server_t *self) {
+  int res;
 
-  close(self->socket_fd);
+  for (size_t i = 0; i < self->n_connections_active; ++i) {
+    int fd = self->connection_fds[i];
+    res = close(fd);
+    if (res != 0)
+      fprintf(stderr, "close(%d) fail (%d): %s\n", fd, res, strerror(errno));
+  }
+
+  res = close(self->socket_fd);
+  if (res != 0)
+    fprintf(stderr, "close(socket_fd) fail (%d): %s\n", res, strerror(errno));
+
   modbus_free(self->ctx);
 }
 
@@ -57,8 +71,10 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
     memset(&client_address, 0, sizeof(client_address));
     int connection_fd =
         accept(fd, (struct sockaddr *)&client_address, &addr_length);
-    if (connection_fd == -1)
-      return EXIT_FAILURE;
+    if (connection_fd < 0) {
+      fprintf(stderr, "accept fail (%d)\n", connection_fd);
+      return -1;
+    }
 
     size_t i = self->n_connections_active++;
     self->connection_fds[i] = connection_fd;
@@ -76,16 +92,17 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
 
     uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
     int received = modbus_receive(self->ctx, query);
-    if (received == -1) {
+    if (received < 0) {
+      fprintf(stderr, "modbus_receive fail (%d)\n", received);
       server_close_fd(self, fd);
       result->is_closed = true;
-      return EXIT_FAILURE;
+      return -1;
     } else if (received > 0) {
       modbus_reply(self->ctx, query, received, self->registers);
     }
   }
 
-  return EXIT_SUCCESS;
+  return 0;
 }
 
 bool server_close_fd(server_t *self, int fd) {

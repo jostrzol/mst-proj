@@ -5,27 +5,28 @@
 #include <stdlib.h>
 
 #include <pigpio.h>
+#include <string.h>
 
 #include "controller.h"
 #include "registers.h"
 #include "server.h"
-#include "units.h"
 
-#define N_FDS_SYSTEM 3
+#define N_FDS_SYSTEM 2
 #define N_CONNECTIONS 5
 #define N_FDS_MAX (N_FDS_SYSTEM + N_CONNECTIONS)
 
 static const server_options_t SERVER_OPTIONS = {.n_connections = N_CONNECTIONS};
 
-static const uint64_t READ_RATE = 1000;
-static const uint64_t READ_INTERVAL_US = MICRO_PER_1 / READ_RATE;
+static const uint64_t READ_FREQUENCY = 1000;
+static const uint64_t CONTROL_FREQUENCY = 10;
+static const uint64_t READS_PER_BIN = (READ_FREQUENCY / CONTROL_FREQUENCY);
 
 static const controller_options_t CONTROLLER_OPTIONS = {
-    .read_interval_us = READ_INTERVAL_US,
+    .control_frequency = CONTROL_FREQUENCY,
+    .time_window_bins = 10,
+    .reads_per_bin = READS_PER_BIN,
     .revolution_treshold_close = 105,
     .revolution_treshold_far = 118,
-    .revolution_bins = 10,
-    .control_interval_us = 100 * 1e3,
     .pwm_channel = 13,
     .pwm_frequency = 1000.,
 };
@@ -44,22 +45,20 @@ int main(int, char **) {
 
   res = gpioInitialise();
   if (res < 0) {
-    perror("Failed to initialize gpio\n");
+    fprintf(stderr, "gpioInitialise fail (%d): %s\n", res, strerror(errno));
     return EXIT_FAILURE;
   }
 
   res = gpioSetSignalFunc(SIGINT, &interrupt_handler);
   if (res < 0) {
-    perror("Failed to set signal function\n");
+    fprintf(stderr, "gpioSetSignalFunc fail (%d): %s\n", res, strerror(errno));
     gpioTerminate();
     return EXIT_FAILURE;
   }
 
   modbus_mapping_t *registers = registers_init();
   if (registers == NULL) {
-    fprintf(
-        stderr, "Failed to initialize registers: %s\n", modbus_strerror(errno)
-    );
+    fprintf(stderr, "registers_init fail: %s\n", modbus_strerror(errno));
     gpioTerminate();
     return EXIT_FAILURE;
   }
@@ -67,7 +66,7 @@ int main(int, char **) {
   static server_t server;
   res = server_init(&server, registers, SERVER_OPTIONS);
   if (res < 0) {
-    perror("Initializing modbus server failed\n");
+    fprintf(stderr, "server_init fail (%d): %s\n", res, strerror(errno));
     registers_free(registers);
     gpioTerminate();
     return EXIT_FAILURE;
@@ -76,16 +75,15 @@ int main(int, char **) {
   static controller_t controller;
   res = controller_init(&controller, registers, CONTROLLER_OPTIONS);
   if (res < 0) {
-    perror("Initializing controller failed\n");
-    server_close(&server);
+    fprintf(stderr, "controller_init fail (%d): %s\n", res, strerror(errno));
+    server_deinit(&server);
     registers_free(registers);
     gpioTerminate();
     return EXIT_FAILURE;
   }
 
   struct pollfd poll_fds[N_FDS_MAX] = {
-      {.fd = controller.read_timer_fd, .events = POLL_IN},
-      {.fd = controller.io_timer_fd, .events = POLL_IN},
+      {.fd = controller.timer_fd, .events = POLL_IN},
       {.fd = server.socket_fd, .events = POLL_IN},
   };
   size_t n_poll_fds = N_FDS_SYSTEM;
@@ -93,7 +91,7 @@ int main(int, char **) {
   while (do_continue) {
     res = poll(poll_fds, n_poll_fds, 1000);
     if (res == -1 && errno != EINTR)
-      perror("Failed to poll");
+      fprintf(stderr, "poll fail (%d): %s\n", res, strerror(errno));
     if (res <= 0)
       continue;
 
@@ -111,8 +109,11 @@ int main(int, char **) {
         fprintf(stderr, "File (socket?) not open\n");
       if (poll_fd->revents & POLLIN) {
         res = controller_handle(&controller, fd);
-        if (res < 0)
-          perror("Failed to handle controller timer activation");
+        if (res < 0) {
+          fprintf(
+              stderr, "controller_handle fail (%d): %s\n", res, strerror(errno)
+          );
+        }
         if (res != 0)
           continue; // Handled -- either error or success
 
@@ -120,7 +121,7 @@ int main(int, char **) {
         res = server_handle(&server, fd, &result);
         if (res != 0) {
           fprintf(
-              stderr, "Failed to handle connection: %s\n",
+              stderr, "server_handle fail (%d): %s\n", res,
               modbus_strerror(errno)
           );
         }
@@ -145,8 +146,8 @@ int main(int, char **) {
     }
   }
 
-  controller_close(&controller);
-  server_close(&server);
+  controller_deinit(&controller);
+  server_deinit(&server);
   registers_free(registers);
   gpioTerminate();
   return EXIT_SUCCESS;

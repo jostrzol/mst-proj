@@ -1,9 +1,11 @@
 #include <bits/types/siginfo_t.h>
+#include <errno.h>
 #include <gpiod.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
@@ -14,10 +16,9 @@ const char CONSUMER[] = "Consumer";
 const char CHIPNAME[] = "gpiochip0";
 const int32_t LINE_NUMBER = 13;
 
-static const size_t CONTROL_ITERS_PER_PERF_REPORT = 20;
-
-const int64_t PERIOD_MS = 100;
-const int64_t SLEEP_DURATION_US = PERIOD_MS * 1000 / 2;
+const int64_t BLINK_FREQUENCY = 10;
+const int64_t UPDATE_FREQUENCY = BLINK_FREQUENCY * 2;
+const int64_t SLEEP_DURATION_US = 1000000 / UPDATE_FREQUENCY;
 
 bool do_continue = true;
 
@@ -35,43 +36,46 @@ int main(int, char **) {
   printf("Controlling an LED from C\n");
 
   res = sigaction(SIGINT, &interrupt_sigaction, NULL);
-  if (res < 0) {
-    perror("Setting sigaction failed\n");
+  if (res != 0) {
+    fprintf(stderr, "sigaction fail (%d): %s\n", res, strerror(errno));
     return EXIT_FAILURE;
   }
 
   struct gpiod_chip *chip = gpiod_chip_open_by_name(CHIPNAME);
   if (!chip) {
-    perror("Open chip failed\n");
+    fprintf(stderr, "gpiod_chip_open_by_name fail: %s\n", strerror(errno));
     return EXIT_FAILURE;
   }
 
   struct gpiod_line *line = gpiod_chip_get_line(chip, LINE_NUMBER);
   if (!line) {
-    perror("Get line failed\n");
+    fprintf(stderr, "gpiod_chip_get_line fail: %s\n", strerror(errno));
     gpiod_chip_close(chip);
     return EXIT_FAILURE;
   }
 
   res = gpiod_line_request_output(line, CONSUMER, 0);
-  if (res < 0) {
-    perror("Request line as output failed\n");
+  if (res != 0) {
+    fprintf(
+        stderr, "gpiod_line_request_output fail (%d): %s\n", res,
+        strerror(errno)
+    );
     gpiod_line_release(line);
     gpiod_chip_close(chip);
     return EXIT_FAILURE;
   }
 
-  uint8_t is_on = 0;
+  bool is_on = false;
 
   perf_counter_t perf;
   res = perf_counter_init(&perf, "MAIN");
   if (res != 0) {
-    perror("Performance counter initialization");
+    fprintf(stderr, "perf_counter_init fail (%d): %s\n", res, strerror(errno));
     return EXIT_FAILURE;
   }
 
   while (do_continue) {
-    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+    for (size_t i = 0; i < UPDATE_FREQUENCY; ++i) {
       usleep(SLEEP_DURATION_US);
 
       const perf_mark_t start = perf_mark();
@@ -81,8 +85,10 @@ int main(int, char **) {
 #endif
 
       res = gpiod_line_set_value(line, is_on);
-      if (res < 0) {
-        perror("Set line output failed\n");
+      if (res != 0) {
+        fprintf(
+            stderr, "gpiod_line_set_value fail (%d): %s\n", res, strerror(errno)
+        );
         continue;
       }
 
@@ -97,10 +103,13 @@ int main(int, char **) {
   }
 
   res = gpiod_line_set_value(line, 0);
-  if (res < 0)
-    perror("Set line output failed\n");
-
+  if (res != 0) {
+    fprintf(
+        stderr, "gpiod_line_set_value fail (%d): %s\n", res, strerror(errno)
+    );
+  }
   gpiod_line_release(line);
   gpiod_chip_close(chip);
+
   return EXIT_SUCCESS;
 }

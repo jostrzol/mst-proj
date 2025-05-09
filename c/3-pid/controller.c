@@ -1,8 +1,10 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <math.h>
 #include <modbus.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
@@ -32,9 +34,9 @@ const uint32_t ADS7830_ADDRESS = 0x48;
 const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
 #define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
 
-static const size_t CONTROL_ITERS_PER_PERF_REPORT = 10;
+int read_adc(controller_t *self, uint16_t *value) {
+  int res;
 
-int32_t read_potentiometer_value(int i2c_file) {
   uint8_t write_value = MAKE_READ_COMMAND(0);
   uint8_t read_value;
 
@@ -46,12 +48,28 @@ int32_t read_potentiometer_value(int i2c_file) {
   };
   const struct i2c_rdwr_ioctl_data data = {.msgs = msgs, .nmsgs = 2};
 
-  if (ioctl(i2c_file, I2C_RDWR, &data) < 0) {
-    perror("i2c read/write ADC command failed\n");
+  res = ioctl(self->i2c_fd, I2C_RDWR, &data);
+  if (res < 0) {
+    fprintf(stderr, "ioctl fail (%d)\n", res);
     return -1;
   }
 
-  return read_value;
+  *value = res;
+
+  return 0;
+}
+
+int set_duty_cycle(controller_t *self, float value) {
+  int res;
+  res = gpioHardwarePWM(
+      self->opts.pwm_channel, self->opts.pwm_frequency, PI_HW_PWM_RANGE * value
+  );
+  if (res != 0) {
+    fprintf(stderr, "gpioHardwarePWM fail (%d)\n", res);
+    return -1;
+  }
+
+  return 0;
 }
 
 struct itimerspec interval_from_us(uint64_t us) {
@@ -63,13 +81,6 @@ struct itimerspec interval_from_us(uint64_t us) {
       .it_interval = timespec,
       .it_value = timespec,
   };
-}
-
-int controller_set_duty_cycle(controller_t *self, float value) {
-  return gpioHardwarePWM(
-      self->options.pwm_channel, self->options.pwm_frequency,
-      PI_HW_PWM_RANGE * value
-  );
 }
 
 float finite_or_zero(float value) { return isfinite(value) ? value : 0; }
@@ -84,14 +95,10 @@ float limit(float value, float min, float max) {
 
 float calculate_frequency(controller_t *self) {
   uint32_t sum = 0;
-  for (size_t i = 0; i < self->revolutions->length; ++i)
-    sum += self->revolutions->array[i];
+  for (size_t i = 0; i < self->state.revolutions->length; ++i)
+    sum += self->state.revolutions->array[i];
 
-  const float interval_s =
-      (float)self->options.control_interval_us / MICRO_PER_1;
-  const float all_bins_interval_s = interval_s * self->options.revolution_bins;
-
-  return (float)sum / all_bins_interval_s;
+  return (float)sum / self->interval.rotate_all_s;
 }
 
 typedef struct {
@@ -123,8 +130,7 @@ typedef struct {
 control_t calculate_control(
     controller_t *self, control_params_t const *params, float frequency
 ) {
-  const float interval_s =
-      (float)self->options.control_interval_us / MICRO_PER_1;
+  const float interval_s = self->interval.rotate_once_s;
 
   const float integration_factor =
       params->proportional_factor / params->integration_time * interval_s;
@@ -137,10 +143,11 @@ control_t calculate_control(
 #endif
 
   const float proportional_component = params->proportional_factor * delta;
-  const float integration_component = self->feedback.integration_component +
-                                      integration_factor * self->feedback.delta;
+  const float integration_component =
+      self->state.feedback.integration_component +
+      integration_factor * self->state.feedback.delta;
   const float differentiation_component =
-      differentiation_factor * (delta - self->feedback.delta);
+      differentiation_factor * (delta - self->state.feedback.delta);
 
   const float control_signal = proportional_component + integration_component +
                                differentiation_component;
@@ -166,167 +173,193 @@ void write_state(controller_t *self, float frequency, float control_signal) {
 }
 
 int controller_init(
-    controller_t *self, modbus_mapping_t *registers,
-    controller_options_t options
+    controller_t *self, modbus_mapping_t *registers, controller_options_t opts
 ) {
   int res = 0;
-  ringbuffer_t *revolutions = ringbuffer_alloc(options.revolution_bins);
+  ringbuffer_t *revolutions = ringbuffer_alloc(opts.time_window_bins);
 
   const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_fd < 0) {
-    return EXIT_FAILURE;
+    fprintf(stderr, "i2c_fd fail (%d)\n", i2c_fd);
+    return -1;
   }
 
   res = ioctl(i2c_fd, I2C_SLAVE, ADS7830_ADDRESS);
   if (res != 0) {
+    fprintf(stderr, "ioctl fail (%d)\n", res);
     close(i2c_fd);
-    return EXIT_FAILURE;
+    return -1;
   }
 
-  const int read_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
-  if (read_timer_fd < 0) {
+  const int timer_fd = timerfd_create(CLOCK_REALTIME, 0);
+  if (timer_fd < 0) {
+    fprintf(stderr, "timerfd_create fail (%d)\n", timer_fd);
     close(i2c_fd);
-    return EXIT_FAILURE;
+    return -1;
   }
 
-  const struct itimerspec read_timerspec =
-      interval_from_us(options.read_interval_us);
-  res = timerfd_settime(read_timer_fd, 0, &read_timerspec, NULL) != 0;
-  if (res) {
-    close(read_timer_fd);
-    close(i2c_fd);
-    return EXIT_FAILURE;
-  }
+  const uint64_t read_frequency = opts.control_frequency * opts.reads_per_bin;
+  const uint64_t read_interval_us = MICRO_PER_1 / read_frequency;
 
-  const int io_timer_fd = timerfd_create(CLOCK_REALTIME, 0);
-  if (io_timer_fd < 0) {
-    close(read_timer_fd);
-    close(i2c_fd);
-    return EXIT_FAILURE;
-  }
-
-  const struct itimerspec io_timerspec =
-      interval_from_us(options.control_interval_us);
-  res = timerfd_settime(io_timer_fd, 0, &io_timerspec, NULL);
+  const struct itimerspec timerspec = interval_from_us(read_interval_us);
+  res = timerfd_settime(timer_fd, 0, &timerspec, NULL) != 0;
   if (res != 0) {
-    close(io_timer_fd);
-    close(read_timer_fd);
+    fprintf(stderr, "timerfd_settime fail (%d)\n", res);
+    close(timer_fd);
     close(i2c_fd);
-    return EXIT_FAILURE;
+    return -1;
   }
 
   perf_counter_t perf_read;
   res = perf_counter_init(&perf_read, "READ");
   if (res != 0) {
-    close(io_timer_fd);
-    close(read_timer_fd);
+    fprintf(stderr, "perf_counter_init fail (%d)\n", res);
+    close(timer_fd);
     close(i2c_fd);
-    return EXIT_FAILURE;
+    return -1;
   }
 
   perf_counter_t perf_control;
   res = perf_counter_init(&perf_control, "CONTROL");
   if (res != 0) {
-    close(io_timer_fd);
-    close(read_timer_fd);
+    fprintf(stderr, "perf_counter_init fail (%d)\n", res);
+    close(timer_fd);
     close(i2c_fd);
-    return EXIT_FAILURE;
+    return -1;
   }
+
+  const float interval_rotate_once_s = (float)1 / opts.control_frequency;
+  const float interval_rotate_all_s =
+      interval_rotate_once_s * opts.time_window_bins;
 
   *self = (controller_t){
       .registers = registers,
-      .options = options,
-      .revolutions = revolutions,
+      .opts = opts,
       .i2c_fd = i2c_fd,
-      .read_timer_fd = read_timer_fd,
-      .io_timer_fd = io_timer_fd,
-      .feedback = {.delta = 0, .integration_component = 0},
-      .iteration = 0,
+      .timer_fd = timer_fd,
+      .interval =
+          {
+              .rotate_once_s = interval_rotate_once_s,
+              .rotate_all_s = interval_rotate_all_s,
+          },
+      .state =
+          {
+              .revolutions = revolutions,
+              .is_close = false,
+              .feedback = {.delta = 0, .integration_component = 0},
+              .iteration = 0,
+          },
       .perf_read = perf_read,
       .perf_control = perf_control,
   };
 
-  return EXIT_SUCCESS;
+  return 0;
 }
 
-void controller_close(controller_t *self) {
-  if (close(self->io_timer_fd) != 0)
-    perror("Failed to close IO timer");
-  if (close(self->read_timer_fd) != 0)
-    perror("Failed to close read timer");
-  if (close(self->i2c_fd) != 0)
-    perror("Failed to close i2c controller");
-  if (gpioHardwarePWM(self->options.pwm_channel, 0, 0) != 0)
-    perror("Failed to disable PWM");
+void controller_deinit(controller_t *self) {
+  int res;
+
+  res = close(self->timer_fd);
+  if (res != 0)
+    fprintf(stderr, "close(timer_fd) fail (%d): %s\n", res, strerror(errno));
+
+  res = close(self->i2c_fd);
+  if (res != 0)
+    fprintf(stderr, "close(i2c_fd) fail (%d): %s\n", res, strerror(errno));
+
+  res = gpioHardwarePWM(self->opts.pwm_channel, 0, 0);
+  if (res != 0)
+    fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));
 }
 
-int controller_handle(controller_t *self, int fd) {
-  uint64_t expirations;
+int read_phase(controller_t *self) {
+  int res;
 
-  if (fd == self->read_timer_fd) {
-    if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
-      return EXIT_FAILURE;
+  uint16_t value;
+  res = read_adc(self, &value);
+  if (res != 0) {
+    fprintf(stderr, "read_adc fail (%d)\n", res);
+    return -1;
+  }
 
-    perf_mark_t read_start = perf_mark();
-
-    const int32_t value = read_potentiometer_value(self->i2c_fd);
-    if (value < 0)
-      return EXIT_FAILURE;
-
-    if (value < self->options.revolution_treshold_close && !self->is_close) {
-      // gone close
-      self->is_close = true;
-      *ringbuffer_back(self->revolutions) += 1;
-    } else if (value > self->options.revolution_treshold_far &&
-               self->is_close) {
-      // gone far
-      self->is_close = false;
-    }
-
-    perf_counter_add_sample(&self->perf_read, read_start);
-
-    return 1;
-  } else if (fd == self->io_timer_fd) {
-    if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
-      return EXIT_FAILURE;
-
-    perf_mark_t control_start = perf_mark();
-
-    const float frequency = calculate_frequency(self);
-    ringbuffer_push(self->revolutions, 0);
-#ifdef DEBUG
-    printf("frequency: %.2f\n", frequency);
-#endif
-
-    const control_params_t control_params = read_control_params(self);
-
-    const control_t control =
-        calculate_control(self, &control_params, frequency);
-
-    const float control_signal_limited =
-        limit(control.signal, PWM_MIN, PWM_MAX);
-#ifdef DEBUG
-    printf("control_signal_limited: %.2f\n", control_signal_limited);
-#endif
-
-    write_state(self, frequency, control_signal_limited);
-    controller_set_duty_cycle(self, control_signal_limited);
-
-    self->feedback = control.feedback;
-
-    perf_counter_add_sample(&self->perf_control, control_start);
-
-    if (self->iteration % CONTROL_ITERS_PER_PERF_REPORT == 0) {
-      memory_report();
-      perf_counter_report(&self->perf_read);
-      perf_counter_report(&self->perf_control);
-      perf_counter_reset(&self->perf_read);
-      perf_counter_reset(&self->perf_control);
-    }
-    self->iteration += 1;
-
-    return 1;
+  if (value < self->opts.revolution_treshold_close && !self->state.is_close) {
+    // gone close
+    self->state.is_close = true;
+    *ringbuffer_back(self->state.revolutions) += 1;
+  } else if (value > self->opts.revolution_treshold_far &&
+             self->state.is_close) {
+    // gone far
+    self->state.is_close = false;
   }
 
   return 0;
+}
+
+int control_phase(controller_t *self) {
+  int res;
+
+  const float frequency = calculate_frequency(self);
+  ringbuffer_push(self->state.revolutions, 0);
+
+  const control_params_t params = read_control_params(self);
+
+  const control_t control = calculate_control(self, &params, frequency);
+
+  const float control_signal_limited = limit(control.signal, PWM_MIN, PWM_MAX);
+#ifdef DEBUG
+  printf("control_signal_limited: %.2f", control_signal_limited);
+#endif
+
+  write_state(self, frequency, control_signal_limited);
+  res = set_duty_cycle(self, control_signal_limited);
+  if (res != 0) {
+    fprintf(stderr, "set_duty_cycle fail (%d)\n", res);
+    return -1;
+  }
+
+  self->state.feedback = control.feedback;
+
+#ifdef DEBUG
+  printf("frequency: %.2f", frequency);
+#endif
+
+  return 0;
+}
+
+int controller_handle(controller_t *self, int fd) {
+  int res;
+
+  if (fd != self->timer_fd)
+    return 0;
+
+  uint64_t expirations;
+  res = read(fd, &expirations, sizeof(typeof(expirations)));
+  if (res < 0) {
+    fprintf(stderr, "read fail (%d)\n", res);
+    return -1;
+  }
+
+  perf_mark_t read_start = perf_mark();
+  read_phase(self);
+  perf_counter_add_sample(&self->perf_read, read_start);
+
+  if (self->state.iteration % self->opts.reads_per_bin == 0) {
+    perf_mark_t control_start = perf_mark();
+    control_phase(self);
+    perf_counter_add_sample(&self->perf_control, control_start);
+  }
+
+  const size_t reads_per_report =
+      self->opts.reads_per_bin * self->opts.control_frequency;
+  if (self->state.iteration % reads_per_report == 0) {
+    memory_report();
+    perf_counter_report(&self->perf_read);
+    perf_counter_report(&self->perf_control);
+    perf_counter_reset(&self->perf_read);
+    perf_counter_reset(&self->perf_control);
+  }
+
+  self->state.iteration += 1;
+
+  return 1;
 }

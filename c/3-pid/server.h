@@ -25,7 +25,7 @@ int server_init(
     server_t *server, modbus_mapping_t *registers, server_options_t options
 );
 
-void server_close(server_t *server);
+void server_deinit(server_t *server);
 
 int server_handle(server_t *server, int fd, server_result_t *result);
 
