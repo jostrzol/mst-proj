@@ -215,6 +215,24 @@ int controller_init(
     return EXIT_FAILURE;
   }
 
+  perf_counter_t perf_read;
+  res = perf_counter_init(&perf_read, "READ");
+  if (res != 0) {
+    close(io_timer_fd);
+    close(read_timer_fd);
+    close(i2c_fd);
+    return EXIT_FAILURE;
+  }
+
+  perf_counter_t perf_control;
+  res = perf_counter_init(&perf_control, "CONTROL");
+  if (res != 0) {
+    close(io_timer_fd);
+    close(read_timer_fd);
+    close(i2c_fd);
+    return EXIT_FAILURE;
+  }
+
   *self = (controller_t){
       .registers = registers,
       .options = options,
@@ -224,6 +242,8 @@ int controller_init(
       .io_timer_fd = io_timer_fd,
       .feedback = {.delta = 0, .integration_component = 0},
       .iteration = 0,
+      .perf_read = perf_read,
+      .perf_control = perf_control,
   };
 
   return EXIT_SUCCESS;
@@ -247,6 +267,8 @@ int controller_handle(controller_t *self, int fd) {
     if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
       return EXIT_FAILURE;
 
+    perf_mark_t read_start = perf_mark();
+
     const int32_t value = read_potentiometer_value(self->i2c_fd);
     if (value < 0)
       return EXIT_FAILURE;
@@ -261,10 +283,14 @@ int controller_handle(controller_t *self, int fd) {
       self->is_close = false;
     }
 
+    perf_counter_add_sample(&self->perf_read, read_start);
+
     return 1;
   } else if (fd == self->io_timer_fd) {
     if (read(fd, &expirations, sizeof(typeof(expirations))) < 0)
       return EXIT_FAILURE;
+
+    perf_mark_t control_start = perf_mark();
 
     const float frequency = calculate_frequency(self);
     ringbuffer_push(self->revolutions, 0);
@@ -288,8 +314,14 @@ int controller_handle(controller_t *self, int fd) {
 
     self->feedback = control.feedback;
 
+    perf_counter_add_sample(&self->perf_control, control_start);
+
     if (self->iteration % CONTROL_ITERS_PER_PERF_REPORT == 0) {
       memory_report();
+      perf_counter_report(&self->perf_read);
+      perf_counter_report(&self->perf_control);
+      perf_counter_reset(&self->perf_read);
+      perf_counter_reset(&self->perf_control);
     }
     self->iteration += 1;
 

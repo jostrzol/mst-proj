@@ -13,6 +13,7 @@
 #include <pigpio.h>
 
 #include "memory.h"
+#include "perf.h"
 
 #define I2C_ADAPTER_NUMBER "1"
 const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
@@ -82,9 +83,18 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
+  perf_counter_t perf;
+  int res = perf_counter_init(&perf, "MAIN");
+  if (res != 0) {
+    perror("Performance counter initialization");
+    return EXIT_FAILURE;
+  }
+
   while (do_continue) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
       usleep(SLEEP_DURATION_US);
+
+      perf_mark_t start = perf_mark();
 
       int32_t value = read_potentiometer_value(i2c_file);
       if (value < 0)
@@ -97,9 +107,13 @@ int main(int, char **) {
       const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
       if (gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle) < 0)
         perror("Setting PWM failed\n");
+
+      perf_counter_add_sample(&perf, start);
     }
 
     memory_report();
+    perf_counter_report(&perf);
+    perf_counter_reset(&perf);
   }
 
   if (gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0))

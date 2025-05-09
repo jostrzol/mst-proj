@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "memory.h"
+#include "perf.h"
 
 const char CONSUMER[] = "Consumer";
 const char CHIPNAME[] = "gpiochip0";
@@ -61,9 +62,19 @@ int main(int, char **) {
   }
 
   uint8_t is_on = 0;
+
+  perf_counter_t perf;
+  res = perf_counter_init(&perf, "MAIN");
+  if (res != 0) {
+    perror("Performance counter initialization");
+    return EXIT_FAILURE;
+  }
+
   while (do_continue) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
       usleep(SLEEP_DURATION_US);
+
+      const perf_mark_t start = perf_mark();
 
 #ifdef DEBUG
       printf("Turning the LED %s", led_state ? "ON" : "OFF");
@@ -76,9 +87,13 @@ int main(int, char **) {
       }
 
       is_on = !is_on;
+
+      perf_counter_add_sample(&perf, start);
     }
 
     memory_report();
+    perf_counter_report(&perf);
+    perf_counter_reset(&perf);
   }
 
   res = gpiod_line_set_value(line, 0);

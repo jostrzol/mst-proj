@@ -6,6 +6,7 @@
 
 #include <modbus.h>
 
+#include "perf.h"
 #include "ringbuffer.h"
 
 typedef struct {
@@ -60,6 +61,8 @@ typedef struct {
   bool is_close;
   feedback_t feedback;
   size_t iteration;
+  perf_counter_t perf_read;
+  perf_counter_t perf_control;
 } controller_t;
 
 int controller_init(
