@@ -26,7 +26,7 @@ pub fn report() {
             (stack_addr.assume_init() as usize + stack_capcity.assume_init()) as *const c_void;
         let stack_pointer = &stack_frame as *const u8;
         let stack_size = stack_end as usize - stack_pointer as usize;
-        println!("Stack usage: {stack_size} B");
+        println!("MAIN stack usage: {stack_size} B");
 
         let heap_usage = *HEAP_USAGE.get();
         println!("Heap usage: {heap_usage} B");
