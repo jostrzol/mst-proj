@@ -67,8 +67,8 @@ int main(int, char **) {
 
   bool is_on = false;
 
-  perf_counter_t perf;
-  res = perf_counter_init(&perf, "MAIN");
+  perf_counter_t *perf;
+  res = perf_counter_init(&perf, "MAIN", UPDATE_FREQUENCY * 2);
   if (res != 0) {
     fprintf(stderr, "perf_counter_init fail (%d): %s\n", res, strerror(errno));
     return EXIT_FAILURE;
@@ -94,14 +94,15 @@ int main(int, char **) {
 
       is_on = !is_on;
 
-      perf_counter_add_sample(&perf, start);
+      perf_counter_add_sample(perf, start);
     }
 
     memory_report();
-    perf_counter_report(&perf);
-    perf_counter_reset(&perf);
+    perf_counter_report(perf);
+    perf_counter_reset(perf);
   }
 
+  perf_counter_deinit(perf);
   res = gpiod_line_set_value(line, 0);
   if (res != 0) {
     fprintf(

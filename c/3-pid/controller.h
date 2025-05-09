@@ -60,8 +60,8 @@ typedef struct {
     size_t iteration;
   } state;
   struct {
-    perf_counter_t read;
-    perf_counter_t control;
+    perf_counter_t *read;
+    perf_counter_t *control;
   } perf;
 } controller_t;
 

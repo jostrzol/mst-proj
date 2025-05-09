@@ -99,8 +99,8 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
-  perf_counter_t perf;
-  res = perf_counter_init(&perf, "MAIN");
+  perf_counter_t *perf;
+  res = perf_counter_init(&perf, "MAIN", CONTROL_FREQUENCY * 2);
   if (res != 0) {
     fprintf(stderr, "perf_counter_init fail (%d): %s\n", res, strerror(errno));
     return EXIT_FAILURE;
@@ -132,14 +132,15 @@ int main(int, char **) {
         continue;
       }
 
-      perf_counter_add_sample(&perf, start);
+      perf_counter_add_sample(perf, start);
     }
 
     memory_report();
-    perf_counter_report(&perf);
-    perf_counter_reset(&perf);
+    perf_counter_report(perf);
+    perf_counter_reset(perf);
   }
 
+  perf_counter_deinit(perf);
   res = gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0);
   if (res)
     fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));

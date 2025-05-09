@@ -6,13 +6,17 @@
 
 typedef struct {
   const char *name;
-  uint64_t total_time_ns;
-  size_t sample_count;
+  size_t capacity;
+  size_t length;
+  uint32_t samples_ns[];
 } perf_counter_t;
 
 typedef uint64_t perf_mark_t;
 
-int perf_counter_init(perf_counter_t *self, const char *name);
+int perf_counter_init(
+    perf_counter_t **const self, const char *name, size_t length
+);
+void perf_counter_deinit(perf_counter_t *self);
 
 perf_mark_t perf_mark();
 void perf_counter_add_sample(perf_counter_t *self, perf_mark_t start);
