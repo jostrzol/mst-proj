@@ -8,6 +8,7 @@ const Registers = @import("Registers.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const pwm = @import("pwm");
 const memory = @import("memory.zig");
+const perf = @import("perf.zig");
 const c = @import("c.zig");
 
 const Self = @This();
@@ -30,6 +31,8 @@ control_timer: File,
 is_close: bool = false,
 feedback: Feedback = .{ .delta = 0, .integration_component = 0 },
 iteration: usize = 0,
+perf_read: perf.Counter,
+perf_control: perf.Counter,
 
 pub const Options = struct {
     /// Path to I2C adapter that the ADC device is connected to.
@@ -120,6 +123,9 @@ pub fn init(
     });
     try channel.enable();
 
+    const perf_read = try perf.Counter.init("READ");
+    const perf_control = try perf.Counter.init("CONTROL");
+
     return .{
         .allocator = allocator,
         .revolutions = revolutions,
@@ -130,6 +136,8 @@ pub fn init(
         .pwm_channel = channel,
         .read_timer = read_timer,
         .control_timer = control_timer,
+        .perf_read = perf_read,
+        .perf_control = perf_control,
     };
 }
 
@@ -163,6 +171,8 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
         var expirations: u64 = undefined;
         _ = try self.read_timer.readAll(std.mem.asBytes(&expirations));
 
+        const read_start = perf.Marker.now();
+
         const value = read_potentiometer_value(self) orelse return error.I2cRead;
 
         switch (self.get_hystheresis(value)) {
@@ -178,10 +188,14 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
             },
         }
 
+        self.perf_read.add_sample(read_start);
+
         return .handled;
     } else if (fd == self.control_timer.handle) {
         var expirations: u64 = undefined;
         _ = try self.control_timer.readAll(std.mem.asBytes(&expirations));
+
+        const control_start = perf.Marker.now();
 
         const frequency = self.calculate_frequency();
         try self.revolutions.push(0);
@@ -206,8 +220,14 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
 
         self.feedback = control.feedback;
 
+        self.perf_control.add_sample(control_start);
+
         if (self.iteration % control_iters_per_perf_report == 0) {
             memory.report();
+            self.perf_read.report();
+            self.perf_control.report();
+            self.perf_read.reset();
+            self.perf_control.reset();
         }
         self.iteration += 1;
 

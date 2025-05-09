@@ -20,8 +20,8 @@ int perf_counter_init(perf_counter_t *self, const char *name) {
   }
 
   printf(
-      "Performance counter %s, cpu resolution: %ld s %ld ns\n", name,
-      resolution.tv_sec, resolution.tv_nsec
+      "Performance counter %s, cpu resolution: %llu ns\n", name,
+      ns_from_timespec(&resolution)
   );
 
   *self = (perf_counter_t){

@@ -4,4 +4,5 @@ pub usingnamespace @cImport({
     @cInclude("signal.h");
     @cInclude("malloc.h");
     @cInclude("pthread.h");
+    @cInclude("time.h");
 });

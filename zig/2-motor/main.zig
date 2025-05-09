@@ -5,6 +5,7 @@ const pwm = @import("pwm");
 
 const c = @import("c.zig");
 const memory = @import("memory.zig");
+const perf = @import("perf.zig");
 
 const i2c_adapter_number = 1;
 const i2c_adapter_path = std.fmt.comptimePrint("/dev/i2c-{}", .{i2c_adapter_number});
@@ -84,9 +85,12 @@ pub fn main() !void {
     });
     try channel.enable();
 
+    var perf_main = try perf.Counter.init("MAIN");
     while (do_continue) {
         for (0..control_iters_per_perf_report) |_| {
             std.time.sleep(sleep_time_ns);
+
+            const start = perf.Marker.now();
 
             const value = read_potentiometer_value(i2c_file) orelse continue;
             const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
@@ -98,9 +102,13 @@ pub fn main() !void {
             }) catch |err| {
                 std.log.err("Error: {}\n", .{err});
             };
+
+            perf_main.add_sample(start);
         }
 
         memory.report();
+        perf_main.report();
+        perf_main.reset();
     }
 }
 

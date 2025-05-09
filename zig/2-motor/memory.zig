@@ -19,8 +19,8 @@ pub fn report() void {
     const stack_pointer = &stack_frame;
     const stack_size = @intFromPtr(stack_end) - @intFromPtr(stack_pointer);
 
-    std.debug.print("MAIN stack usage: {} B\n", .{stack_size});
-    std.debug.print("Heap usage: {} B\n", .{heap_usage});
+    std.log.info("MAIN stack usage: {} B", .{stack_size});
+    std.log.info("Heap usage: {} B", .{heap_usage});
 }
 
 pub extern "c" fn __libc_malloc(size: usize) *void;

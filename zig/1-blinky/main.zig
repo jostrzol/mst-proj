@@ -3,6 +3,7 @@ const gpio = @import("gpio");
 
 const c = @import("c.zig");
 const memory = @import("memory.zig");
+const perf = @import("perf.zig");
 
 const period_ms = 100;
 const sleep_time_ns = period_ms * std.time.ns_per_ms / 2;
@@ -33,16 +34,24 @@ pub fn main() !void {
     defer line.close();
 
     var is_on = false;
+
+    var perf_main = try perf.Counter.init("MAIN");
     while (do_continue) {
         for (0..control_iters_per_perf_report) |_| {
             std.time.sleep(sleep_time_ns);
 
+            const start = perf.Marker.now();
+
             std.log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
             line.setValue(is_on) catch |err| std.log.err("Error: {}", .{err});
             is_on = !is_on;
+
+            perf_main.add_sample(start);
         }
 
         memory.report();
+        perf_main.report();
+        perf_main.reset();
     }
 
     try line.setLow();
