@@ -48,9 +48,10 @@ pub struct Controller {
     registers: Arc<SyncUnsafeCell<Registers>>,
     pwm: Pwm,
     i2c: I2c,
-    revolutions: AllocRingBuffer<u32>,
+    pwm_period: Duration,
     interval_rotate_once_s: f32,
     interval_rotate_all_s: f32,
+    revolutions: AllocRingBuffer<u32>,
     is_close: bool,
     feedback: Feedback,
 }
@@ -65,6 +66,7 @@ impl Controller {
 
         let pwm = Pwm::new(options.pwm_channel)?;
         pwm.set_frequency(options.pwm_frequency, 0.)?;
+        let pwm_period = pwm.period()?;
         pwm.enable()?;
 
         let mut revolutions = AllocRingBuffer::<u32>::new(options.time_window_bins);
@@ -79,9 +81,10 @@ impl Controller {
             pwm,
             i2c,
             is_close: false,
-            revolutions,
+            pwm_period,
             interval_rotate_once_s,
             interval_rotate_all_s,
+            revolutions,
             feedback: Feedback::default(),
         })
     }
@@ -227,7 +230,8 @@ impl Controller {
     }
 
     fn update_duty_cycle(&self, value: f32) -> anyhow::Result<()> {
-        self.pwm.set_duty_cycle(value.into())?;
+        let pulse_width = self.pwm_period.mul_f32(value);
+        self.pwm.set_pulse_width(pulse_width)?;
         Ok(())
     }
 }

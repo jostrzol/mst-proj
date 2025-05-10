@@ -28,6 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let pwm = Pwm::new(PWM_CHANNEL)?;
     pwm.set_frequency(PWM_FREQUENCY, 0.)?;
+    let pwm_period = pwm.period()?;
     pwm.enable()?;
 
     let more_work = Arc::new(AtomicBool::new(true));
@@ -51,12 +52,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 continue;
             };
 
-            let duty_cycle = value as f64 / u8::MAX as f64;
+            let duty_cycle = value as f32 / u8::MAX as f32;
             #[cfg(debug_assertions)]
             println!("selected duty cycle: {duty_cycle:.2}");
 
-            if let Err(err) = pwm.set_frequency(PWM_FREQUENCY, duty_cycle) {
-                eprintln!("error setting pwm frequency: {err}");
+            let pulse_width = pwm_period.mul_f32(duty_cycle);
+            if let Err(err) = pwm.set_pulse_width(pulse_width) {
+                eprintln!("error setting pwm duty cycle: {err}");
             }
         }
 
