@@ -4,17 +4,16 @@ const sys = idf.sys;
 
 const utils = @import("utils.zig");
 
-pub fn report(tasks: []const sys.TaskHandle_t) void {
-    for (tasks) |task| {
-        const name = sys.pcTaskGetName(task);
+pub fn report() void {
+    const task = sys.xTaskGetCurrentTaskHandle();
+    const name = sys.pcTaskGetName(task);
 
-        const task_stack_usage = stackUsage(task) catch |err| {
-            std.log.err("Failed to get stack usage of task {s}: {}", .{ name, err });
-            continue;
-        };
+    const task_stack_usage = stackUsage(task) catch |err| {
+        std.log.err("Failed to get stack usage of task {s}: {}", .{ name, err });
+        return;
+    };
 
-        std.log.info("{s} stack usage: {} B", .{ name, task_stack_usage });
-    }
+    std.log.info("{s} stack usage: {} B", .{ name, task_stack_usage });
 
     const total_heap_size = sys.heap_caps_get_total_size(0);
     const free_heap_size = sys.heap_caps_get_free_size(0);

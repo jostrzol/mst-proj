@@ -1,14 +1,15 @@
 const std = @import("std");
 const idf = @import("esp_idf");
+const Allocator = std.mem.Allocator;
 const sys = idf.sys;
 
 const c = @import("c.zig");
 const utils = @import("utils.zig");
 
-pub const StartMarker = struct {
+pub const Marker = struct {
     cycle: sys.esp_cpu_cycle_count_t,
 
-    pub fn now() StartMarker {
+    pub fn now() Marker {
         return .{ .cycle = sys.esp_cpu_get_cycle_count() };
     }
 };
@@ -18,10 +19,9 @@ pub const Counter = struct {
 
     name: []const u8,
     cpu_frequency: u32,
-    total_cycles: sys.esp_cpu_cycle_count_t,
-    sample_count: u32,
+    samples: std.ArrayList(sys.esp_cpu_cycle_count_t),
 
-    pub fn init(name: []const u8) !Self {
+    pub fn init(allocator: Allocator, name: []const u8, length: usize) !Self {
         var cpu_frequency: u32 = undefined;
         try c.espCheckError(c.esp_clk_tree_src_get_freq_hz(
             c.SOC_MOD_CLK_CPU,
@@ -29,33 +29,61 @@ pub const Counter = struct {
             &cpu_frequency,
         ));
 
+        const samples = try std.ArrayList(sys.esp_cpu_cycle_count_t).initCapacity(allocator, length);
+
         return .{
             .name = name,
             .cpu_frequency = cpu_frequency,
-            .total_cycles = 0,
-            .sample_count = 0,
+            .samples = samples,
         };
     }
 
-    pub fn add_sample(self: *Self, start: StartMarker) void {
-        const end = sys.esp_cpu_get_cycle_count();
-        const cycles = end - start.cycle;
+    pub fn deinit(self: *const Self) void {
+        self.samples.deinit();
+    }
 
-        self.total_cycles += cycles;
-        self.sample_count += 1;
+    pub fn add_sample(self: *Self, start: Marker) void {
+        const end = Marker.now();
+        const diff = end.cycle - start.cycle;
+
+        if (self.samples.items.len >= self.samples.capacity) {
+            std.log.err("perf.Counter.add_sample: buffer is full", .{});
+            return;
+        }
+
+        const sample = self.samples.addOneAssumeCapacity();
+        sample.* = diff;
     }
 
     pub fn report(self: *const Self) void {
-        const cycles_avg = @as(f64, @floatFromInt(self.total_cycles)) / @as(f64, @floatFromInt(self.sample_count));
-        const time_us = cycles_avg / @as(f64, @floatFromInt(self.cpu_frequency)) * 1e6;
         std.log.info(
-            "Performance counter {s}: {d:.3} us = {d:.0} cycles ({} sampl.)",
-            .{ self.name, time_us, cycles_avg, self.sample_count },
+            "Performance counter {s}: {}",
+            .{ self.name, SampleFormatter{ .data = self } },
         );
     }
 
+    const SampleFormatter = std.fmt.Formatter(formatSamples);
+
+    fn formatSamples(
+        data: *const Self,
+        comptime _: []const u8,
+        _: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        const scale = 1e6 / @as(f32, @floatFromInt(data.cpu_frequency));
+        const samples = data.samples.items;
+
+        try writer.writeAll("[");
+        for (samples, 0..) |sample, i| {
+            const value = @as(f32, @floatFromInt(sample)) * scale;
+            try std.fmt.format(writer, "{d:.2}", .{value});
+            if (i < samples.len - 1)
+                try writer.writeAll(",");
+        }
+        try writer.writeAll("] us");
+    }
+
     pub fn reset(self: *Self) void {
-        self.total_cycles = 0;
-        self.sample_count = 0;
+        self.samples.clearRetainingCapacity();
     }
 };

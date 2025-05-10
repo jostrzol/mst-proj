@@ -96,6 +96,9 @@ _watch-bm NUM PROJECT:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   watchexec --postpone --wrap-process session --verbose \
   -e zig -w ./{{NUM}}-{{PROJECT}}-bm \
+  --ignore './{{NUM}}-{{PROJECT}}-bm/zig-out' \
+  --ignore './{{NUM}}-{{PROJECT}}-bm/.zig-cache' \
+  --ignore './{{NUM}}-{{PROJECT}}-bm/build' \
   --on-busy-update=restart --stop-signal=SIGKILL \
   -- just _build-bm \"{{NUM}}\" \"{{PROJECT}}\"
 

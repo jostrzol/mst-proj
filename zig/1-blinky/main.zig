@@ -60,8 +60,6 @@ pub fn main() !void {
         perf_main.reset();
         report_number += 1;
     }
-
-    try line.setLow();
 }
 
 pub const std_options: std.Options = .{

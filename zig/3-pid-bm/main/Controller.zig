@@ -8,6 +8,7 @@ const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const adc_m = @import("adc.zig");
 const pwm_m = @import("pwm.zig");
 const perf_m = @import("perf.zig");
+const memory = @import("memory.zig");
 const c = @import("c.zig");
 const utils = @import("utils.zig");
 const logErr = utils.logErr;
@@ -28,6 +29,7 @@ const limit_min_deadzone = 0.001;
 
 var controller_task: sys.TaskHandle_t = null;
 
+allocator: Allocator,
 options: InitOptions,
 registers: *Registers,
 adc: struct {
@@ -50,11 +52,29 @@ state: struct {
 },
 
 pub const InitOptions = struct {
-    frequency: u64,
+    /// Frequency of control phase, during which the following happens:
+    /// * calculating the frequency for the current time window,
+    /// * moving the time window forward,
+    /// * updating duty cycle,
+    /// * updating modbus registers.
+    control_frequency: u32,
+    /// Frequency is estimated for the current time window. That window is broken
+    /// into [time_window_bins] bins and is moved every time the control phase
+    /// takes place.
+    time_window_bins: u32,
+    /// Each bin in the time window gets [reads_per_bin] reads, before the next
+    /// control phase fires. That means, that the read phase occurs with frequency
+    /// equal to:
+    ///     `control_frequency * reads_per_bin`
+    /// , because every time the window moves (control phase), there must be
+    /// [reads_per_bin] reads in the last bin already (read phase).
+    reads_per_bin: u32,
+    /// When ADC reads below this signal, the state is set to `close` to the
+    /// motor magnet. If the state has changed, a new revolution is counted.
     revolution_treshold_close: f32,
+    /// When ADC reads above this signal, the state is set to `far` from the
+    /// motor magnet.
     revolution_treshold_far: f32,
-    revolution_bins: usize,
-    reads_per_bin: usize,
 };
 
 const Feedback = struct {
@@ -103,21 +123,23 @@ pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !
     try c.espCheckError(c.gptimer_enable(timer));
     errdefer c.espLogError(c.gptimer_disable(timer));
 
+    const read_frequency = options.control_frequency * options.reads_per_bin;
     try c.espCheckError(gptimer_set_alarm_action(timer, &.{
-        .alarm_count = timer_frequency / options.frequency,
+        .alarm_count = timer_frequency / read_frequency,
         .reload_count = 0,
         .flags = .{ .auto_reload_on_alarm = true },
     }));
 
     const interval_rotate_once_s: f32 =
-        1.0 / @as(f32, @floatFromInt(options.frequency)) * @as(f32, @floatFromInt(options.reads_per_bin));
+        1.0 / @as(f32, @floatFromInt(options.control_frequency));
     const interval_rotate_all_s: f32 =
-        interval_rotate_once_s * @as(f32, @floatFromInt(options.revolution_bins));
+        interval_rotate_once_s * @as(f32, @floatFromInt(options.time_window_bins));
 
-    const revolutions = try RingBuffer(u32).init(allocator, options.revolution_bins);
+    const revolutions = try RingBuffer(u32).init(allocator, options.time_window_bins);
     errdefer revolutions.deinit(allocator);
 
     return .{
+        .allocator = allocator,
         .options = options,
         .registers = registers,
         .adc = .{
@@ -141,8 +163,8 @@ pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !
     };
 }
 
-pub fn deinit(self: *const Self, allocator: Allocator) void {
-    self.state.revolutions.deinit(allocator);
+pub fn deinit(self: *const Self) void {
+    self.state.revolutions.deinit(self.allocator);
     self.adc.unit.deinit();
     self.pwm.timer.deinit();
     self.pwm.channel.deinit();
@@ -163,11 +185,26 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
 
     c.espCheckError(c.gptimer_start(self.timer)) catch |err| panicErr(err);
 
-    var perf_read = perf_m.Counter.init("READ") catch |err| panicErr(err);
-    var perf_control = perf_m.Counter.init("CONTROL") catch |err| panicErr(err);
+    const control_frequency = self.options.control_frequency;
+    const read_frequency = control_frequency * self.options.reads_per_bin;
 
+    var perf_read = perf_m.Counter.init(
+        self.allocator,
+        "READ",
+        read_frequency,
+    ) catch |err| panicErr(err);
+    defer perf_read.deinit();
+
+    var perf_control = perf_m.Counter.init(
+        self.allocator,
+        "CONTROL",
+        control_frequency,
+    ) catch |err| panicErr(err);
+    defer perf_control.deinit();
+
+    var report_number: u64 = 0;
     while (true) {
-        for (0..control_iters_per_perf_report) |_| {
+        for (0..self.options.control_frequency) |_| {
             for (0..self.options.reads_per_bin) |_| {
                 while (idf.ulTaskGenericNotifyTake(
                     c.tskDEFAULT_INDEX_TO_NOTIFY,
@@ -175,20 +212,23 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
                     c.portMAX_DELAY,
                 ) == 0) {}
 
-                const read_start = perf_m.StartMarker.now();
+                const read_start = perf_m.Marker.now();
                 logErr(self.read_phase());
                 perf_read.add_sample(read_start);
             }
 
-            const control_start = perf_m.StartMarker.now();
+            const control_start = perf_m.Marker.now();
             logErr(self.control_phase());
             perf_control.add_sample(control_start);
         }
 
+        std.log.info("# REPORT {}", .{report_number});
+        memory.report();
         perf_read.report();
         perf_control.report();
         perf_read.reset();
         perf_control.reset();
+        report_number += 1;
     }
 }
 

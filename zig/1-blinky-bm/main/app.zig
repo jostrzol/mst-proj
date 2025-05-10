@@ -8,26 +8,28 @@ const perf = @import("perf.zig");
 
 usingnamespace @import("comptime-rt.zig");
 
-const period_ms = 100;
-const sleep_duration_ms = period_ms / 2;
-const control_iters_per_perf_report: usize = 20;
+const blink_frequency = 10;
+const update_frequency = 2 * blink_frequency;
+const sleep_time_ms = std.time.ms_per_s / update_frequency;
 
 fn main() !void {
     log.info("Blinking an LED from Zig", .{});
 
-    var is_on = false;
+    const allocator = std.heap.raw_c_allocator;
 
     try idf.gpio.Direction.set(.GPIO_NUM_5, .GPIO_MODE_OUTPUT);
 
-    const tasks = [_]sys.TaskHandle_t{sys.xTaskGetCurrentTaskHandle()};
+    var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
+    defer perf_main.deinit();
 
-    var perf_main = try perf.Counter.init("MAIN");
+    var report_number: u64 = 0;
 
+    var is_on = false;
     while (true) {
-        for (0..control_iters_per_perf_report) |_| {
-            idf.vTaskDelay(sleep_duration_ms / idf.portTICK_PERIOD_MS);
+        for (0..update_frequency) |_| {
+            idf.vTaskDelay(sleep_time_ms / idf.portTICK_PERIOD_MS);
 
-            const start = perf.StartMarker.now();
+            const start = perf.Marker.now();
 
             log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
 
@@ -39,9 +41,12 @@ fn main() !void {
 
             perf_main.add_sample(start);
         }
-        memory.report(&tasks);
+
+        std.log.info("# REPORT {}", .{report_number});
+        memory.report();
         perf_main.report();
         perf_main.reset();
+        report_number += 1;
     }
 }
 
