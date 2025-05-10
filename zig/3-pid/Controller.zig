@@ -32,7 +32,7 @@ state: struct {
     revolutions: RingBuffer(u32),
     is_close: bool = false,
     feedback: Feedback = .{ .delta = 0, .integration_component = 0 },
-    iteration: u64 = 0,
+    iteration: u64 = 1,
 },
 perf: struct {
     read: perf.Counter,
@@ -176,7 +176,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
 
     const reads_per_report = self.options.reads_per_bin * self.options.control_frequency;
     if (self.state.iteration % reads_per_report == 0) {
-        const report_number = self.state.iteration / reads_per_report;
+        const report_number = self.state.iteration / reads_per_report - 1;
         std.log.info("# REPORT {}", .{report_number});
         memory.report();
         self.perf.control.report();

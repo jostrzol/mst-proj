@@ -96,7 +96,6 @@ def benchmark(elf_path: Path):
             nonlocal is_init
             _ = reset_usb()
             sleep(2)
-            # with monitor() if is_init else flash(elf_path) as proc:
             with flash(elf_path) as proc:
                 wait_for_connected(proc)
                 if not is_init:

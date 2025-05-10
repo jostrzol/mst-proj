@@ -265,7 +265,7 @@ int controller_init(
               .revolutions = revolutions,
               .is_close = false,
               .feedback = {.delta = 0, .integration_component = 0},
-              .iteration = 0,
+              .iteration = 1,
           },
       .perf =
           {
@@ -379,7 +379,7 @@ int controller_handle(controller_t *self, int fd) {
   const size_t reads_per_report =
       self->options.reads_per_bin * self->options.control_frequency;
   if (self->state.iteration % reads_per_report == 0) {
-    const uint64_t report_number = self->state.iteration / reads_per_report;
+    const uint64_t report_number = self->state.iteration / reads_per_report - 1;
     printf("# REPORT %lld\n", report_number);
     memory_report();
     perf_counter_report(self->perf.read);

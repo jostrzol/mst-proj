@@ -68,30 +68,51 @@ watch:
 artifacts-server:
   python3 -m http.server -d ./artifacts/
 
-bench: pid-bm-bench motor-bm-bench blinky-bm-bench
+bench-os: pid-bench motor-bench blinky-bench
+bench-bm: pid-bm-bench motor-bm-bench blinky-bm-bench
+
+blinky-bench: \
+  (_bench "--reports" "130" \
+    "./artifacts/fast/1-blinky-c" \
+    "./artifacts/fast/1-blinky-zig" \
+    "./artifacts/fast/1-blinky-rust" \
+  )
+motor-bench: \
+  (_bench "--reports" "130" \
+    "./artifacts/fast/2-motor-c" \
+    "./artifacts/fast/2-motor-zig" \
+    "./artifacts/fast/2-motor-rust" \
+  ) 
+pid-bench: \
+  (_bench "--reports" "130" \
+    "./artifacts/fast/3-pid-c" \
+    "./artifacts/fast/3-pid-zig" \
+    "./artifacts/fast/3-pid-rust" \
+  )
 
 blinky-bm-bench: \
-  (_bench "--reports" "60" \
+  (_bench-bm "--reports" "130" \
     "./artifacts/fast/1-blinky-bm-c.elf" \
     "./artifacts/fast/1-blinky-bm-zig.elf" \
     "./artifacts/fast/1-blinky-bm-rust.elf" \
   )
-
 motor-bm-bench: \
-  (_bench "--reports" "110" \
+  (_bench-bm "--reports" "130" \
     "./artifacts/fast/2-motor-bm-c.elf" \
     "./artifacts/fast/2-motor-bm-zig.elf" \
     "./artifacts/fast/2-motor-bm-rust.elf" \
   ) 
-
 pid-bm-bench: \
-  (_bench "--reports" "110" \
+  (_bench-bm "--reports" "130" \
     "./artifacts/fast/3-pid-bm-c.elf" \
     "./artifacts/fast/3-pid-bm-zig.elf" \
     "./artifacts/fast/3-pid-bm-rust.elf" \
   )
 
 _bench *ARGS:
+  ./.venv/bin/python3 ./scripts/benchmark.py {{ARGS}}
+
+_bench-bm *ARGS:
   ./.venv/bin/python3 ./scripts/benchmark_bm.py {{ARGS}}
 
 analyze: _venv_init _analyze_c _analyze_rust _analyze_zig
@@ -143,7 +164,7 @@ _analyze LANG *FLAGS:
 
 
 # venv private
-_venv_dependency_packages := "setuptools matplotlib"
+_venv_dependency_packages := "setuptools matplotlib pandas numpy"
 _venv_dev_dependency_packages := "ruff basedpyright"
 
 _venv_init: _venv_dependencies _venv_lizard

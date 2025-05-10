@@ -1,6 +1,10 @@
 {
-  "include": ["scripts"],
+  "include": [
+    "scripts"
+  ],
   "venv": ".venv",
   "reportUnknownMemberType": false,
-  "reportImplicitRelativeImport": false
+  "reportImplicitRelativeImport": false,
+  "reportAny": false,
+  "reportExplicitAny": false
 }
