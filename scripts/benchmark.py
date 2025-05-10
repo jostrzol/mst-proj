@@ -10,6 +10,7 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from pathlib import Path
 from signal import SIGINT
+from time import sleep
 from typing import IO, Callable, Protocol
 
 from lib.constants import PERF_DIR
@@ -119,15 +120,22 @@ def benchmark(binary_path: Path):
 def upload_binary(binary: Path):
     print(f"Uploading binary {binary.name}")
     _ = subprocess.run(["ssh", args.remote, "mkdir", "-p", str(args.remote_app_dir)])
+    # _ = subprocess.run(["ssh", args.remote, "sudo", "rm", str(args.remote_app_dir)])
     _ = subprocess.run(["scp", str(binary), f"{args.remote}:{args.remote_app_dir}"])
 
 
 def kill_all():
     print("Killing all running app binaries")
     query = args.remote_app_dir.name + "/"
-    cmd1 = ["sudo", "pkill", "--full", query]
-    cmd2 = ["sudo", "pkill", "-9", "--full", query]
-    cmd = cmd1 + ["&&", "sleep", "1", "&&"] + cmd2
+
+    cmd = ["sudo", "pkill", "--full", query]
+    print(f"Running: {' '.join(cmd)}")
+    _ = subprocess.run(["ssh", args.remote] + cmd)
+
+    sleep(1)
+
+    cmd = ["sudo", "pkill", "-9", "--full", query]
+    print(f"Running: {' '.join(cmd)}")
     _ = subprocess.run(["ssh", args.remote] + cmd)
 
 
@@ -179,7 +187,7 @@ def gather_results(proc: subprocess.Popen[bytes]):
             and proc.stdout is not None
             and report_number < args.reports
         ):
-            line = readline_non_blocking(proc.stdout, timeout=15)
+            line = readline_non_blocking(proc.stdout, timeout=5)
 
             match = REPORT.search(line)
             if match is not None:
