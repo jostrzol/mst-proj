@@ -75,21 +75,19 @@ blinky-bench: \
   (_bench "--reports" "130" \
     "./artifacts/fast/1-blinky-c" \
     "./artifacts/fast/1-blinky-zig" \
-    "./artifacts/debug/1-blinky-zig" \
     "./artifacts/fast/1-blinky-rust" \
   )
 motor-bench: \
   (_bench "--reports" "130" \
     "./artifacts/fast/2-motor-c" \
     "./artifacts/fast/2-motor-zig" \
-    "./artifacts/debug/2-motor-zig" \
     "./artifacts/fast/2-motor-rust" \
   ) 
 pid-bench: \
   (_bench "--reports" "130" \
     "./artifacts/fast/3-pid-c" \
     "./artifacts/fast/3-pid-zig" \
-    "./artifacts/debug/2-motor-zig" \
+    "./artifacts/debug/3-pid-zig" \
     "./artifacts/fast/3-pid-rust" \
   )
 

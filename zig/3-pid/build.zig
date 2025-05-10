@@ -1,8 +1,10 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
+    const log_level = b.option(std.log.Level, "log-level", "Log level");
 
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
 
@@ -22,6 +24,15 @@ pub fn build(b: *std.Build) !void {
     exe.addLibraryPath(modbus.libdir);
     exe.linkSystemLibrary(modbus.libname);
     exe.root_module.addImport("pwm", zig_pwm.module("pwm"));
+
+    const config = b.addOptions();
+    const log_level_coerced = if (log_level) |lvl| lvl else switch (builtin.mode) {
+        .Debug => .debug,
+        .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .info,
+    };
+    const log_level_name = std.enums.tagName(std.log.Level, log_level_coerced) orelse unreachable;
+    config.addOption([]const u8, "log_level", log_level_name);
+    exe.root_module.addOptions("config", config);
 
     b.installArtifact(exe);
 

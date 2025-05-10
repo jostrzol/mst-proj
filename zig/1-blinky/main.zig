@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 const gpio = @import("gpio");
 
 const c = @import("c.zig");
@@ -64,8 +65,5 @@ pub fn main() !void {
 }
 
 pub const std_options: std.Options = .{
-    .log_level = switch (@import("builtin").mode) {
-        .Debug => .debug,
-        .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .info,
-    },
+    .log_level = std.enums.nameCast(std.log.Level, config.log_level),
 };

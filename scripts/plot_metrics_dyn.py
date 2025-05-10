@@ -26,6 +26,7 @@ from numpy.typing import NDArray
 if TYPE_CHECKING:
     from _typeshed import SupportsRichComparison
 
+# TODO: uncomment bm experiments
 EXPERIMENTS = [
     "1-blinky",
     # "1-blinky-bm",
@@ -40,33 +41,21 @@ WARMUP_REPORTS = 1
 
 type Key = tuple[Literal["perf"] | Literal["mem"], str, str]
 
+type Stats = NDArray[Any]
+
 
 @dataclass
 class LangResult:
     lang: Language
-    time_us_per_loop: dict[str, Stat]
-    mem_usage_per_task: dict[str, Stat]
+    time_us_per_loop: dict[str, Stats]
+    mem_usage_per_task: dict[str, Stats]
 
 
-@dataclass
-class Stat:
-    values: NDArray[Any]
-
-    @classmethod
-    def empty(cls) -> Stat:
-        return cls(np.array([]))
-
-    @property
-    def sum(self) -> float:
-        return self.values.sum()
-
-    @property
-    def mean(self) -> float:
-        return self.values.mean()
-
-    @property
-    def sem(self) -> float:
-        return self.values.std() / np.sqrt(len(self.values))
+BEST_MEM_PROFILE = {
+    "c": {e: "fast" for e in EXPERIMENTS},
+    "zig": {e: "fast" for e in EXPERIMENTS} | {"3-pid": "debug"},
+    "rust": {e: "fast" for e in EXPERIMENTS},
+}
 
 
 def plot_experiment(experiment: str):
@@ -74,22 +63,24 @@ def plot_experiment(experiment: str):
     for lang in LANGUAGES.values():
         slug = f"{experiment}-{lang['slug']}"
         perf = read_reports(f"{slug}-perf-*.csv")
-        mem = read_reports(f"{slug}-mem-*.csv")
+        mem_profile = BEST_MEM_PROFILE[lang["slug"]][experiment]
+        mem = read_reports(f"{slug}-mem-*.csv", profile=mem_profile)
         result = LangResult(
             lang=lang,
             time_us_per_loop=group_reports(perf),
-            mem_usage_per_task=group_reports(mem),
+            mem_usage_per_task=group_reports(mem, divider=1000),
         )
         results.append(result)
 
-    fig, axes = plt.subplots(ncols=2, layout="tight", figsize=(8, 4))
+    fig, axes = plt.subplots(ncols=2, figsize=(8, 4))
     axes: Iterable[Axes]
     ax_perf, ax_mem = axes
 
     plot_perf(ax_perf, results)
     plot_mem(ax_mem, results)
 
-    fig.subplots_adjust(top=0.8)
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.88, wspace=0.4)
 
     out_path = PLOT_DIR / f"{experiment}-perf"
     savefig(fig, out_path)
@@ -110,9 +101,10 @@ def read_reports(
 
 def group_reports(
     benchmarks: Iterable[Benchmark],
-) -> dict[str, Stat]:
+    divider: float = 1,
+) -> dict[str, Stats]:
     return {
-        name: Stat(np.array([row.value for row in rows]).astype(np.float64))
+        name: np.array([row.value / divider for row in rows]).astype(np.float64)
         for name, rows in groupby2(benchmarks, lambda row: row.name)
     }
 
@@ -128,31 +120,40 @@ def plot_perf(ax: Axes, results: list[LangResult]):
         return
 
     series_names = [f"faza {name}" for name in results[0].time_us_per_loop.keys()]
-    series_stats: list[Sequence[Stat]] = list(
+    series_stats: list[Sequence[Stats]] = list(
         zip(*(result.time_us_per_loop.values() for result in results))
     )
+    patterns = PATTERNS
 
-    plot(ax, series_names, series_stats, plottype="box")
+    if len(series_stats) <= 1:
+        series_names = None
+        patterns = [""]
+
+    plot(
+        axs=ax,
+        series_names=series_names,
+        series_stats=series_stats,
+        patterns=patterns,
+        plottype="box",
+    )
     ax.set_ylabel(r"Czas wykonania $[\mu s]$")
 
 
 def plot_mem(ax: Axes, results: list[LangResult]):
+    if any(not result.mem_usage_per_task for result in results):
+        print("No mem series")
+        return
+
     stacks = [
         {k: v for k, v in result.mem_usage_per_task.items() if k != "Heap"}
         for result in results
     ]
 
-    if any(not result.mem_usage_per_task for result in results):
-        print("No mem series")
-        return
-
-    stacks_stats: list[Sequence[Stat]] = [*zip(*(stack.values() for stack in stacks))]
-    heap_stats = [
-        result.mem_usage_per_task.get("Heap", Stat.empty()) for result in results
-    ]
+    stacks_stats: list[Sequence[Stats]] = [*zip(*(stack.values() for stack in stacks))]
+    heap_stats = [result.mem_usage_per_task["Heap"] for result in results]
     n_stacks = len(stacks_stats)
 
-    series_stats: list[Sequence[Stat]] = [*stacks_stats, heap_stats]
+    series_stats: list[Sequence[Stats]] = [*stacks_stats, heap_stats]
     series_names = [*("stos" for _ in stacks[0].keys()), "sterta"]
 
     patterns = [*PATTERNS[:n_stacks], "o"]
@@ -161,9 +162,15 @@ def plot_mem(ax: Axes, results: list[LangResult]):
     ax_heap = ax.twinx()
     axs = [ax_stack] * n_stacks + [ax_heap, ax_heap]
 
-    plot(axs, series_names, series_stats, patterns, plottype="bar")
-    ax_stack.set_ylabel(r"Zajętość stosu $[B]$")
-    ax_heap.set_ylabel(r"Zajętość sterty $[B]$")
+    plot(
+        axs=axs,
+        series_names=series_names,
+        series_stats=series_stats,
+        patterns=patterns,
+        plottype="bar",
+    )
+    ax_stack.set_ylabel(r"Zajętość stosu $[kB]$")
+    ax_heap.set_ylabel(r"Zajętość sterty $[kB]$")
 
 
 PATTERNS = ["/", "x", "-", "|", "\\", "+", "o", "O", ".", "*"]
@@ -171,13 +178,13 @@ PATTERNS = ["/", "x", "-", "|", "\\", "+", "o", "O", ".", "*"]
 
 def plot(
     axs: list[Axes] | Axes,
-    series_names: list[str],
-    series_stats: list[Sequence[Stat]],
+    series_names: list[str] | None,
+    series_stats: list[Sequence[Stats]],
     patterns: list[str] | None = None,
     width: float | None = None,
     plottype: Literal["box"] | Literal["bar"] = "bar",
 ):
-    n_series = len(series_names)
+    n_series = len(series_stats)
     if isinstance(axs, Axes):
         axs = [axs] * n_series
     if not patterns:
@@ -228,24 +235,25 @@ def plot(
         for pattern in patterns
     ]
 
-    names = [name for name, stats in zip(series_names, series_stats) if stats]
-    legend = ax.legend(
-        legend_stubs,
-        names,
-        loc="lower center",
-        bbox_to_anchor=(0.5, 1.01),
-        ncol=len(names),
-    )
-    leg_handles: Sequence[Rectangle] = legend.legend_handles  # pyright: ignore[reportAssignmentType]
-    for leg in leg_handles:
-        leg.set_fill(False)
+    if series_names:
+        names = [name for name, stats in zip(series_names, series_stats) if stats]
+        legend = ax.legend(
+            legend_stubs,
+            names,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 1.01),
+            ncol=len(names),
+        )
+        leg_handles: Sequence[Rectangle] = legend.legend_handles  # pyright: ignore[reportAssignmentType]
+        for leg in leg_handles:
+            leg.set_fill(False)
 
 
 def plot_boxplot(
     axs: Sequence[Axes],
-    series_stats: list[Sequence[Stat]],
+    series_stats: list[Sequence[Stats]],
     patterns: list[str],
-    positions_init: NDArray[Any],
+    positions_init: Stats,
     colors: Sequence[ColorType],
     width: float,
 ):
@@ -256,7 +264,7 @@ def plot_boxplot(
 
         offset = width * multiplier
         positions = positions_init + offset
-        xs = [stat.values for stat in stats]
+        xs = [stat for stat in stats]
 
         boxplot = ax.boxplot(
             xs,
@@ -280,9 +288,9 @@ def plot_boxplot(
 
 def plot_bar(
     axs: Sequence[Axes],
-    series_stats: list[Sequence[Stat]],
+    series_stats: list[Sequence[Stats]],
     patterns: list[str],
-    positions_init: NDArray[Any],
+    positions_init: Stats,
     colors: Sequence[ColorType],
     width: float,
 ):
@@ -293,8 +301,8 @@ def plot_bar(
 
         offset = width * multiplier
         xs = positions_init + offset
-        ys = np.array([stat.mean for stat in stats])
-        yerr = [stat.sem * 10 for stat in stats]
+        ys = np.array([stat.mean() for stat in stats])
+        yerr = [sem(stat) for stat in stats]
 
         bar = ax.bar(
             xs,
@@ -326,6 +334,10 @@ def plot_bar(
 
         containers.append(bar)
     return containers
+
+
+def sem(values: NDArray[Any]) -> float:
+    return values.std() / np.sqrt(len(values))
 
 
 def main():

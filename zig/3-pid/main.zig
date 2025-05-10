@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 const posix = std.posix;
 const POLL = std.os.linux.POLL;
 
@@ -134,8 +135,5 @@ fn pollfd_init(fd: posix.fd_t) posix.pollfd {
 }
 
 pub const std_options: std.Options = .{
-    .log_level = switch (@import("builtin").mode) {
-        .Debug => .debug,
-        .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .info,
-    },
+    .log_level = std.enums.nameCast(std.log.Level, config.log_level),
 };

@@ -5,7 +5,11 @@ profile := if env("BUILD_PROFILE", "") == "SMALL" {
 } else {
   ""
 }
-build_flags := if profile != "" {"--release="+profile} else {""}
+log_level := lowercase(env("LOG_LEVEL", ""))
+
+profile_flag := if profile != "" {"--release="+profile} else {""}
+log_level_flag := if log_level != "" {"-Dlog-level="+log_level} else {""}
+build_flags_os := profile_flag + " " + log_level_flag
 
 cmake_build_type := if env("BUILD_PROFILE", "") == "SMALL" {
   "MinSizeRel"
@@ -84,11 +88,10 @@ _build PROJECT: _make_artifact_dir
   && zvm run 0.13.0 build \
     -Dtarget={{arch}} \
     -Dcpu={{cpu}} \
-    {{build_flags}} \
+    {{build_flags_os}} \
     -freference-trace \
   && cp ./zig-out/bin/* ../{{artifacts_dir}}
 
-# --ignore './{{NUM}}-{{PROJECT}}-bm/build' \
 _watch-bm NUM PROJECT:
   if test -z "${IDF_PATH:-}"; then {{esp_export}}; fi; \
   watchexec --postpone --wrap-process session --verbose \

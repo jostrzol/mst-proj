@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 const linux = std.os.linux;
 
 const pwm = @import("pwm");
@@ -120,8 +121,5 @@ fn make_read_command(comptime channel: u8) u8 {
 }
 
 pub const std_options: std.Options = .{
-    .log_level = switch (@import("builtin").mode) {
-        .Debug => .debug,
-        .ReleaseSafe, .ReleaseFast, .ReleaseSmall => .info,
-    },
+    .log_level = std.enums.nameCast(std.log.Level, config.log_level),
 };
