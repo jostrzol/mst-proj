@@ -2,7 +2,6 @@ use core::arch::asm;
 use esp_idf_sys::{
     esp, esp_clk_tree_src_get_freq_hz, esp_cpu_cycle_count_t, soc_module_clk_t_SOC_MOD_CLK_CPU,
 };
-use log::info;
 use std::mem::MaybeUninit;
 
 pub struct Measurement<'a> {
@@ -19,12 +18,11 @@ impl Drop for Measurement<'_> {
 pub struct Counter {
     name: &'static str,
     cpu_frequency: u32,
-    total_cycles: esp_cpu_cycle_count_t,
-    sample_count: u32,
+    samples: Vec<esp_cpu_cycle_count_t>,
 }
 
 impl Counter {
-    pub fn new(name: &'static str) -> anyhow::Result<Self> {
+    pub fn new(name: &'static str, length: usize) -> anyhow::Result<Self> {
         let mut cpu_frequency = MaybeUninit::uninit();
         esp!(unsafe {
             esp_clk_tree_src_get_freq_hz(
@@ -34,11 +32,12 @@ impl Counter {
             )
         })?;
 
+        let samples = Vec::with_capacity(length);
+
         Ok(Counter {
             name,
             cpu_frequency: unsafe { cpu_frequency.assume_init() },
-            total_cycles: 0,
-            sample_count: 0,
+            samples,
         })
     }
 
@@ -51,25 +50,27 @@ impl Counter {
 
     fn add_sample(&mut self, start: esp_cpu_cycle_count_t) {
         let end = esp_cpu_get_cycle_count();
-        let cycles = end - start;
+        let diff = (end - start) as u32;
 
-        self.total_cycles += cycles;
-        self.sample_count += 1;
+        if let Err(err) = self.samples.push_within_capacity(diff) {
+            eprintln!("perf::Counter::add_sample: {err}");
+        }
     }
 
     pub fn report(&self) {
-        let cycles_avg = self.total_cycles as f64 / self.sample_count as f64;
-        let time_us = cycles_avg / self.cpu_frequency as f64 * 1e6;
-
-        info!(
-            "Performance counter {}: {:.3} us = {:.0} cycles ({} sampl.)",
-            self.name, time_us, cycles_avg, self.sample_count
-        );
+        print!("Performance counter {}: [", self.name);
+        for (i, sample) in self.samples.iter().enumerate() {
+            let value = *sample as f32 * 1e6 / self.cpu_frequency as f32;
+            print!("{:.2}", value);
+            if i < self.samples.len() - 1 {
+                print!(",");
+            }
+        }
+        println!("] us");
     }
 
     pub fn reset(&mut self) {
-        self.total_cycles = 0;
-        self.sample_count = 0;
+        self.samples.clear();
     }
 }
 

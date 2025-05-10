@@ -1,5 +1,6 @@
 #![feature(variant_count)]
 #![feature(asm_experimental_arch)]
+#![feature(vec_push_within_capacity)]
 
 mod controller;
 mod memory;
@@ -20,7 +21,6 @@ use esp_idf_sys::xTaskGetHandle;
 use log::info;
 
 use controller::{Controller, ControllerOptions};
-use memory::memory_report;
 use registers::Registers;
 use server::Server;
 use services::Services;
@@ -29,18 +29,16 @@ const SSID: &str = env!("WIFI_SSID");
 const PASSWORD: &str = env!("WIFI_PASS");
 
 const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
-    frequency: 1000,
+    control_frequency: 10,
+    time_window_bins: 10,
+    reads_per_bin: 100,
     revolution_treshold_close: 0.36,
     revolution_treshold_far: 0.40,
-    revolution_bins: 10,
-    reads_per_bin: 100,
 };
 
 const STACK_SIZE: usize = 5120;
 const CONTROLLER_TASK_NAME: &[u8] = "SERVER_LOOP\0".as_bytes();
 const SERVER_TASK_NAME: &[u8] = "CONTROLLER_LOOP\0".as_bytes();
-
-const MEM_REPORT_INTERVAL_MS: u32 = 1000;
 
 static mut REGISTERS: Option<Registers> = None;
 
@@ -93,15 +91,13 @@ fn main() -> anyhow::Result<()> {
             .expect("Controller setup failed");
             controller.run().expect("Controller loop failed")
         })?;
-    let controller_task = unsafe { xTaskGetHandle(CONTROLLER_TASK_NAME.as_ptr() as *const i8) };
+    let _controller_task = unsafe { xTaskGetHandle(CONTROLLER_TASK_NAME.as_ptr() as *const i8) };
 
     info!("Controlling motor using PID from Rust");
 
     let delay = Delay::default();
     loop {
-        memory_report(&[controller_task]);
-
-        delay.delay_ms(MEM_REPORT_INTERVAL_MS);
+        delay.delay_ms(10 * 1000);
     }
 
     #[allow(unreachable_code)]

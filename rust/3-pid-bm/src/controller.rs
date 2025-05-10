@@ -24,6 +24,7 @@ use log::{error, info};
 use ouroboros::self_referencing;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
+use crate::memory::memory_report;
 use crate::perf;
 use crate::registers::{HoldingRegister, InputRegister, Registers};
 
@@ -56,11 +57,26 @@ where
 }
 
 pub struct ControllerOptions {
-    pub frequency: u64,
+    /// Frequency of control phase, during which the following happens:
+    /// * calculating the frequency for the current time window,
+    /// * moving the time window forward,
+    /// * updating duty cycle,
+    /// * updating modbus registers.
+    pub control_frequency: u32,
+    /// Frequency is estimated for the current time window. That window is broken into
+    /// [time_window_bins] bins and is moved every time the control phase takes place.
+    pub time_window_bins: usize,
+    /// Each bin in the time window gets [reads_per_bin] reads, before the next control phase
+    /// fires. That means, that the read phase occurs with frequency equal to:
+    ///     `control_frequency * reads_per_bin`
+    /// , because every time the window moves (control phase), there must be [reads_per_bin] reads
+    /// in the last bin already (read phase).
+    pub reads_per_bin: u32,
+    /// When ADC reads below this signal, the state is set to `close` to the motor magnet. If the
+    /// state has changed, a new revolution is counted.
     pub revolution_treshold_close: f32,
+    /// When ADC reads above this signal, the state is set to `far` from the motor magnet.
     pub revolution_treshold_far: f32,
-    pub revolution_bins: usize,
-    pub reads_per_bin: usize,
 }
 
 pub struct Controller<'a, TAdc, TAdcPin>
@@ -127,7 +143,8 @@ where
         let timer_config = TimerConfig::new().auto_reload(true);
         let mut timer_driver = TimerDriver::new(timer, &timer_config)?;
 
-        timer_driver.set_alarm(timer_driver.tick_hz() / options.frequency)?;
+        let read_frequency = options.control_frequency * options.reads_per_bin;
+        timer_driver.set_alarm(timer_driver.tick_hz() / read_frequency as u64)?;
         let notification = Notification::new();
         let notifier = notification.notifier();
         // Safety: make sure the `Notification` object is not dropped while the subscription is active
@@ -147,12 +164,11 @@ where
         }
         .try_build()?;
 
-        let mut revolutions = AllocRingBuffer::<u32>::new(options.revolution_bins);
+        let mut revolutions = AllocRingBuffer::<u32>::new(options.time_window_bins);
         revolutions.fill_default();
 
-        let interval_rotate_once_s: f32 =
-            1. / options.frequency as f32 * options.reads_per_bin as f32;
-        let interval_rotate_all_s: f32 = interval_rotate_once_s * options.revolution_bins as f32;
+        let interval_rotate_once_s: f32 = 1. / options.control_frequency as f32;
+        let interval_rotate_all_s: f32 = interval_rotate_once_s * options.time_window_bins as f32;
 
         Ok(Self {
             hal,
@@ -173,8 +189,11 @@ where
 
         self.hal.with_timer_mut(|timer| timer.enable(true))?;
 
-        let mut perf_read = perf::Counter::new("READ")?;
-        let mut perf_control = perf::Counter::new("CONTROL")?;
+        let control_frequency = self.options.control_frequency;
+        let read_frequency = control_frequency * self.options.reads_per_bin;
+
+        let mut perf_read = perf::Counter::new("READ", read_frequency as usize * 2)?;
+        let mut perf_control = perf::Counter::new("CONTROL", control_frequency as usize * 2)?;
 
         loop {
             for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
@@ -194,6 +213,8 @@ where
                     error!("Error while running controller control phase: {}", err);
                 }
             }
+
+            memory_report();
             perf_read.report();
             perf_control.report();
             perf_read.reset();

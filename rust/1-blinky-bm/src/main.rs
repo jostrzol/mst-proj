@@ -1,4 +1,5 @@
 #![feature(asm_experimental_arch)]
+#![feature(vec_push_within_capacity)]
 
 mod memory;
 mod perf;
@@ -6,12 +7,11 @@ mod perf;
 use esp_idf_hal::delay::Delay;
 use esp_idf_hal::gpio::*;
 use esp_idf_hal::peripherals::Peripherals;
-use esp_idf_sys::xTaskGetCurrentTaskHandle;
 use memory::memory_report;
 
-const PERIOD_MS: u32 = 100;
-const SLEEP_DURATION_MS: u32 = PERIOD_MS / 2;
-const CONTROL_ITERS_PER_PERF_REPORT: usize = 20;
+const BLINK_FREQUENCY: u32 = 10;
+const UPDATE_FREQUENCY: u32 = BLINK_FREQUENCY * 2;
+const SLEEP_DURATION_MS: u32 = 1000 / UPDATE_FREQUENCY;
 
 fn main() -> anyhow::Result<()> {
     esp_idf_hal::sys::link_patches();
@@ -23,11 +23,11 @@ fn main() -> anyhow::Result<()> {
     let mut led = PinDriver::output(peripherals.pins.gpio5)?;
 
     let delay = Delay::default();
-    let task = unsafe { xTaskGetCurrentTaskHandle() };
-    let mut perf = perf::Counter::new("MAIN")?;
 
+    let mut perf = perf::Counter::new("MAIN", UPDATE_FREQUENCY as usize * 2)?;
+    let mut report_number: u64 = 0;
     loop {
-        for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+        for _ in 0..UPDATE_FREQUENCY {
             delay.delay_ms(SLEEP_DURATION_MS);
 
             let _measure = perf.measure();
@@ -39,8 +39,10 @@ fn main() -> anyhow::Result<()> {
             );
             led.toggle()?;
         }
-        memory_report(&[task]);
+        println!("# REPORT {report_number}");
+        memory_report();
         perf.report();
         perf.reset();
+        report_number += 1;
     }
 }
