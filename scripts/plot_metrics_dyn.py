@@ -156,7 +156,7 @@ def plot_mem(ax: Axes, results: list[LangResult]):
     series_stats: list[Sequence[Stats]] = [*stacks_stats, heap_stats]
     series_names = [*("stos" for _ in stacks[0].keys()), "sterta"]
 
-    patterns = [*PATTERNS[:n_stacks], "o"]
+    patterns = [*PATTERNS[:n_stacks], "."]
 
     ax_stack = ax
     ax_heap = ax.twinx()

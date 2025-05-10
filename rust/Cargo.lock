@@ -409,7 +409,6 @@ name = "pid"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-mutex",
  "ctrlc",
  "num-derive",
  "num-traits",

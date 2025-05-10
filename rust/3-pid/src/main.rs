@@ -6,6 +6,7 @@
 #![feature(sync_unsafe_cell)]
 #![feature(never_type)]
 #![feature(vec_push_within_capacity)]
+#![feature(ptr_as_ref_unchecked)]
 
 mod memory;
 mod perf;
@@ -14,9 +15,8 @@ mod controller;
 mod registers;
 mod server;
 
-use std::sync::Arc;
+use std::{cell::SyncUnsafeCell, sync::Arc};
 
-use async_mutex::Mutex;
 use controller::{Controller, ControllerOptions};
 use registers::Registers;
 use rppal::pwm;
@@ -41,7 +41,7 @@ const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
 async fn main() -> anyhow::Result<()> {
     println!("Controlling motor using PID from Rust");
 
-    let state = Arc::new(Mutex::new(Registers::new()));
+    let state = Arc::new(SyncUnsafeCell::new(Registers::new()));
     let socket_addr = "0.0.0.0:5502".parse()?;
 
     let mut controller = Controller::new(CONTROLLER_OPTIONS, state.clone())?;

@@ -33,11 +33,11 @@ impl Registers {
         }
     }
 
-    pub fn read_input_registers(&self, range: impl IntoBounds<InputRegister>) -> &[f32] {
+    pub fn read_input(&self, range: impl IntoBounds<InputRegister>) -> &[f32] {
         &self.input[into_usize_bounds(range)]
     }
 
-    pub fn write_input_registers(
+    pub fn write_input(
         &mut self,
         range: impl IntoBounds<InputRegister>,
         values: impl IntoIterator<Item = f32>,
@@ -48,11 +48,11 @@ impl Registers {
             .for_each(|(reg, value)| *reg = value);
     }
 
-    pub fn read_holding_registers(&self, range: impl IntoBounds<HoldingRegister>) -> &[f32] {
+    pub fn read_holding(&self, range: impl IntoBounds<HoldingRegister>) -> &[f32] {
         &self.holding[into_usize_bounds(range)]
     }
 
-    pub fn write_holding_registers(
+    pub fn write_holding(
         &mut self,
         range: impl IntoBounds<HoldingRegister>,
         values: impl IntoIterator<Item = f32>,

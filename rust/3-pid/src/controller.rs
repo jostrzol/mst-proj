@@ -1,8 +1,8 @@
 use anyhow::anyhow;
-use async_mutex::Mutex;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use rppal::i2c::I2c;
 use rppal::pwm::{self, Pwm};
+use std::cell::SyncUnsafeCell;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{interval, MissedTickBehavior};
@@ -45,7 +45,7 @@ pub struct ControllerOptions {
 
 pub struct Controller {
     options: ControllerOptions,
-    registers: Arc<Mutex<Registers>>,
+    registers: Arc<SyncUnsafeCell<Registers>>,
     pwm: Pwm,
     i2c: I2c,
     revolutions: AllocRingBuffer<u32>,
@@ -56,7 +56,10 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(options: ControllerOptions, state: Arc<Mutex<Registers>>) -> anyhow::Result<Self> {
+    pub fn new(
+        options: ControllerOptions,
+        state: Arc<SyncUnsafeCell<Registers>>,
+    ) -> anyhow::Result<Self> {
         let mut i2c = I2c::new()?;
         i2c.set_slave_address(0x48)?;
 
@@ -158,15 +161,15 @@ impl Controller {
         #[cfg(debug_assertions)]
         println!("frequency: {}", frequency);
 
-        let mut state = self.registers.lock().await;
-        let params = ControlParams::read(&state);
+        let registers = unsafe { self.registers.get().as_ref_unchecked() };
+        let params = ControlParams::read(registers);
 
         let (control_signal, feedback) = self.calculate_control(&params, frequency, &self.feedback);
 
         let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
         #[cfg(debug_assertions)]
         println!("control_signal_limited: {:.2}", control_signal_limited);
-        self.write_registers(&mut state, frequency, control_signal_limited);
+        self.write_registers(frequency, control_signal_limited);
 
         self.update_duty_cycle(control_signal_limited)?;
         self.feedback = feedback;
@@ -218,8 +221,9 @@ impl Controller {
         (control_signal, new_feedback)
     }
 
-    fn write_registers(&self, state: &mut Registers, frequency: f32, control_signal_limited: f32) {
-        state.write_input_registers(.., [frequency, control_signal_limited]);
+    fn write_registers(&mut self, frequency: f32, control_signal_limited: f32) {
+        let registers = unsafe { self.registers.get().as_mut_unchecked() };
+        registers.write_input(.., [frequency, control_signal_limited]);
     }
 
     fn update_duty_cycle(&self, value: f32) -> anyhow::Result<()> {
@@ -236,8 +240,8 @@ struct ControlParams {
 }
 
 impl ControlParams {
-    fn read(state: &Registers) -> Self {
-        let registers = state.read_holding_registers(..);
+    fn read(registers: &Registers) -> Self {
+        let read_registers = registers.read_holding(..);
 
         #[rustfmt::skip]
         let &[
@@ -245,7 +249,7 @@ impl ControlParams {
             proportional_factor,
             integration_time,
             differentiation_time
-        ] = registers else { panic!("expected to read 4 registers") };
+        ] = read_registers else { panic!("expected to read 4 registers") };
 
         Self {
             target_frequency,
