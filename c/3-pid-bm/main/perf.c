@@ -8,7 +8,9 @@
 
 static const char *TAG = "perf";
 
-esp_err_t perf_counter_init(perf_counter_t *self, const char *name) {
+esp_err_t perf_counter_init(
+    perf_counter_t **const self, const char *name, size_t length
+) {
   esp_err_t err;
 
   uint32_t cpu_frequency;
@@ -23,36 +25,45 @@ esp_err_t perf_counter_init(perf_counter_t *self, const char *name) {
       cpu_frequency
   );
 
-  *self = (perf_counter_t){
+  const size_t array_size = sizeof(uint32_t) * length;
+  perf_counter_t *me = malloc(sizeof(perf_counter_t) + array_size);
+
+  *me = (perf_counter_t){
       .name = name,
       .cpu_frequency = cpu_frequency,
-      .total_cycles = 0,
-      .sample_count = 0,
+      .capacity = length,
+      .length = 0,
   };
+
+  *self = me;
 
   return ESP_OK;
 }
+void perf_counter_deinit(perf_counter_t *self) { free(self); }
 
-perf_start_mark_t perf_counter_mark_start() {
-  return esp_cpu_get_cycle_count();
-}
-void perf_counter_add_sample(perf_counter_t *self, perf_start_mark_t start) {
+perf_mark_t perf_mark() { return esp_cpu_get_cycle_count(); }
+
+void perf_counter_add_sample(perf_counter_t *self, perf_mark_t start) {
   const esp_cpu_cycle_count_t end = esp_cpu_get_cycle_count();
-  const esp_cpu_cycle_count_t cycles = end - start;
+  const esp_cpu_cycle_count_t diff = end - start;
 
-  self->total_cycles += cycles;
-  self->sample_count += 1;
+  if (self->length >= self->capacity) {
+    fprintf(stderr, "perf_counter_add_sample: buffer is full\n");
+    return;
+  }
+
+  self->samples[self->length] = diff;
+  self->length += 1;
 }
 
 void perf_counter_report(perf_counter_t *const self) {
-  const double cycles_avg = (double)self->total_cycles / self->sample_count;
-  const double time_us = cycles_avg / self->cpu_frequency * 1e6;
-  ESP_LOGI(
-      TAG, "Performance counter %s: %.3f us = %.0f cycles (%d sampl.)",
-      self->name, time_us, cycles_avg, self->sample_count
-  );
+  printf("Performance counter %s: [", self->name);
+  for (size_t i = 0; i < self->length; ++i) {
+    const float time_us = (float)self->samples[i] * 1e6 / self->cpu_frequency;
+    printf("%.2f", time_us);
+    if (i < self->length - 1)
+      printf(",");
+  }
+  printf("] us\n");
 }
-void perf_counter_reset(perf_counter_t *self) {
-  self->total_cycles = 0;
-  self->sample_count = 0;
-}
+void perf_counter_reset(perf_counter_t *self) { self->length = 0; }

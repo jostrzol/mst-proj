@@ -84,7 +84,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   err = esp_wifi_init(&cfg);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_init fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
+    esp_netif_destroy_default_wifi(netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
@@ -96,7 +96,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   );
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_event_handler_instance_register fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
+    esp_netif_destroy_default_wifi(netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
@@ -107,7 +107,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   );
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_event_handler_instance_register fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
+    esp_netif_destroy_default_wifi(netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
@@ -116,7 +116,7 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   err = esp_wifi_set_mode(WIFI_MODE_STA);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_set_mode fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
+    esp_netif_destroy_default_wifi(netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
@@ -133,14 +133,14 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_set_config fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
+    esp_netif_destroy_default_wifi(netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
   err = esp_wifi_start();
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_start fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
+    esp_netif_destroy_default_wifi(netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
@@ -166,10 +166,12 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
   err = esp_wifi_set_ps(WIFI_PS_NONE);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "esp_wifi_start fail (0x%x)", (int)err);
-    esp_netif_destroy_default_wifi(self->netif);
+    esp_netif_destroy_default_wifi(netif);
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_deinit());
     return err;
   }
+
+  *self = (my_wifi_t){.netif = netif};
 
   return ESP_OK;
 }

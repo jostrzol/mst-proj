@@ -18,7 +18,8 @@
 static const char TAG[] = "motor";
 
 // Configuration
-static const uint32_t SLEEP_DURATION_MS = 100;
+const uint64_t CONTROL_FREQUENCY = 10;
+const uint64_t SLEEP_DURATION_MS = 1000 / CONTROL_FREQUENCY;
 
 static const adc_unit_t ADC_UNIT = ADC_UNIT_1;
 static const adc_channel_t ADC_CHANNEL = ADC_CHANNEL_4;
@@ -31,8 +32,6 @@ static const uint32_t PWM_CHANNEL = LEDC_CHANNEL_0;
 static const uint32_t PWM_GPIO = 5;
 static const uint32_t PWM_FREQUENCY = 1000;
 static const uint32_t PWM_DUTY_RESOLUTION = LEDC_TIMER_13_BIT;
-
-static const size_t CONTROL_ITERS_PER_PERF_REPORT = 10;
 
 // Derived constants
 static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
@@ -96,10 +95,8 @@ void app_main(void) {
     abort();
   }
 
-  TaskHandle_t task = xTaskGetCurrentTaskHandle();
-
-  perf_counter_t perf;
-  err = perf_counter_init(&perf, "MAIN");
+  perf_counter_t *perf;
+  err = perf_counter_init(&perf, "MAIN", CONTROL_FREQUENCY * 2);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "perf_counter_init fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
@@ -108,11 +105,12 @@ void app_main(void) {
     abort();
   }
 
+  uint64_t report_number = 0;
   while (true) {
-    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+    for (size_t i = 0; i < CONTROL_FREQUENCY; ++i) {
       vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
 
-      const perf_start_mark_t start = perf_counter_mark_start();
+      const perf_mark_t start = perf_mark();
 
       int value_raw;
       err = adc_oneshot_read(adc, ADC_CHANNEL, &value_raw);
@@ -122,7 +120,7 @@ void app_main(void) {
       }
 
       const float value_normalized = (float)value_raw / ADC_MAX_VALUE;
-      ESP_LOGD(
+      ESP_LOGI(
           TAG, "selected duty cycle: %.2f = %d / %" PRIu32, value_normalized,
           value_raw, ADC_MAX_VALUE
       );
@@ -140,14 +138,17 @@ void app_main(void) {
         continue;
       }
 
-      perf_counter_add_sample(&perf, start);
+      perf_counter_add_sample(perf, start);
     }
 
-    memory_report(1, task);
-    perf_counter_report(&perf);
-    perf_counter_reset(&perf);
+    ESP_LOGI(TAG, "# REPORT %llu", report_number);
+    memory_report();
+    perf_counter_report(perf);
+    perf_counter_reset(perf);
+    report_number += 1;
   }
 
+  perf_counter_deinit(perf);
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&timer_deconfig));
   ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));

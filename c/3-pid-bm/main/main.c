@@ -10,19 +10,19 @@
 #include "portmacro.h"
 
 #include "controller.h"
-#include "memory.h"
 #include "registers.h"
 #include "server.h"
 #include "services.h"
 
 #define STACK_SIZE (4096)
-#define MEM_REPORT_INTERVAL_MS 1000
 
 static const char *TAG = "pid";
 
 void app_main(void) {
   esp_err_t err;
   esp_log_level_set(TAG, ESP_LOG_INFO);
+
+  ESP_LOGI(TAG, "Controlling motor using PID from C");
 
   services_t services;
   err = services_init(&services);
@@ -49,11 +49,11 @@ void app_main(void) {
   err = controller_init(
       &controller, &registers,
       (controller_options_t){
-          .frequency = 1000,
+          .control_frequency = 10,
+          .time_window_bins = 10,
+          .reads_per_bin = 100,
           .revolution_treshold_close = 0.36,
           .revolution_treshold_far = 0.40,
-          .revolution_bins = 10,
-          .reads_per_bin = 100,
       }
   );
   if (err != ESP_OK) {
@@ -91,9 +91,7 @@ void app_main(void) {
   }
 
   while (true) {
-    vTaskDelay(MEM_REPORT_INTERVAL_MS / portTICK_PERIOD_MS);
-
-    memory_report(1, controller_task);
+    vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
   }
 
   vTaskDelete(server_task);

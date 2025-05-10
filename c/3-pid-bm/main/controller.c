@@ -11,6 +11,7 @@
 #include "portmacro.h"
 
 #include "controller.h"
+#include "memory.h"
 #include "perf.h"
 #include "ringbuffer.h"
 
@@ -90,7 +91,7 @@ esp_err_t controller_init(
   esp_err_t err;
 
   ringbuffer_t *revolutions;
-  err = ringbuffer_init(&revolutions, options.revolution_bins);
+  err = ringbuffer_init(&revolutions, options.time_window_bins);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "ringbuffer_init fail (0x%x)", err);
     return err;
@@ -187,10 +188,12 @@ esp_err_t controller_init(
     ringbuffer_deinit(revolutions);
     return err;
   }
+  const uint64_t read_frequency =
+      options.control_frequency * options.reads_per_bin;
   err = gptimer_set_alarm_action(
       timer,
       &(gptimer_alarm_config_t){
-          .alarm_count = TIMER_FREQUENCY / options.frequency,
+          .alarm_count = TIMER_FREQUENCY / read_frequency,
           .reload_count = 0,
           .flags.auto_reload_on_alarm = true,
       }
@@ -204,10 +207,9 @@ esp_err_t controller_init(
     return err;
   }
 
-  const float interval_rotate_once_s =
-      (float)1 / options.frequency * options.reads_per_bin;
+  const float interval_rotate_once_s = (float)1 / options.control_frequency;
   const float interval_rotate_all_s =
-      interval_rotate_once_s * options.revolution_bins;
+      interval_rotate_once_s * options.time_window_bins;
 
   *self = (controller_t){
       .options = options,
@@ -387,52 +389,66 @@ void controller_loop(void *params) {
   err = gptimer_start(self->timer);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_start fail (0x%x)", err);
+    controller_task = NULL;
     abort();
   }
 
-  perf_counter_t perf_read;
-  err = perf_counter_init(&perf_read, "READ");
+  const uint64_t control_frequency = self->options.control_frequency;
+  const uint64_t read_frequency =
+      control_frequency * self->options.reads_per_bin;
+
+  perf_counter_t *perf_read;
+  err = perf_counter_init(&perf_read, "READ", read_frequency * 2);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "perf_counter_init (READ) fail (0x%x)", err);
+    controller_task = NULL;
     abort();
   }
 
-  perf_counter_t perf_control;
-  err = perf_counter_init(&perf_control, "CONTROL");
+  perf_counter_t *perf_control;
+  err = perf_counter_init(&perf_control, "CONTROL", control_frequency * 2);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "perf_counter_init (CONTROL) fail (0x%x)", err);
+    controller_task = NULL;
+    perf_counter_deinit(perf_read);
     abort();
   }
 
+  uint64_t report_number = 0;
   while (true) {
     for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
       for (size_t j = 0; j < self->options.reads_per_bin; ++j) {
         while (ulTaskNotifyTake(pdTRUE, portMAX_DELAY) == 0)
           ;
 
-        const perf_start_mark_t read_start = perf_counter_mark_start();
+        const perf_mark_t read_start = perf_mark();
 
         err = read_phase(self);
         if (err != ESP_OK)
           ESP_LOGE(TAG, "read_phase fail (0x%x)", err);
 
-        perf_counter_add_sample(&perf_read, read_start);
+        perf_counter_add_sample(perf_read, read_start);
       }
 
-      const perf_start_mark_t control_start = perf_counter_mark_start();
+      const perf_mark_t control_start = perf_mark();
 
       err = control_phase(self);
       if (err != ESP_OK)
         ESP_LOGE(TAG, "control_phase fail (0x%x)", err);
 
-      perf_counter_add_sample(&perf_control, control_start);
+      perf_counter_add_sample(perf_control, control_start);
     }
-    perf_counter_report(&perf_read);
-    perf_counter_report(&perf_control);
 
-    perf_counter_reset(&perf_read);
-    perf_counter_reset(&perf_control);
+    ESP_LOGI(TAG, "# REPORT %llu", report_number);
+    memory_report();
+    perf_counter_report(perf_read);
+    perf_counter_report(perf_control);
+    perf_counter_reset(perf_read);
+    perf_counter_reset(perf_control);
+    report_number += 1;
   }
 
+  perf_counter_deinit(perf_control);
+  perf_counter_deinit(perf_read);
   controller_task = NULL;
 }

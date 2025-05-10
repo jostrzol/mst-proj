@@ -9,10 +9,10 @@
 #include "perf.h"
 
 static const uint32_t BLINK_GPIO = 5;
-static const uint32_t PERIOD_MS = 100;
-static const uint32_t SLEEP_DURATION_MS = PERIOD_MS / 2;
 
-static const size_t CONTROL_ITERS_PER_PERF_REPORT = 20;
+const int64_t BLINK_FREQUENCY = 10;
+const int64_t UPDATE_FREQUENCY = BLINK_FREQUENCY * 2;
+const int64_t SLEEP_DURATION_MS = 1000 / UPDATE_FREQUENCY;
 
 static const char TAG[] = "blinky";
 
@@ -32,22 +32,21 @@ void app_main(void) {
     abort();
   }
 
-  uint8_t is_on = 0;
-
-  TaskHandle_t task = xTaskGetCurrentTaskHandle();
-
-  perf_counter_t perf;
-  err = perf_counter_init(&perf, "MAIN");
+  perf_counter_t *perf;
+  err = perf_counter_init(&perf, "MAIN", UPDATE_FREQUENCY * 2);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "perf_counter_init fail (0x%x)", (int)err);
     abort();
   }
 
+  uint8_t is_on = 0;
+
+  uint64_t report_number = 0;
   while (true) {
-    for (size_t i = 0; i < CONTROL_ITERS_PER_PERF_REPORT; ++i) {
+    for (size_t i = 0; i < UPDATE_FREQUENCY; ++i) {
       vTaskDelay(SLEEP_DURATION_MS / portTICK_PERIOD_MS);
 
-      const perf_start_mark_t start = perf_counter_mark_start();
+      const perf_mark_t start = perf_mark();
 
       ESP_LOGD(TAG, "Turning the LED %s", is_on == true ? "ON" : "OFF");
 
@@ -58,11 +57,15 @@ void app_main(void) {
       }
       is_on = !is_on;
 
-      perf_counter_add_sample(&perf, start);
+      perf_counter_add_sample(perf, start);
     }
 
-    memory_report(1, task);
-    perf_counter_report(&perf);
-    perf_counter_reset(&perf);
+    ESP_LOGI(TAG, "# REPORT %llu", report_number);
+    memory_report();
+    perf_counter_report(perf);
+    perf_counter_reset(perf);
+    report_number += 1;
   }
+
+  perf_counter_deinit(perf);
 }

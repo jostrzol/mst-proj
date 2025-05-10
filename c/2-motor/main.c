@@ -20,8 +20,8 @@
 #define I2C_ADAPTER_NUMBER "1"
 const char I2C_ADAPTER_PATH[] = "/dev/i2c-" I2C_ADAPTER_NUMBER;
 const uint32_t ADS7830_ADDRESS = 0x48;
-const uint32_t MOTOR_LINE_NUMBER = 13;
 
+const uint32_t MOTOR_LINE_NUMBER = 13;
 const uint64_t PWM_FREQUENCY = 1000;
 
 const uint64_t CONTROL_FREQUENCY = 10;
