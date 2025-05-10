@@ -36,8 +36,7 @@ EXPERIMENTS = [
     # "3-pid-bm",
 ]
 
-# TODO: change to 10
-WARMUP_REPORTS = 1
+WARMUP_REPORTS = 10
 
 type Key = tuple[Literal["perf"] | Literal["mem"], str, str]
 
@@ -53,7 +52,11 @@ class LangResult:
 
 BEST_MEM_PROFILE = {
     "c": {e: "fast" for e in EXPERIMENTS},
-    "zig": {e: "fast" for e in EXPERIMENTS} | {"3-pid": "debug"},
+    "zig": {e: "fast" for e in EXPERIMENTS}
+    | {
+        "1-blinky": "debug",
+        "3-pid": "debug",
+    },
     "rust": {e: "fast" for e in EXPERIMENTS},
 }
 
@@ -230,7 +233,7 @@ def plot(
             1,
             facecolor="none",
             edgecolor="black",
-            hatch=pattern * 2,
+            hatch=pattern * 3,
         )
         for pattern in patterns
     ]
@@ -244,7 +247,9 @@ def plot(
             bbox_to_anchor=(0.5, 1.01),
             ncol=len(names),
         )
-        leg_handles: Sequence[Rectangle] = legend.legend_handles  # pyright: ignore[reportAssignmentType]
+        leg_handles: Sequence[Rectangle] = (
+            legend.legend_handles
+        )  # pyright: ignore[reportAssignmentType]
         for leg in leg_handles:
             leg.set_fill(False)
 
@@ -277,7 +282,7 @@ def plot_boxplot(
         for patch, color in zip(patches, colors):
             patch.set_facecolor(color)
             patch.set_edgecolor("black")
-            patch.set_hatch(pattern * 2)
+            patch.set_hatch(pattern * 3)
         medians: Sequence[Line2D] = boxplot["medians"]
         for median in medians:
             median.remove()
