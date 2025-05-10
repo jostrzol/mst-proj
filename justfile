@@ -128,7 +128,7 @@ plot-only:
   done
   if test -d "{{thesis_dir}}"; then \
     mkdir -p "{{thesis_dir}}/sdm2-2/img/plots" \
-    && cp ./analysis/plots/*.pdf "{{thesis_dir}}/sdm2-2/img/plots"; \
+    && cp ./analysis/plots/*.pdf "{{thesis_dir}}/tex/img/plots"; \
   fi
 
 install-dev: _venv_dev_dependencies
@@ -139,11 +139,15 @@ _analyze_c: (
     "--exclude" "'./c/build/*'"
     "--exclude" "'./*/build/*'"
     "--exclude" "'./*/managed_components/*'"
+    "--exclude" "'./*/perf.c'"
+    "--exclude" "'./*/memory.c'"
   )
 _analyze_rust: (
   _analyze "rust"
     "--exclude" "'./*/target/*'"
     "--exclude" "'./*/.embuild/*'"
+    "--exclude" "'./*/perf.rs'"
+    "--exclude" "'./*/memory.rs'"
   )
 _analyze_zig: (
   _analyze "zig"
@@ -154,6 +158,8 @@ _analyze_zig: (
     "--exclude" "'./*/.zig-cache/*'"
     "--exclude" "'./*/managed_components/*'"
     "--exclude" "'./*/comptime-rt.zig'"
+    "--exclude" "'./*/perf.zig'"
+    "--exclude" "'./*/memory.zig'"
   )
 
 _analyze LANG *FLAGS:
