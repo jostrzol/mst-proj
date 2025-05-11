@@ -8,7 +8,7 @@ import numpy as np
 class Benchmark:
     report_number: int
     name: str
-    value: int
+    value: float
 
     def __array__(self):
         return np.array(astuple(self)[1:])
@@ -18,5 +18,5 @@ class Benchmark:
         return cls(
             report_number=int(dict["report_number"]),
             name=dict["name"],
-            value=int(dict["value"]),
+            value=float(dict["value"]),
         )

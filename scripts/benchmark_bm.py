@@ -12,27 +12,22 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
-from typing import IO, TYPE_CHECKING, Callable, Protocol
+from typing import IO, Callable, Protocol
 
 from lib.constants import PERF_DIR
-from lib.types import MemReport, PerformanceReport
-
-if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
-
+from lib.types import Benchmark
 from rich.progress import Progress
 
+REPORT = re.compile(rb"# REPORT (?P<report_number>\d+)")
 CONNECTING = re.compile(rb"Connecting...")
 FLASH_FINISHED = re.compile(rb"Flashing has completed")
 PERFORMANCE = re.compile(
     rb"Performance counter "  # pyright: ignore[reportImplicitStringConcatenation]
     rb"(?P<name>[^:]+)"
-    rb": (?P<time_us>[0-9.]+) us = "
-    rb"(?P<cycles>[0-9]+) cycles "
-    rb"\((?P<samples>[0-9]+) sampl.\)"
+    rb": \[(?P<samples>[0-9.,]+)\] us"
 )
-MEM_STACK = re.compile(rb"(?P<name>\w+) stack usage: (?P<usage>\d+) B")
-MEM_HEAP = re.compile(rb"(?P<name>Heap) usage: (?P<usage>\d+) B")
+MEM_STACK = re.compile(rb"(?P<name>\w+) stack usage: (?P<sample>\d+) B")
+MEM_HEAP = re.compile(rb"(?P<name>Heap) usage: (?P<sample>\d+) B")
 
 
 class Args(Protocol):
@@ -111,8 +106,8 @@ def benchmark(elf_path: Path):
             print(f"Failed to benchmark: {elf_path}, iteration {i}")
         else:
             perf, mem = result
-            write_report(PerformanceReport, perf, perf_outs[i])
-            write_report(MemReport, mem, mem_outs[i])
+            write_report(perf, perf_outs[i])
+            write_report(mem, mem_outs[i])
 
 
 def flash(elf_path: Path):
@@ -188,6 +183,69 @@ def wait_for_flash_finish(proc: subprocess.Popen[bytes]):
         raise Exception(f"Unexpected process finish, ret: {proc.returncode}")
 
 
+def gather_results(proc: subprocess.Popen[bytes]):
+    perf: list[Benchmark] = []
+    stack: list[Benchmark] = []
+    heap: list[Benchmark] = []
+
+    patterns = [PERFORMANCE, MEM_STACK, MEM_HEAP]
+    report_sets = [perf, stack, heap]
+    are_combined = [True, False, False]
+
+    report_number = 0
+    with Progress() as progress:
+        task = progress.add_task("Collecting reports", total=args.reports)
+
+        while (
+            proc.poll() is None
+            and proc.stdout is not None
+            and report_number < args.reports
+        ):
+            line = readline_non_blocking(proc.stdout, timeout=15)
+
+            match = REPORT.search(line)
+            if match is not None:
+                new_report_number = int(match.group("report_number"))
+                diff = new_report_number - report_number
+                progress.update(task, advance=diff)
+                report_number = new_report_number
+                continue
+
+            for pattern, report_set, is_combined in zip(
+                patterns, report_sets, are_combined
+            ):
+                match = pattern.search(line)
+                if match is None:
+                    continue
+
+                groups = match.groupdict()
+                if is_combined:
+                    values = [float(sample) for sample in groups["samples"].split(b",")]
+                    benchmarks = [
+                        Benchmark(
+                            report_number=report_number,
+                            name=groups["name"].decode(),
+                            value=value,
+                        )
+                        for value in values
+                    ]
+                    pass
+                else:
+                    benchmark = Benchmark(
+                        report_number=report_number,
+                        name=groups["name"].decode(),
+                        value=float(groups["sample"]),
+                    )
+                    benchmarks = [benchmark]
+
+                report_set.extend(benchmarks)
+
+    if proc.returncode is not None:
+        raise Exception(f"Unexpected process finish, ret: {proc.returncode}")
+
+    return perf, stack + heap
+
+
 def readline_non_blocking(file: IO[bytes], timeout: float = math.inf):
     tout = timedelta(seconds=timeout)
     last_byte_at = datetime.now()
@@ -213,42 +271,9 @@ def readline_non_blocking(file: IO[bytes], timeout: float = math.inf):
         raise Exception("Timeout")
 
 
-def gather_results(proc: subprocess.Popen[bytes]):
-    perf: list[PerformanceReport] = []
-    stack: list[MemReport] = []
-    heap: list[MemReport] = []
-
-    patterns = [PERFORMANCE, MEM_STACK, MEM_HEAP]
-    types = [PerformanceReport, MemReport, MemReport]
-    report_sets = [perf, stack, heap]
-
-    with Progress() as progress:
-        task = progress.add_task("Collecting reports", total=args.reports)
-
-        while (
-            proc.poll() is None and proc.stdout is not None and len(perf) < args.reports
-        ):
-            line = readline_non_blocking(proc.stdout, timeout=15)
-            for pattern, ty, report_set in zip(patterns, types, report_sets):
-                match = pattern.search(line)
-                if match is None:
-                    continue
-
-                report = ty.from_dict(match.groupdict())
-                report_set.append(report)  # pyright: ignore[reportArgumentType]
-
-                if report_set == perf:
-                    progress.update(task, advance=1)
-
-    if proc.returncode is not None:
-        raise Exception(f"Unexpected process finish, ret: {proc.returncode}")
-
-    return perf, stack + heap
-
-
-def write_report[T: DataclassInstance](t: type[T], reports: list[T], path: Path):
+def write_report(reports: list[Benchmark], path: Path):
     with path.open("w") as file:
-        fields = [field.name for field in dataclasses.fields(t)]
+        fields = [field.name for field in dataclasses.fields(Benchmark)]
         writer = csv.DictWriter(file, fieldnames=fields)
         writer.writeheader()
         rows = (dataclasses.asdict(row) for row in reports)
