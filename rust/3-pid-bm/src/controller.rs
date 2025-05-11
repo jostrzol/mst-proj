@@ -40,8 +40,6 @@ const PWM_MAX: f32 = 1.00;
 
 const LIMIT_MIN_DEADZONE: f32 = 0.001;
 
-const CONTROL_ITERS_PER_PERF_REPORT: usize = 10;
-
 #[self_referencing]
 pub struct ControllerHal<'a, TAdc, TAdcPin>
 where
@@ -195,8 +193,9 @@ where
         let mut perf_read = perf::Counter::new("READ", read_frequency as usize * 2)?;
         let mut perf_control = perf::Counter::new("CONTROL", control_frequency as usize * 2)?;
 
+        let mut report_number: u64 = 0;
         loop {
-            for _ in 0..CONTROL_ITERS_PER_PERF_REPORT {
+            for _ in 0..self.options.control_frequency {
                 for _ in 0..self.options.reads_per_bin {
                     while let None = self.notification.wait(delay::BLOCK) {}
 
@@ -214,11 +213,13 @@ where
                 }
             }
 
+            info!("# REPORT {report_number}");
             memory_report();
             perf_read.report();
             perf_control.report();
             perf_read.reset();
             perf_control.reset();
+            report_number += 1;
         }
     }
 

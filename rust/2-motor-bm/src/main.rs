@@ -17,6 +17,7 @@ use esp_idf_hal::{
 };
 #[cfg(debug_assertions)]
 use log::debug;
+use log::info;
 use memory::memory_report;
 
 const ADC_BITWIDTH: u16 = 9;
@@ -78,7 +79,7 @@ fn main() -> anyhow::Result<()> {
             };
         }
 
-        println!("# REPORT {report_number}");
+        info!("# REPORT {report_number}");
         memory_report();
         perf.report();
         perf.reset();

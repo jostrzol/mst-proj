@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
             );
             led.toggle()?;
         }
-        println!("# REPORT {report_number}");
+        log::info!("# REPORT {report_number}");
         memory_report();
         perf.report();
         perf.reset();
