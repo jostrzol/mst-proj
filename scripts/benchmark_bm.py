@@ -63,8 +63,12 @@ def benchmark(elf_path: Path):
     print(f"Benchmarking: {elf_path}")
 
     name, *_ = elf_path.name.split(".")
-    perf_outs = [PERF_DIR / f"{name}-perf-{i}.csv" for i in range(args.iters)]
-    mem_outs = [PERF_DIR / f"{name}-mem-{i}.csv" for i in range(args.iters)]
+    profile = elf_path.parent.name
+    perf_profile_dir = PERF_DIR / profile
+    perf_profile_dir.mkdir(exist_ok=True, parents=True)
+
+    perf_outs = [perf_profile_dir / f"{name}-perf-{i}.csv" for i in range(args.iters)]
+    mem_outs = [perf_profile_dir / f"{name}-mem-{i}.csv" for i in range(args.iters)]
 
     found: list[int] = []
     to_do: list[int] = []
@@ -263,6 +267,7 @@ def readline_non_blocking(file: IO[bytes], timeout: float = math.inf):
         byte = os.read(file.fileno(), 1)
         if byte != b"":
             last_byte_at = datetime.now()
+        print(bytes)
         bytes += byte
 
     if is_line_complete():

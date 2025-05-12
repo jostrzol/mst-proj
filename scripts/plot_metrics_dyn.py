@@ -26,14 +26,13 @@ from numpy.typing import NDArray
 if TYPE_CHECKING:
     from _typeshed import SupportsRichComparison
 
-# TODO: uncomment bm experiments
 EXPERIMENTS = [
     "1-blinky",
-    # "1-blinky-bm",
+    "1-blinky-bm",
     "2-motor",
-    # "2-motor-bm",
+    "2-motor-bm",
     "3-pid",
-    # "3-pid-bm",
+    "3-pid-bm",
 ]
 
 WARMUP_REPORTS = 10
