@@ -1,5 +1,6 @@
-set(GCC_VERSION 12.2.0)
-set(TOOLCHAIN_HOME "${CMAKE_CURRENT_LIST_DIR}/build/cross-pi-gcc-${GCC_VERSION}-0")
+set(GCC_VERSION 14.2.0)
+set(TOOLCHAIN_HOME
+    "${CMAKE_CURRENT_LIST_DIR}/build/cross-pi-gcc-${GCC_VERSION}-0")
 
 set(TARGET_TRIPLET arm-linux-gnueabihf)
 
