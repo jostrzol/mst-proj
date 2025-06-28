@@ -107,9 +107,7 @@ fn read_adc(i2c_file: std.fs.File) ?u8 {
     return read_value;
 }
 
-fn make_read_command(comptime channel: u8) u8 {
-    comptime std.debug.assert(channel < 7);
-
+fn make_read_command(channel: u3) u8 {
     // bit    7: single-ended inputs mode
     // bits 6-4: channel selection
     // bit    3: is internal reference enabled
@@ -117,7 +115,8 @@ fn make_read_command(comptime channel: u8) u8 {
     // bits 1-0: unused
     const default_read_command = 0b10001100;
 
-    return default_read_command & (channel << 4);
+    const channel_u8: u8 = @intCast(channel);
+    return default_read_command & (channel_u8 << 4);
 }
 
 pub const std_options: std.Options = .{

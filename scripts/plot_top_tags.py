@@ -7,7 +7,7 @@ from typing import TypedDict
 
 from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 from lib.language import LANGUAGES
-from lib.plot import savefig
+from lib.plot import lighten_color, savefig
 from matplotlib import pyplot as plt
 from matplotlib.typing import ColorType
 
@@ -26,14 +26,26 @@ TAG_SUBSTITUTIONS = {
 
 HIGHLIGHTED_TAGS = {
     "c": {
-        "crimson": {"arrays", "pointers", "malloc", "seg-fault", "memory", "mem-manag."}
+        "cornflowerblue": {
+            "arrays",
+            "pointers",
+            "malloc",
+            "seg-fault",
+            "memory",
+            "mem-manag.",
+        }
     },
     "zig": {
-        "crimson": {"compiler-errors", "compilation", "metaprog.", "compile-time"},
+        "cornflowerblue": {
+            "compiler-errors",
+            "compilation",
+            "metaprog.",
+            "compile-time",
+        },
         "green": {"arrays", "pointers", "malloc", "seg-fault", "memory", "mem-manag."},
     },
     "rust": {
-        "crimson": {"lifetime", "borrow-checker", "reference", "ownership"},
+        "cornflowerblue": {"lifetime", "borrow-checker", "reference", "ownership"},
     },
 }
 
@@ -77,7 +89,7 @@ def colors(language: str, tags: list[str]) -> list[ColorType]:
     result: list[ColorType] = []
     highlights = HIGHLIGHTED_TAGS[language]
     for tag in tags:
-        color = "cornflowerblue"
+        color = lighten_color("cornflowerblue", 0.5)
         for hcolor, htags in highlights.items():
             if tag in htags:
                 color = hcolor

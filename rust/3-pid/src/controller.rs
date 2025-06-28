@@ -5,7 +5,8 @@ use rppal::pwm::{self, Pwm};
 use std::cell::SyncUnsafeCell;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::time::{interval, MissedTickBehavior};
+use tokio_stream::StreamExt;
+use tokio_timerfd::Interval;
 
 use crate::memory;
 use crate::perf;
@@ -92,8 +93,7 @@ impl Controller {
     pub async fn run(&mut self) -> anyhow::Result<!> {
         let read_frequency = self.options.control_frequency * self.options.reads_per_bin;
         let read_interval = Duration::SECOND / read_frequency;
-        let mut interval = interval(read_interval);
-        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        let mut interval = Interval::new_interval(read_interval)?;
 
         let perf_read_size = read_frequency as usize * 2;
         let perf_control_size = self.options.control_frequency as usize * 2;
@@ -101,11 +101,9 @@ impl Controller {
         let mut perf_control = perf::Counter::new("CONTROL", perf_control_size)?;
 
         let mut report_number: u64 = 0;
-        loop {
+        while let Some(_) = interval.next().await {
             for _ in 0..self.options.control_frequency {
                 for _ in 0..self.options.reads_per_bin {
-                    interval.tick().await;
-
                     let _read_measure = perf_read.measure();
 
                     if let Err(err) = self.read_phase().await {
@@ -128,6 +126,7 @@ impl Controller {
             perf_control.reset();
             report_number += 1;
         }
+        unreachable!("Interval stream is infinite");
     }
 
     async fn read_phase(&mut self) -> anyhow::Result<()> {

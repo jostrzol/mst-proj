@@ -40,7 +40,7 @@ void interrupt_handler(int) {
 // bit    2: is converter enabled
 // bits 1-0: unused
 const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
-#define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & (channel << 4))
+#define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & ((channel) << 4))
 
 int read_adc(int i2c_file, uint8_t *value) {
   int res;

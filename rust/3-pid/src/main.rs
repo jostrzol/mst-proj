@@ -37,7 +37,7 @@ const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
     pwm_frequency: 1000.,
 };
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     println!("Controlling motor using PID from Rust");
 
@@ -47,8 +47,8 @@ async fn main() -> anyhow::Result<()> {
     let mut controller = Controller::new(CONTROLLER_OPTIONS, state.clone())?;
 
     tokio::select! {
-        Err(err) = serve(socket_addr, state.clone()) => Err(err),
         Err(err) = controller.run() => Err(err),
+        Err(err) = serve(socket_addr, state) => Err(err),
         result = ctrl_c() => match result {
             Ok(_) => {
                 println!("\nGracefully stopping");

@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn read_adc(i2c: &mut I2c) -> Option<u8> {
-    const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
+    const WRITE_BUFFER: [u8; 1] = [make_read_command(8)];
     let mut read_buffer = [0];
 
     i2c.write_read(&WRITE_BUFFER, &mut read_buffer)
@@ -83,8 +83,6 @@ fn read_adc(i2c: &mut I2c) -> Option<u8> {
 }
 
 const fn make_read_command(channel: u8) -> u8 {
-    assert!(channel < 8);
-
     // bit    7: single-ended inputs mode
     // bits 6-4: channel selection
     // bit    3: is internal reference enabled
@@ -92,5 +90,6 @@ const fn make_read_command(channel: u8) -> u8 {
     // bits 1-0: unused
     const DEFAULT_READ_COMMAND: u8 = 0b10001100;
 
+    assert!(channel < 8);
     DEFAULT_READ_COMMAND & (channel << 4)
 }

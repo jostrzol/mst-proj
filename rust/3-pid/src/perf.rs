@@ -35,7 +35,7 @@ impl Counter {
         Ok(Counter { name, samples_ns })
     }
 
-    pub fn measure(&mut self) -> Measurement {
+    pub fn measure(&mut self) -> Measurement<'_> {
         Measurement {
             counter: self,
             start: Timespec::now().to_ns(),
