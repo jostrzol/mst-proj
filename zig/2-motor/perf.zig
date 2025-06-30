@@ -20,18 +20,23 @@ pub const Counter = struct {
     name: []const u8,
     samples_ns: std.ArrayList(u32),
 
-    pub fn init(allocator: Allocator, name: []const u8, length: usize) !Self {
+    // Panics instead of errors, not to influence CCN metric
+    pub fn init(allocator: Allocator, name: []const u8, length: usize) Self {
         var resolution: c.struct_timespec = undefined;
         const res = c.clock_getres(c.CLOCK_THREAD_CPUTIME_ID, &resolution);
-        if (res != 0)
-            return std.posix.unexpectedErrno(std.posix.errno(res));
+        if (res != 0) {
+            const err = std.posix.unexpectedErrno(std.posix.errno(res));
+            std.debug.panic("Counter clock resolution: {}", .{err});
+        }
 
         std.log.info(
             "Performance counter {s}, cpu resolution: {} ns",
             .{ name, ns_from_timespec(&resolution) },
         );
 
-        const samples_ns = try std.ArrayList(u32).initCapacity(allocator, length);
+        const samples_ns = std.ArrayList(u32).initCapacity(allocator, length) catch |err| {
+            std.debug.panic("Counter buffer init: {}", .{err});
+        };
 
         return .{
             .name = name,

@@ -21,15 +21,20 @@ pub const Counter = struct {
     cpu_frequency: u32,
     samples: std.ArrayList(sys.esp_cpu_cycle_count_t),
 
-    pub fn init(allocator: Allocator, name: []const u8, length: usize) !Self {
+    // Panics instead of errors, not to influence CCN metric
+    pub fn init(allocator: Allocator, name: []const u8, length: usize) Self {
         var cpu_frequency: u32 = undefined;
-        try c.espCheckError(c.esp_clk_tree_src_get_freq_hz(
+        c.espCheckError(c.esp_clk_tree_src_get_freq_hz(
             c.SOC_MOD_CLK_CPU,
             0,
             &cpu_frequency,
-        ));
+        )) catch |err| {
+            std.debug.panic("Counter clock frequency: {}", .{err});
+        };
 
-        const samples = try std.ArrayList(sys.esp_cpu_cycle_count_t).initCapacity(allocator, length);
+        const samples = std.ArrayList(sys.esp_cpu_cycle_count_t).initCapacity(allocator, length) catch |err| {
+            std.debug.panic("Counter buffer init: {}", .{err});
+        };
 
         return .{
             .name = name,

@@ -122,9 +122,9 @@ pub fn init(
     const interval_rotate_all_s: f32 =
         interval_rotate_once_s * @as(f32, @floatFromInt(options.time_window_bins));
 
-    const perf_read = try perf.Counter.init(allocator, "READ", read_frequency * 2);
+    const perf_read = perf.Counter.init(allocator, "READ", read_frequency * 2);
     errdefer perf_read.deinit();
-    const perf_control = try perf.Counter.init(allocator, "CONTROL", options.control_frequency * 2);
+    const perf_control = perf.Counter.init(allocator, "CONTROL", options.control_frequency * 2);
     errdefer perf_control.deinit();
 
     return .{

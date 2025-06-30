@@ -192,14 +192,14 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
         self.allocator,
         "READ",
         read_frequency,
-    ) catch |err| panicErr(err);
+    );
     defer perf_read.deinit();
 
     var perf_control = perf_m.Counter.init(
         self.allocator,
         "CONTROL",
         control_frequency,
-    ) catch |err| panicErr(err);
+    );
     defer perf_control.deinit();
 
     var report_number: u64 = 0;

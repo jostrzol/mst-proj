@@ -43,7 +43,7 @@ fn main() !void {
     const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
     defer pwm_channel.deinit();
 
-    var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
+    var perf_main = perf.Counter.init(allocator, "MAIN", update_frequency * 2);
     defer perf_main.deinit();
 
     var report_number: u64 = 0;
