@@ -85,6 +85,13 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
+  res = gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, 0);
+  if (res != 0) {
+    fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));
+    gpioTerminate();
+    return EXIT_FAILURE;
+  }
+
   int i2c_file = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_file < 0) {
     fprintf(stderr, "open(i2c) fail (%d): %s\n", i2c_file, strerror(errno));
@@ -95,6 +102,7 @@ int main(int, char **) {
   res = ioctl(i2c_file, I2C_SLAVE, ADS7830_ADDRESS);
   if (res != 0) {
     fprintf(stderr, "ioctl(SLAVE) fail (%d): %s\n", i2c_file, strerror(errno));
+    close(i2c_file);
     gpioTerminate();
     return EXIT_FAILURE;
   }
@@ -103,6 +111,8 @@ int main(int, char **) {
   res = perf_counter_init(&perf, "MAIN", CONTROL_FREQUENCY * 2);
   if (res != 0) {
     fprintf(stderr, "perf_counter_init fail (%d): %s\n", res, strerror(errno));
+    close(i2c_file);
+    gpioTerminate();
     return EXIT_FAILURE;
   }
 
@@ -145,6 +155,7 @@ int main(int, char **) {
   }
 
   perf_counter_deinit(perf);
+  close(i2c_file);
   res = gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0);
   if (res)
     fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));

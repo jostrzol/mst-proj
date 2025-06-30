@@ -38,15 +38,6 @@ pub fn main() !void {
     var chip = try pwm.Chip.init(0);
     defer chip.deinit();
 
-    const i2c_file = try std.fs.openFileAbsolute(
-        i2c_adapter_path,
-        std.fs.File.OpenFlags{ .mode = .read_write },
-    );
-    defer i2c_file.close();
-
-    if (linux.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0)
-        return error.SettingI2cSlave;
-
     var channel = try chip.channel(motor_pwm_channel);
     defer channel.deinit();
 
@@ -55,6 +46,15 @@ pub fn main() !void {
         .duty_cycle_ratio = 0,
     });
     try channel.enable();
+
+    const i2c_file = try std.fs.openFileAbsolute(
+        i2c_adapter_path,
+        std.fs.File.OpenFlags{ .mode = .read_write },
+    );
+    defer i2c_file.close();
+
+    if (linux.ioctl(i2c_file.handle, c.I2C_SLAVE, ads7830_address) < 0)
+        return error.SettingI2cSlave;
 
     var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
     defer perf_main.deinit();
