@@ -76,6 +76,10 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
       return -1;
     }
 
+    if (self->n_connections_active >= self->n_connections_max) {
+      fprintf(stderr, "reached maximum connection count");
+      return -1;
+    }
     size_t i = self->n_connections_active++;
     self->connection_fds[i] = connection_fd;
 
@@ -88,17 +92,32 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
     );
   } else {
     // Handle modbus request
-    modbus_set_socket(self->ctx, fd);
+    int res = modbus_set_socket(self->ctx, fd);
+    if (res != 0) {
+      fprintf(stderr, "modbus_set_socket fail (%d)\n", res);
+      return -1;
+    }
 
     uint8_t query[MODBUS_TCP_MAX_ADU_LENGTH];
     int received = modbus_receive(self->ctx, query);
-    if (received < 0) {
-      fprintf(stderr, "modbus_receive fail (%d)\n", received);
-      server_close_fd(self, fd);
+    if (received == -1) {
       result->is_closed = true;
+      if (errno == ECONNRESET) {
+        return 0;
+      } else {
+        fprintf(stderr, "modbus_receive fail (%d)\n", received);
+        server_close_fd(self, fd);
+        return -1;
+      }
+    }
+    if (received == 0)
+      return 0;
+
+    res = modbus_reply(self->ctx, query, received, self->registers);
+    if (res < 0) {
+      fprintf(stderr, "modbus_reply fail (%d)\n", res);
+      server_close_fd(self, fd);
       return -1;
-    } else if (received > 0) {
-      modbus_reply(self->ctx, query, received, self->registers);
     }
   }
 

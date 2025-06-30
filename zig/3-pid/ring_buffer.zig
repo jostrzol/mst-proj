@@ -22,7 +22,7 @@ pub fn RingBuffer(comptime T: type) type {
             return &self.items[self.tail];
         }
 
-        pub fn push(self: *Self, item: T) !void {
+        pub fn push(self: *Self, item: T) void {
             self.tail = (self.tail + 1) % self.items.len;
             self.items[self.tail] = item;
         }

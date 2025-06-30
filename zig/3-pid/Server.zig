@@ -31,7 +31,6 @@ pub fn init(
     const ctx = c.modbus_new_tcp(args.address, args.port) orelse {
         return InitError.ModbusSocketOpen;
     };
-
     errdefer c.modbus_free(ctx);
 
     const socket_fd = c.modbus_tcp_listen(ctx, 5);

@@ -237,7 +237,7 @@ fn make_read_command(channel: u3) u8 {
 
 fn control_phase(self: *Self) !void {
     const frequency = self.calculate_frequency();
-    try self.state.revolutions.push(0);
+    self.state.revolutions.push(0);
     std.log.debug("frequency: {d:.2} Hz", .{frequency});
 
     const control_params = self.read_control_params();
