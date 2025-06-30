@@ -35,7 +35,7 @@ pub fn main() !void {
     var line = try chip.requestLine(line_number, .{ .output = true });
     defer line.close();
 
-    var perf_main = perf.Counter.init(allocator, "MAIN", update_frequency * 2);
+    var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
     defer perf_main.deinit();
 
     var report_number: u64 = 0;
