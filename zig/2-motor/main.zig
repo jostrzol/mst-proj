@@ -1,6 +1,7 @@
 const std = @import("std");
 const config = @import("config");
 const linux = std.os.linux;
+const posix = std.posix;
 
 const pwm = @import("pwm");
 
@@ -67,7 +68,10 @@ pub fn main() !void {
 
             const start = perf.Marker.now();
 
-            const value = read_adc(i2c_file) orelse continue;
+            const value = read_adc(i2c_file) catch |err| {
+                std.log.err("read_adc fail: {}\n", .{err});
+                continue;
+            };
             const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
             std.log.debug("selected duty cycle: {d:.2}", .{duty_cycle});
 
@@ -75,7 +79,7 @@ pub fn main() !void {
                 .frequency = null,
                 .duty_cycle_ratio = duty_cycle,
             }) catch |err| {
-                std.log.err("Error: {}\n", .{err});
+                std.log.err("Channel.setParameters fail: {}\n", .{err});
             };
 
             perf_main.add_sample(start);
@@ -89,7 +93,7 @@ pub fn main() !void {
     }
 }
 
-fn read_adc(i2c_file: std.fs.File) ?u8 {
+fn read_adc(i2c_file: std.fs.File) !u8 {
     var write_value = make_read_command(0);
     var read_value: u8 = undefined;
 
@@ -101,8 +105,9 @@ fn read_adc(i2c_file: std.fs.File) ?u8 {
     };
     var data = c.i2c_rdwr_ioctl_data{ .msgs = &msgs, .nmsgs = 2 };
 
-    if (linux.ioctl(i2c_file.handle, c.I2C_RDWR, @intFromPtr(&data)) < 0)
-        return null;
+    const res = linux.ioctl(i2c_file.handle, c.I2C_RDWR, @intFromPtr(&data));
+    if (res < 0)
+        return posix.unexpectedErrno(posix.errno(res));
 
     return read_value;
 }

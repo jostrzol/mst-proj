@@ -34,7 +34,7 @@ fn main() !void {
             log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
 
             idf.gpio.Level.set(.GPIO_NUM_5, @intFromBool(is_on)) catch |err| {
-                std.log.err("Error: {}", .{err});
+                std.log.err("gpio.Level.set fail: {}", .{err});
                 continue;
             };
             is_on = !is_on;

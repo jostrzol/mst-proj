@@ -13,7 +13,7 @@ pub const Unit = struct {
     }
 
     pub fn deinit(self: *const Unit) void {
-        c.espLogError(c.adc_oneshot_del_unit(self.handle));
+        c.espLogError(c.adc_oneshot_del_unit(self.handle), "adc_oneshot_del_unit");
     }
 
     pub fn channel(

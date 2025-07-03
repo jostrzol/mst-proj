@@ -23,7 +23,7 @@ const ServerInitOptions = struct {
 pub fn init(options: *const ServerInitOptions) !Self {
     var handle: *const anyopaque = undefined;
     try c.espCheckError(c.mbc_slave_init_tcp(@ptrCast(&handle)));
-    errdefer c.espLogError(c.mbc_slave_destroy());
+    errdefer c.espLogError(c.mbc_slave_destroy(), "mbc_slave_destroy");
 
     var comm_info = c.mb_communication_info_t{ .unnamed_1 = .{
         .ip_addr_type = c.MB_IPV4,
@@ -55,7 +55,7 @@ pub fn init(options: *const ServerInitOptions) !Self {
 }
 
 pub fn deinit(_: *const Self) void {
-    c.espLogError(c.mbc_slave_destroy());
+    c.espLogError(c.mbc_slave_destroy(), "mbc_slave_destroy");
 }
 
 pub fn run(args: ?*anyopaque) callconv(.c) void {
@@ -64,7 +64,7 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
     std.log.info("Listening for modbus requests...", .{});
 
     while (true)
-        logErr(self.iteration());
+        logErr(self.iteration(), "Server.iteration");
 }
 
 fn iteration(_: *Self) !void {

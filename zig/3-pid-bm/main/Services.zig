@@ -25,10 +25,10 @@ pub fn init() !Self {
             else => return err,
         }
     };
-    errdefer idf.espLogError(sys.nvs_flash_deinit());
+    errdefer idf.espLogError(sys.nvs_flash_deinit(), "nvs_flash_deinit");
 
     try idf.espCheckError(sys.esp_event_loop_create_default());
-    errdefer idf.espLogError(sys.esp_event_loop_delete_default());
+    errdefer idf.espLogError(sys.esp_event_loop_delete_default(), "esp_event_loop_delete_default");
 
     const mdns = try MDns.init();
     errdefer mdns.deinit();
@@ -45,8 +45,8 @@ pub fn init() !Self {
 pub fn deinit(self: *const Self) void {
     self.wifi.deinit();
     self.mdns.deinit();
-    idf.espLogError(sys.esp_event_loop_delete_default());
-    idf.espLogError(sys.nvs_flash_deinit());
+    idf.espLogError(sys.esp_event_loop_delete_default(), "esp_event_loop_delete_default");
+    idf.espLogError(sys.nvs_flash_deinit(), "nvs_flash_deinit");
 }
 
 const MDns = struct {

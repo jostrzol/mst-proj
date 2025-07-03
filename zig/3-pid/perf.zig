@@ -48,7 +48,7 @@ pub const Counter = struct {
         const diff = end.time_ns - start.time_ns;
 
         if (self.samples_ns.items.len >= self.samples_ns.capacity) {
-            std.log.err("perf.Counter.add_sample: buffer is full", .{});
+            std.log.err("Counter.add_sample fail: buffer is full", .{});
             return;
         }
 

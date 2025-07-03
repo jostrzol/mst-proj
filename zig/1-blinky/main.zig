@@ -48,7 +48,7 @@ pub fn main() !void {
             const start = perf.Marker.now();
 
             std.log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
-            line.setValue(is_on) catch |err| std.log.err("Error: {}", .{err});
+            line.setValue(is_on) catch |err| std.log.err("Line.setValue fail: {}", .{err});
             is_on = !is_on;
 
             perf_main.add_sample(start);

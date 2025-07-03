@@ -77,7 +77,7 @@ pub fn main() !void {
 
     while (do_continue) {
         const n_polled = posix.poll(poll_fds.slice(), 1000) catch |err| {
-            std.log.err("Polling: {}", .{err});
+            std.log.err("poll fail: {}", .{err});
             continue;
         };
         if (n_polled == 0)
@@ -96,14 +96,14 @@ pub fn main() !void {
                 server.close_connection(fd);
             } else if (poll_fd.revents & POLL.IN != 0) {
                 const controller_res = controller.handle(fd) catch |err| {
-                    std.log.err("Failed to handle controller timer activation: {}", .{err});
+                    std.log.err("Controller.handle fail: {}", .{err});
                     continue;
                 };
                 if (controller_res == .handled)
                     continue;
 
                 const server_res = server.handle(fd) catch |err| {
-                    std.log.err("Failed to handle connection: {}", .{err});
+                    std.log.err("Server.handle fail: {}", .{err});
                     continue;
                 };
 

@@ -9,7 +9,7 @@ pub fn report() void {
     const name = sys.pcTaskGetName(task);
 
     const task_stack_usage = stackUsage(task) catch |err| {
-        std.log.err("Failed to get stack usage of task {s}: {}", .{ name, err });
+        std.log.err("stackUsage({s}) fail: {}", .{ name, err });
         return;
     };
 

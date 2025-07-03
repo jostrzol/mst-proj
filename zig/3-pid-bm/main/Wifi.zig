@@ -33,13 +33,13 @@ pub fn init() !Self {
     event_group = event_group_local;
 
     try idf.espCheckError(sys.esp_netif_init());
-    errdefer idf.espLogError(sys.esp_netif_deinit());
+    errdefer idf.espLogError(sys.esp_netif_deinit(), "esp_netif_deinit");
 
     const netif = sys.esp_netif_create_default_wifi_sta() orelse return error.ErrorSetupWifi;
     errdefer sys.esp_netif_destroy_default_wifi(netif);
 
     try idf.wifi.init(&wifiInitConfigDefault());
-    errdefer logErr(idf.wifi.deinit());
+    errdefer logErr(idf.wifi.deinit(), "Wifi.deinit");
 
     var handler_wifi: sys.esp_event_handler_instance_t = undefined;
     try idf.espCheckError(sys.esp_event_handler_instance_register(
@@ -71,7 +71,7 @@ pub fn init() !Self {
     try idf.wifi.setConfig(.WIFI_IF_STA, &wifi_config);
 
     try idf.wifi.start();
-    errdefer logErr(idf.wifi.stop());
+    errdefer logErr(idf.wifi.stop(), "Wifi.stop");
 
     const bits = sys.xEventGroupWaitBits(
         event_group_local,
@@ -85,8 +85,6 @@ pub fn init() !Self {
         std.log.info("Connected to AP SSID:{s}", .{ssid});
     } else if (flags.failed) {
         return error.ErrorWifiConnectionFailed;
-    } else {
-        std.log.err("Unexpected event", .{});
     }
 
     try idf.wifi.PowerSave.set(.WIFI_PS_NONE);
@@ -96,10 +94,10 @@ pub fn init() !Self {
 
 pub fn deinit(self: *const Self) void {
     event_group = null;
-    logErr(idf.wifi.stop());
-    logErr(idf.wifi.deinit());
+    logErr(idf.wifi.stop(), "Wifi.stop");
+    logErr(idf.wifi.deinit(), "Wifi.deinit");
     sys.esp_netif_destroy_default_wifi(self.netif);
-    idf.espLogError(sys.esp_netif_deinit());
+    idf.espLogError(sys.esp_netif_deinit(), "esp_netif_deinit");
 }
 
 fn event_handler(
@@ -109,7 +107,7 @@ fn event_handler(
     event_data: ?*anyopaque,
 ) callconv(.c) void {
     event_handler_impl(args, event_base, event_id, event_data) catch |err| {
-        std.log.err("Failed to handle wifi event: {}", .{err});
+        std.log.err("Wifi.event_handler fail: {}", .{err});
     };
 }
 
@@ -120,8 +118,7 @@ fn event_handler_impl(
     event_data: ?*anyopaque,
 ) !void {
     const event_group_local = event_group orelse {
-        std.log.err("Wifi event handler called after wifi deinitialization", .{});
-        return;
+        return error.WifiNotInitialized;
     };
     const event = EventType{ .base = event_base, .id = @bitCast(event_id) };
 

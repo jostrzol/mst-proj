@@ -27,8 +27,8 @@ pub fn espCheckError(err: c.esp_err_t) idf.esp_error!void {
     try idf.espCheckError(@enumFromInt(err));
 }
 
-pub fn espLogError(errc: c.esp_err_t) void {
+pub fn espLogError(errc: c.esp_err_t, operation: []const u8) void {
     espCheckError(errc) catch |err| {
-        std.log.err("Error: {}", .{err});
+        std.log.err("{s} fail: {}", .{ operation, err });
     };
 }

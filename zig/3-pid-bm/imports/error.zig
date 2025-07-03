@@ -59,8 +59,8 @@ pub fn espCheckError(errc: sys.esp_err_t) esp_error!void {
         return;
 }
 
-pub fn espLogError(errc: sys.esp_err_t) void {
+pub fn espLogError(errc: sys.esp_err_t, operation: []const u8) void {
     espCheckError(errc) catch |err| {
-        std.log.err("Error: {}", .{err});
+        std.log.err("{s} fail: {}", .{operation, err});
     };
 }

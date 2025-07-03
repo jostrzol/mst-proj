@@ -112,7 +112,7 @@ pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !
         },
         &timer,
     ));
-    errdefer c.espLogError(c.gptimer_del_timer(timer));
+    errdefer c.espLogError(c.gptimer_del_timer(timer), "gptimer_del_timer");
 
     try c.espCheckError(c.gptimer_register_event_callbacks(
         timer,
@@ -121,7 +121,7 @@ pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !
     ));
 
     try c.espCheckError(c.gptimer_enable(timer));
-    errdefer c.espLogError(c.gptimer_disable(timer));
+    errdefer c.espLogError(c.gptimer_disable(timer), "gptimer_disable");
 
     const read_frequency = options.control_frequency * options.reads_per_bin;
     try c.espCheckError(gptimer_set_alarm_action(timer, &.{
@@ -168,9 +168,9 @@ pub fn deinit(self: *const Self) void {
     self.adc.unit.deinit();
     self.pwm.timer.deinit();
     self.pwm.channel.deinit();
-    c.espLogError(c.gptimer_stop(self.timer));
-    c.espLogError(c.gptimer_disable(self.timer));
-    c.espLogError(c.gptimer_del_timer(self.timer));
+    c.espLogError(c.gptimer_stop(self.timer), "gptimer_stop");
+    c.espLogError(c.gptimer_disable(self.timer), "gptimer_disable");
+    c.espLogError(c.gptimer_del_timer(self.timer), "gptimer_del_timer");
 }
 
 pub fn run(args: ?*anyopaque) callconv(.c) void {
@@ -213,12 +213,12 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
                 ) == 0) {}
 
                 const read_start = perf_m.Marker.now();
-                logErr(self.read_phase());
+                logErr(self.read_phase(), "Controller.read_phase");
                 perf_read.add_sample(read_start);
             }
 
             const control_start = perf_m.Marker.now();
-            logErr(self.control_phase());
+            logErr(self.control_phase(), "Controller.control_phase");
             perf_control.add_sample(control_start);
         }
 

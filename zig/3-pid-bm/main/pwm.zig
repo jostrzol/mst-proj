@@ -18,7 +18,7 @@ pub const Timer = struct {
         c.espLogError(c.ledc_timer_config(&.{
             .timer_num = self.id,
             .deconfigure = true,
-        }));
+        }), "ledc_timer_config");
     }
 
     pub fn channel(self: *const Timer, id: c.ledc_channel_t, gpio: c_int) !Channel {
@@ -46,7 +46,7 @@ pub const Channel = struct {
     }
 
     pub fn deinit(self: *const Channel) void {
-        c.espLogError(c.ledc_stop(self.speed_mode, self.id, 0));
+        c.espLogError(c.ledc_stop(self.speed_mode, self.id, 0), "ledc_stop");
     }
 };
 
