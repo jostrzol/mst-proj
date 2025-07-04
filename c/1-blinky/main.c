@@ -68,7 +68,7 @@ int main(int, char **) {
   perf_counter_t *perf;
   res = perf_counter_init(&perf, "MAIN", UPDATE_FREQUENCY * 2);
   if (res != 0) {
-    fprintf(stderr, "perf_counter_init fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "perf_counter_init fail (%d)\n", res);
     return EXIT_FAILURE;
   }
 

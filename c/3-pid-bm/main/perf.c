@@ -1,6 +1,8 @@
 #include <inttypes.h>
+#include <string.h>
 
 #include "esp_clk_tree.h"
+#include "esp_err.h"
 #include "esp_log.h"
 #include "soc/clk_tree_defs.h"
 
@@ -27,6 +29,10 @@ esp_err_t perf_counter_init(
 
   const size_t array_size = sizeof(uint32_t) * length;
   perf_counter_t *me = malloc(sizeof(perf_counter_t) + array_size);
+  if (me == NULL) {
+    ESP_LOGE(TAG, "malloc fail");
+    return ESP_ERR_NO_MEM;
+  }
 
   *me = (perf_counter_t){
       .name = name,

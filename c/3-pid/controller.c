@@ -50,7 +50,7 @@ int read_adc(controller_t *self, uint8_t *value) {
 
   res = ioctl(self->i2c_fd, I2C_RDWR, &data);
   if (res < 0) {
-    fprintf(stderr, "ioctl fail (%d)\n", res);
+    fprintf(stderr, "ioctl fail (%d): %s\n", res, strerror(errno));
     return -1;
   }
 
@@ -188,14 +188,14 @@ int controller_init(
 
   const int i2c_fd = open(I2C_ADAPTER_PATH, O_RDWR);
   if (i2c_fd < 0) {
-    fprintf(stderr, "i2c_fd fail (%d)\n", i2c_fd);
+    fprintf(stderr, "open i2c_fd fail (%d): %s\n", i2c_fd, strerror(errno));
     ringbuffer_deinit(revolutions);
     return -1;
   }
 
   res = ioctl(i2c_fd, I2C_SLAVE, ADS7830_ADDRESS);
   if (res != 0) {
-    fprintf(stderr, "ioctl fail (%d)\n", res);
+    fprintf(stderr, "ioctl fail (%d): %s\n", res, strerror(errno));
     close(i2c_fd);
     ringbuffer_deinit(revolutions);
     return -1;
@@ -203,7 +203,7 @@ int controller_init(
 
   const int timer_fd = timerfd_create(CLOCK_REALTIME, 0);
   if (timer_fd < 0) {
-    fprintf(stderr, "timerfd_create fail (%d)\n", timer_fd);
+    fprintf(stderr, "timerfd_create fail (%d): %s\n", timer_fd, strerror(errno));
     close(i2c_fd);
     ringbuffer_deinit(revolutions);
     return -1;
@@ -216,7 +216,7 @@ int controller_init(
   const struct itimerspec timerspec = interval_from_us(read_interval_us);
   res = timerfd_settime(timer_fd, 0, &timerspec, NULL) != 0;
   if (res != 0) {
-    fprintf(stderr, "timerfd_settime fail (%d)\n", res);
+    fprintf(stderr, "timerfd_settime fail (%d): %s\n", res, strerror(errno));
     close(timer_fd);
     close(i2c_fd);
     ringbuffer_deinit(revolutions);
@@ -362,7 +362,7 @@ int controller_handle(controller_t *self, int fd) {
   uint64_t expirations;
   res = read(fd, &expirations, sizeof(typeof(expirations)));
   if (res < 0) {
-    fprintf(stderr, "read fail (%d)\n", res);
+    fprintf(stderr, "read fail (%d): %s\n", res, strerror(errno));
     return -1;
   }
 

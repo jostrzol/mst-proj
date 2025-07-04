@@ -76,12 +76,15 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         var addr_length = client_address.getOsSockLen();
 
         const connection_fd = try posix.accept(fd, &client_address.any, &addr_length, 0);
+        const file = File{ .handle = connection_fd };
+        errdefer file.close();
+
         const connection = try self.connections.addOne();
-        connection.* = File{ .handle = connection_fd };
+        connection.* = file;
 
         std.log.info("New connection from {} on socket {}", .{ client_address, connection_fd });
 
-        return .{ .accepted = connection.* };
+        return .{ .accepted = file };
     } else {
         // Handle modbus request
         errdefer self.close_connection(fd);

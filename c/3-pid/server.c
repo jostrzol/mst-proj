@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <memory.h>
+#include <modbus.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -15,18 +16,27 @@ int server_init(
 ) {
   modbus_t *ctx = modbus_new_tcp("0.0.0.0", 5502);
   if (ctx == NULL) {
-    fprintf(stderr, "modbus_new_tcp fail\n");
+    fprintf(
+        stderr, "modbus_new_tcp fail (%d): %s\n", errno, modbus_strerror(errno)
+    );
     return -1;
   }
 
   int socket_fd = modbus_tcp_listen(ctx, options.n_connections);
   if (socket_fd < 0) {
-    fprintf(stderr, "modbus_tcp_listen fail (%d)\n", socket_fd);
+    fprintf(
+        stderr, "modbus_tcp_listen fail (%d): %s\n", socket_fd,
+        modbus_strerror(errno)
+    );
     modbus_free(ctx);
     return -1;
   }
 
   int *connection_fds = malloc(options.n_connections * sizeof(int));
+  if (connection_fds == NULL) {
+    fprintf(stderr, "malloc fail (%d): %s\n", errno, strerror(errno));
+    return -1;
+  }
 
   *self = (server_t){
       .ctx = ctx,
@@ -72,12 +82,13 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
     int connection_fd =
         accept(fd, (struct sockaddr *)&client_address, &addr_length);
     if (connection_fd < 0) {
-      fprintf(stderr, "accept fail (%d)\n", connection_fd);
+      fprintf(stderr, "accept fail (%d): %s\n", connection_fd, strerror(errno));
       return -1;
     }
 
     if (self->n_connections_active >= self->n_connections_max) {
       fprintf(stderr, "reached maximum connection count");
+      close(connection_fd);
       return -1;
     }
     size_t i = self->n_connections_active++;
@@ -94,7 +105,10 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
     // Handle modbus request
     int res = modbus_set_socket(self->ctx, fd);
     if (res != 0) {
-      fprintf(stderr, "modbus_set_socket fail (%d)\n", res);
+      fprintf(
+          stderr, "modbus_set_socket fail (%d): %s\n", res,
+          modbus_strerror(errno)
+      );
       return -1;
     }
 
@@ -105,7 +119,10 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
       if (errno == ECONNRESET) {
         return 0;
       } else {
-        fprintf(stderr, "modbus_receive fail (%d)\n", received);
+        fprintf(
+            stderr, "modbus_receive fail (%d): %s\n", received,
+            modbus_strerror(errno)
+        );
         server_close_fd(self, fd);
         return -1;
       }
@@ -115,7 +132,9 @@ int server_handle(server_t *self, int fd, server_result_t *result) {
 
     res = modbus_reply(self->ctx, query, received, self->registers);
     if (res < 0) {
-      fprintf(stderr, "modbus_reply fail (%d)\n", res);
+      fprintf(
+          stderr, "modbus_reply fail (%d): %s\n", res, modbus_strerror(errno)
+      );
       server_close_fd(self, fd);
       return -1;
     }

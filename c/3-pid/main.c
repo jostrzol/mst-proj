@@ -45,20 +45,20 @@ int main(int, char **) {
 
   res = gpioInitialise();
   if (res < 0) {
-    fprintf(stderr, "gpioInitialise fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "gpioInitialise fail (%d)\n", res);
     return EXIT_FAILURE;
   }
 
   res = gpioSetSignalFunc(SIGINT, &interrupt_handler);
   if (res < 0) {
-    fprintf(stderr, "gpioSetSignalFunc fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "gpioSetSignalFunc fail (%d)\n", res);
     gpioTerminate();
     return EXIT_FAILURE;
   }
 
   modbus_mapping_t *registers = registers_init();
   if (registers == NULL) {
-    fprintf(stderr, "registers_init fail: %s\n", modbus_strerror(errno));
+    fprintf(stderr, "registers_init fail\n");
     gpioTerminate();
     return EXIT_FAILURE;
   }
@@ -66,7 +66,7 @@ int main(int, char **) {
   static server_t server;
   res = server_init(&server, registers, SERVER_OPTIONS);
   if (res < 0) {
-    fprintf(stderr, "server_init fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "server_init fail (%d)\n", res);
     registers_free(registers);
     gpioTerminate();
     return EXIT_FAILURE;
@@ -75,7 +75,7 @@ int main(int, char **) {
   static controller_t controller;
   res = controller_init(&controller, registers, CONTROLLER_OPTIONS);
   if (res < 0) {
-    fprintf(stderr, "controller_init fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "controller_init fail (%d)\n", res);
     server_deinit(&server);
     registers_free(registers);
     gpioTerminate();
@@ -110,9 +110,7 @@ int main(int, char **) {
       if (poll_fd->revents & POLLIN) {
         res = controller_handle(&controller, fd);
         if (res < 0) {
-          fprintf(
-              stderr, "controller_handle fail (%d): %s\n", res, strerror(errno)
-          );
+          fprintf(stderr, "controller_handle fail (%d)\n", res);
         }
         if (res != 0)
           continue; // Handled -- either error or success
@@ -120,10 +118,7 @@ int main(int, char **) {
         server_result_t result;
         res = server_handle(&server, fd, &result);
         if (res != 0) {
-          fprintf(
-              stderr, "server_handle fail (%d): %s\n", res,
-              modbus_strerror(errno)
-          );
+          fprintf(stderr, "server_handle fail (%d)\n", res);
         }
 
         // Reflect connection modifications in poll_fds

@@ -1,13 +1,15 @@
-#include "ringbuffer.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "ringbuffer.h"
 
 int ringbuffer_init(ringbuffer_t **const self, size_t length) {
   const size_t array_size = sizeof(uint32_t) * length;
   ringbuffer_t *me = malloc(sizeof(ringbuffer_t) + array_size);
   if (me == NULL) {
-    fprintf(stderr, "malloc fail\n");
+    fprintf(stderr, "malloc fail (%d): %s\n", errno, strerror(errno));
     return -1;
   }
 

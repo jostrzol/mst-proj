@@ -58,7 +58,7 @@ int read_adc(int i2c_file, uint8_t *value) {
 
   res = ioctl(i2c_file, I2C_RDWR, &data);
   if (res < 0) {
-    fprintf(stderr, "ioctl(RDWR) fail (%d)\n", res);
+    fprintf(stderr, "ioctl(RDWR) fail (%d): %s\n", res, strerror(errno));
     return -1;
   }
 
@@ -74,20 +74,20 @@ int main(int, char **) {
 
   res = gpioInitialise();
   if (res < 0) {
-    fprintf(stderr, "gpioInitialise fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "gpioInitialise fail (%d)\n", res);
     return EXIT_FAILURE;
   }
 
   res = gpioSetSignalFunc(SIGINT, interrupt_handler);
   if (res != 0) {
-    fprintf(stderr, "gpioSetSignalFunc fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "gpioSetSignalFunc fail (%d)\n", res);
     gpioTerminate();
     return EXIT_FAILURE;
   }
 
   res = gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, 0);
   if (res != 0) {
-    fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "gpioHardwarePWM fail (%d)\n", res);
     gpioTerminate();
     return EXIT_FAILURE;
   }
@@ -110,7 +110,7 @@ int main(int, char **) {
   perf_counter_t *perf;
   res = perf_counter_init(&perf, "MAIN", CONTROL_FREQUENCY * 2);
   if (res != 0) {
-    fprintf(stderr, "perf_counter_init fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "perf_counter_init fail (%d)\n", res);
     close(i2c_file);
     gpioTerminate();
     return EXIT_FAILURE;
@@ -127,7 +127,7 @@ int main(int, char **) {
       uint8_t value;
       res = read_adc(i2c_file, &value);
       if (res != 0) {
-        fprintf(stderr, "read_adc fail (%d): %s\n", res, strerror(errno));
+        fprintf(stderr, "read_adc fail (%d)\n", res);
         continue;
       }
 
@@ -138,9 +138,7 @@ int main(int, char **) {
       const uint64_t duty_cycle = PI_HW_PWM_RANGE * value / UINT8_MAX;
       res = gpioHardwarePWM(MOTOR_LINE_NUMBER, PWM_FREQUENCY, duty_cycle);
       if (res != 0) {
-        fprintf(
-            stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno)
-        );
+        fprintf(stderr, "gpioHardwarePWM fail (%d)\n", res);
         continue;
       }
 
@@ -158,7 +156,7 @@ int main(int, char **) {
   close(i2c_file);
   res = gpioHardwarePWM(MOTOR_LINE_NUMBER, 0, 0);
   if (res)
-    fprintf(stderr, "gpioHardwarePWM fail (%d): %s\n", res, strerror(errno));
+    fprintf(stderr, "gpioHardwarePWM fail (%d)\n", res);
   gpioTerminate();
 
   return EXIT_SUCCESS;

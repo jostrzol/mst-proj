@@ -1,8 +1,10 @@
 #include <bits/time.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "perf.h"
@@ -19,7 +21,7 @@ int perf_counter_init(
   struct timespec resolution;
   res = clock_getres(CLOCK_THREAD_CPUTIME_ID, &resolution);
   if (res != 0) {
-    fprintf(stderr, "clock_getres fail (%d)\n", res);
+    fprintf(stderr, "clock_getres fail (%d): %s\n", res, strerror(errno));
     return -1;
   }
 
@@ -30,6 +32,10 @@ int perf_counter_init(
 
   const size_t array_size = sizeof(uint32_t) * length;
   perf_counter_t *me = malloc(sizeof(perf_counter_t) + array_size);
+  if (me == NULL) {
+    fprintf(stderr, "malloc fail (%d): %s\n", errno, strerror(errno));
+    return -1;
+  }
 
   *me = (perf_counter_t){
       .name = name,

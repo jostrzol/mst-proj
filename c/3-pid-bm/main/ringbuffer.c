@@ -1,14 +1,17 @@
 #include "ringbuffer.h"
 #include "esp_err.h"
+#include "esp_log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+const char *TAG = "ringbuffer";
 
 esp_err_t ringbuffer_init(ringbuffer_t **const self, size_t length) {
   const size_t array_size = sizeof(uint32_t) * length;
   ringbuffer_t *me = malloc(sizeof(ringbuffer_t) + array_size);
   if (me == NULL) {
-    fprintf(stderr, "malloc fail\n");
+    ESP_LOGE(TAG, "malloc fail");
     return ESP_ERR_INVALID_STATE;
   }
 

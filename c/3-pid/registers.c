@@ -1,4 +1,6 @@
+#include <errno.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "registers.h"
 
@@ -9,8 +11,10 @@ modbus_mapping_t *registers_init() {
       // registers
       REG_HOLDING_SIZE_PER_U16, REG_INPUT_SIZE_PER_U16
   );
-  if (self == NULL)
+  if (self == NULL) {
+    fprintf(stderr, "modbus_mapping_new fail: %s", modbus_strerror(errno));
     return NULL;
+  }
 
   modbus_set_float_badc(INFINITY, &self->tab_registers[REG_INTEGRATION_TIME]);
 
