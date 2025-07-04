@@ -65,7 +65,13 @@ fn main() -> anyhow::Result<()> {
 
             let _measure = perf.measure();
 
-            let value = adc.read_raw(&mut adc_pin)?;
+            let value = match adc.read_raw(&mut adc_pin) {
+                Ok(value) => value,
+                Err(err) => {
+                    eprintln!("AdcDriver::read_raw fail: {}", err);
+                    continue;
+                },
+            };
             let value_normalized = value as f32 / ADC_MAX_VALUE as f32;
             #[cfg(debug_assertions)]
             debug!(
@@ -75,7 +81,8 @@ fn main() -> anyhow::Result<()> {
 
             let duty_cycle = value_normalized * max_duty_cycle as f32;
             if let Err(err) = driver.set_duty(duty_cycle as u32) {
-                eprintln!("Setting duty cycle: {}", err)
+                eprintln!("LedcDriver::set_duty fail: {}", err);
+                continue;
             };
         }
 

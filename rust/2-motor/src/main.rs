@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use rppal::i2c::I2c;
+use rppal::i2c::{self, I2c};
 use rppal::pwm::{Channel, Pwm};
 
 const PWM_CHANNEL: Channel = Channel::Pwm1; // GPIO 13
@@ -48,8 +48,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let _measure = perf.measure();
 
-            let Some(value) = read_adc(&mut i2c) else {
-                continue;
+            let value = match read_adc(&mut i2c) {
+                Ok(value) => value,
+                Err(err) => {
+                    eprintln!("read_adc fail: {err}");
+                    continue;
+                }
             };
 
             let duty_cycle = value as f32 / u8::MAX as f32;
@@ -58,7 +62,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let pulse_width = pwm_period.mul_f32(duty_cycle);
             if let Err(err) = pwm.set_pulse_width(pulse_width) {
-                eprintln!("error setting pwm duty cycle: {err}");
+                eprintln!("Pwm::set_pulse_width fail: {err}");
+                continue;
             }
         }
 
@@ -72,14 +77,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn read_adc(i2c: &mut I2c) -> Option<u8> {
-    const WRITE_BUFFER: [u8; 1] = [make_read_command(8)];
+fn read_adc(i2c: &mut I2c) -> Result<u8, i2c::Error> {
+    const WRITE_BUFFER: [u8; 1] = [make_read_command(0)];
     let mut read_buffer = [0];
 
-    i2c.write_read(&WRITE_BUFFER, &mut read_buffer)
-        .inspect_err(|err| eprintln!("error reading potentiometer value: {err}"))
-        .ok()?;
-    Some(read_buffer[0])
+    i2c.write_read(&WRITE_BUFFER, &mut read_buffer)?;
+    Ok(read_buffer[0])
 }
 
 const fn make_read_command(channel: u8) -> u8 {

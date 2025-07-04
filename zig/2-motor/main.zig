@@ -80,6 +80,7 @@ pub fn main() !void {
                 .duty_cycle_ratio = duty_cycle,
             }) catch |err| {
                 std.log.err("Channel.setParameters fail: {}\n", .{err});
+                continue;
             };
 
             perf_main.add_sample(start);

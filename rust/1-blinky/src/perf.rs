@@ -35,7 +35,7 @@ impl Counter {
         Ok(Counter { name, samples_ns })
     }
 
-    pub fn measure(&mut self) -> Measurement {
+    pub fn measure(&mut self) -> Measurement<'_> {
         Measurement {
             counter: self,
             start: Timespec::now().to_ns(),
@@ -47,7 +47,7 @@ impl Counter {
         let diff = (end - start_ns) as u32;
 
         if let Err(err) = self.samples_ns.push_within_capacity(diff) {
-            eprintln!("perf::Counter::add_sample: {err}");
+            eprintln!("Counter::add_sample fail: {err}");
         }
     }
 

@@ -165,12 +165,12 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
     _ = try self.timer.readAll(std.mem.asBytes(&expirations));
 
     const read_start = perf.Marker.now();
-    try self.read_phase();
+    self.read_phase() catch |err| std.log.err("read_phase fail: {}", .{err});
     self.perf.read.add_sample(read_start);
 
     if (self.state.iteration % self.options.reads_per_bin == 0) {
         const control_start = perf.Marker.now();
-        try self.control_phase();
+        self.control_phase() catch |err| std.log.err("control_phase fail: {}", .{err});
         self.perf.control.add_sample(control_start);
     }
 

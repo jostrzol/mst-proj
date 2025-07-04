@@ -47,7 +47,7 @@ impl Counter {
         let diff = (end - start_ns) as u32;
 
         if let Err(err) = self.samples_ns.push_within_capacity(diff) {
-            eprintln!("perf::Counter::add_sample: {err}");
+            eprintln!("Counter::add_sample fail: {err}");
         }
     }
 

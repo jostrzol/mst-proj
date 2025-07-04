@@ -53,7 +53,10 @@ fn main() !void {
 
             const start = perf.Marker.now();
 
-            const value = try adc_channel.read();
+            const value = adc_channel.read() catch |err| {
+                log.err("AdcChannel.read fail: {}", .{err});
+                continue;
+            };
 
             const value_normalized = @as(f32, @floatFromInt(value)) / @as(f32, @floatFromInt(adc_max));
             log.debug(
@@ -62,7 +65,10 @@ fn main() !void {
             );
 
             const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
-            try pwm_channel.set_duty_cycle(duty_cycle);
+            pwm_channel.set_duty_cycle(duty_cycle) catch |err| {
+                log.err("AdcChannel.read fail: {}", .{err});
+                continue;
+            };
 
             perf_main.add_sample(start);
         }

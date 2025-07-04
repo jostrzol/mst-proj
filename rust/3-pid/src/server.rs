@@ -88,7 +88,7 @@ pub async fn serve(
         accept_tcp_connection(stream, socket_addr, new_service)
     };
     let on_process_error = |err| {
-        eprintln!("{err}");
+        eprintln!("Modbus request processing fail: {err}");
     };
     server.serve(&on_connected, on_process_error).await?;
     Ok(())

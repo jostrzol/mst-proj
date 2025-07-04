@@ -203,7 +203,9 @@ int controller_init(
 
   const int timer_fd = timerfd_create(CLOCK_REALTIME, 0);
   if (timer_fd < 0) {
-    fprintf(stderr, "timerfd_create fail (%d): %s\n", timer_fd, strerror(errno));
+    fprintf(
+        stderr, "timerfd_create fail (%d): %s\n", timer_fd, strerror(errno)
+    );
     close(i2c_fd);
     ringbuffer_deinit(revolutions);
     return -1;
@@ -367,12 +369,16 @@ int controller_handle(controller_t *self, int fd) {
   }
 
   perf_mark_t read_start = perf_mark();
-  read_phase(self);
+  res = read_phase(self);
+  if (res < 0)
+    fprintf(stderr, "read_phase fail (%d)", res);
   perf_counter_add_sample(self->perf.read, read_start);
 
   if (self->state.iteration % self->options.reads_per_bin == 0) {
     perf_mark_t control_start = perf_mark();
     control_phase(self);
+    if (res < 0)
+      fprintf(stderr, "control_phase fail (%d)", res);
     perf_counter_add_sample(self->perf.control, control_start);
   }
 

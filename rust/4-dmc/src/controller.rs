@@ -56,7 +56,7 @@ fn read_potentiometer_value(i2c: &mut I2c) -> Option<u8> {
     let mut read_buffer = [0];
 
     i2c.write_read(&WRITE_BUFFER, &mut read_buffer)
-        .inspect_err(|err| eprintln!("error reading potentiometer value: {err}"))
+        .inspect_err(|err| eprintln!("I2c::write_read fail: {err}"))
         .ok()?;
     Some(read_buffer[0])
 }
@@ -162,7 +162,7 @@ async fn control_loop(
 
         let result = pwm.set_frequency(settings.pwm_frequency, control_signal as f64);
         if let Err(err) = result {
-            eprintln!("error setting pwm duty cycle: {err}");
+            eprintln!("Pwm::set_frequency fail: {err}");
         }
 
         feedback = new_feedback;

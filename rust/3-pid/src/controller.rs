@@ -106,15 +106,15 @@ impl Controller {
                 for _ in 0..self.options.reads_per_bin {
                     let _read_measure = perf_read.measure();
 
-                    if let Err(err) = self.read_phase().await {
-                        eprintln!("Error while running controller read phase: {}", err);
+                    if let Err(err) = self.read_phase() {
+                        eprintln!("Controller::read_phase fail: {}", err);
                     }
                 }
 
                 let _control_measure = perf_control.measure();
 
-                if let Err(err) = self.control_phase().await {
-                    eprintln!("Error while running controller control phase: {}", err);
+                if let Err(err) = self.control_phase() {
+                    eprintln!("Controller::control_phase fail: {}", err);
                 }
             }
 
@@ -129,7 +129,7 @@ impl Controller {
         unreachable!("Interval stream is infinite");
     }
 
-    async fn read_phase(&mut self) -> anyhow::Result<()> {
+    fn read_phase(&mut self) -> anyhow::Result<()> {
         let value = self.read_adc()?;
 
         if value < self.options.revolution_treshold_close && !self.is_close {
@@ -156,7 +156,7 @@ impl Controller {
         Ok(read_buffer[0])
     }
 
-    async fn control_phase(&mut self) -> anyhow::Result<()> {
+    fn control_phase(&mut self) -> anyhow::Result<()> {
         let frequency = self.calculate_frequency();
         self.revolutions.push(0);
 
