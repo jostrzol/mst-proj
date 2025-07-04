@@ -45,7 +45,7 @@ pub fn init() !Self {
     try idf.espCheckError(sys.esp_event_handler_instance_register(
         sys.WIFI_EVENT,
         c.ESP_EVENT_ANY_ID,
-        &event_handler,
+        &eventHandler,
         null,
         &handler_wifi,
     ));
@@ -54,7 +54,7 @@ pub fn init() !Self {
     try idf.espCheckError(sys.esp_event_handler_instance_register(
         sys.IP_EVENT,
         @intFromEnum(sys.ip_event_t.IP_EVENT_STA_GOT_IP),
-        &event_handler,
+        &eventHandler,
         null,
         &handler_ip,
     ));
@@ -100,18 +100,18 @@ pub fn deinit(self: *const Self) void {
     idf.espLogError(sys.esp_netif_deinit(), "esp_netif_deinit");
 }
 
-fn event_handler(
+fn eventHandler(
     args: ?*anyopaque,
     event_base: sys.esp_event_base_t,
     event_id: i32,
     event_data: ?*anyopaque,
 ) callconv(.c) void {
-    event_handler_impl(args, event_base, event_id, event_data) catch |err| {
-        std.log.err("Wifi.event_handler fail: {}", .{err});
+    eventHandlerImpl(args, event_base, event_id, event_data) catch |err| {
+        std.log.err("Wifi.eventHandler fail: {}", .{err});
     };
 }
 
-fn event_handler_impl(
+fn eventHandlerImpl(
     _: ?*anyopaque,
     event_base: sys.esp_event_base_t,
     event_id: i32,

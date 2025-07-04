@@ -46,7 +46,7 @@ pub fn init() !Self {
 
     var self: Self = .{ .raw = raw };
 
-    self.set_holding(Holding.integration_time, std.math.inf(f32));
+    self.setHolding(Holding.integration_time, std.math.inf(f32));
 
     return self;
 }
@@ -55,20 +55,20 @@ pub fn deinit(self: *Self) void {
     c.modbus_mapping_free(self.raw);
 }
 
-pub fn set_holding(self: *Self, register: Holding, value: f32) void {
+pub fn setHolding(self: *Self, register: Holding, value: f32) void {
     c.modbus_set_float_badc(
         value,
         &self.raw.tab_registers[register.address()],
     );
 }
 
-pub fn set_input(self: *Self, register: Input, value: f32) void {
+pub fn setInput(self: *Self, register: Input, value: f32) void {
     c.modbus_set_float_badc(
         value,
         &self.raw.tab_input_registers[register.address()],
     );
 }
 
-pub fn get_holding(self: *const Self, register: Holding) f32 {
+pub fn getHolding(self: *const Self, register: Holding) f32 {
     return c.modbus_get_float_abcd(&self.raw.tab_registers[register.address()]);
 }

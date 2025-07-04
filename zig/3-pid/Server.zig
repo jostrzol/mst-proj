@@ -87,7 +87,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
         return .{ .accepted = file };
     } else {
         // Handle modbus request
-        errdefer self.close_connection(fd);
+        errdefer self.closeConnection(fd);
 
         if (c.modbus_set_socket(self.ctx, fd) != 0)
             return HandleError.Receive;
@@ -117,7 +117,7 @@ pub fn handle(self: *Self, fd: posix.fd_t) HandleError!HandleResult {
     return .{ .skipped = {} };
 }
 
-pub fn close_connection(self: *Self, fd: posix.fd_t) void {
+pub fn closeConnection(self: *Self, fd: posix.fd_t) void {
     for (self.connections.items) |*file| {
         if (file.handle != fd)
             continue;

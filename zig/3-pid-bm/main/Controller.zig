@@ -213,13 +213,13 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
                 ) == 0) {}
 
                 const read_start = perf_m.Marker.now();
-                logErr(self.read_phase(), "Controller.read_phase");
-                perf_read.add_sample(read_start);
+                logErr(self.readPhase(), "Controller.readPhase");
+                perf_read.addSample(read_start);
             }
 
             const control_start = perf_m.Marker.now();
-            logErr(self.control_phase(), "Controller.control_phase");
-            perf_control.add_sample(control_start);
+            logErr(self.controlPhase(), "Controller.controlPhase");
+            perf_control.addSample(control_start);
         }
 
         std.log.info("# REPORT {}", .{report_number});
@@ -232,8 +232,8 @@ pub fn run(args: ?*anyopaque) callconv(.c) void {
     }
 }
 
-fn read_phase(self: *Self) !void {
-    const value = try self.read_adc();
+fn readPhase(self: *Self) !void {
+    const value = try self.readAdc();
 
     if (!self.state.is_close and value < self.options.revolution_treshold_close) {
         // gone close
@@ -245,31 +245,31 @@ fn read_phase(self: *Self) !void {
     }
 }
 
-fn read_adc(self: *Self) !f32 {
+fn readAdc(self: *Self) !f32 {
     const value = try self.adc.channel.read();
     return @as(f32, @floatFromInt(value)) / adc_max;
 }
 
-fn control_phase(self: *Self) !void {
-    const frequency = self.calculate_frequency();
+fn controlPhase(self: *Self) !void {
+    const frequency = self.calculateFrequency();
     try self.state.revolutions.push(0);
     std.log.debug("frequency: {d:.2} Hz", .{frequency});
 
-    const control_params = self.read_control_params();
+    const control_params = self.readControlParams();
 
-    const control = self.calculate_control(&control_params, frequency);
+    const control = self.calculateControl(&control_params, frequency);
 
     const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
     std.log.debug("control signal limited: {d:.2}", .{control_signal_limited});
 
-    try self.set_duty_cycle(control_signal_limited);
+    try self.setDutyCycle(control_signal_limited);
 
-    self.write_registers(frequency, control_signal_limited);
+    self.writeRegisters(frequency, control_signal_limited);
 
     self.state.feedback = control.feedback;
 }
 
-fn calculate_frequency(self: *Self) f32 {
+fn calculateFrequency(self: *Self) f32 {
     var sum: u32 = 0;
     for (self.state.revolutions.items) |value|
         sum += value;
@@ -284,7 +284,7 @@ pub const ControlParams = struct {
     differentiation_time: f32,
 };
 
-fn read_control_params(self: *Self) ControlParams {
+fn readControlParams(self: *Self) ControlParams {
     const holding = self.registers.holding;
     return .{
         .target_frequency = holding.target_frequency.toF32(),
@@ -294,7 +294,7 @@ fn read_control_params(self: *Self) ControlParams {
     };
 }
 
-fn calculate_control(
+fn calculateControl(
     self: *const Self,
     params: *const ControlParams,
     frequency: f32,
@@ -336,12 +336,12 @@ fn calculate_control(
     };
 }
 
-fn set_duty_cycle(self: *Self, value: f32) !void {
+fn setDutyCycle(self: *Self, value: f32) !void {
     const duty_cycle: u32 = @intFromFloat(value * pwm_duty_max);
-    try self.pwm.channel.set_duty_cycle(duty_cycle);
+    try self.pwm.channel.setDutyCycle(duty_cycle);
 }
 
-fn finite_or_zero(value: f32) f32 {
+fn finiteOrZero(value: f32) f32 {
     return if (std.math.isFinite(value)) 0 else value;
 }
 
@@ -353,7 +353,7 @@ fn limit(value: f32, min: f32, max: f32) f32 {
     return if (result < min) min else if (result > max) max else result;
 }
 
-fn write_registers(self: *Self, frequency: f32, control_signal: f32) void {
+fn writeRegisters(self: *Self, frequency: f32, control_signal: f32) void {
     var input = &self.registers.input;
     input.frequency = .fromF32(frequency);
     input.control_signal = .fromF32(control_signal);

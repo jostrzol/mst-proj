@@ -65,12 +65,12 @@ fn main() !void {
             );
 
             const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
-            pwm_channel.set_duty_cycle(duty_cycle) catch |err| {
+            pwm_channel.setDutyCycle(duty_cycle) catch |err| {
                 log.err("AdcChannel.read fail: {}", .{err});
                 continue;
             };
 
-            perf_main.add_sample(start);
+            perf_main.addSample(start);
         }
 
         std.log.info("# REPORT {}", .{report_number});

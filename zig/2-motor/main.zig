@@ -20,7 +20,7 @@ const update_frequency = 10;
 const sleep_time_ns = std.time.ns_per_s / update_frequency;
 
 var do_continue = true;
-pub fn interrupt_handler(_: c_int) callconv(.C) void {
+pub fn interruptHandler(_: c_int) callconv(.C) void {
     std.debug.print("\nGracefully stopping\n", .{});
     do_continue = false;
 }
@@ -32,7 +32,7 @@ pub fn main() !void {
     var counting = memory.CountingAllocator.init(gpa.allocator());
     const allocator = counting.allocator();
 
-    const signal = @intFromPtr(c.signal(c.SIGINT, &interrupt_handler));
+    const signal = @intFromPtr(c.signal(c.SIGINT, &interruptHandler));
     if (signal < 0)
         return std.posix.unexpectedErrno(std.posix.errno(signal));
 
@@ -68,8 +68,8 @@ pub fn main() !void {
 
             const start = perf.Marker.now();
 
-            const value = read_adc(i2c_file) catch |err| {
-                std.log.err("read_adc fail: {}\n", .{err});
+            const value = readAdc(i2c_file) catch |err| {
+                std.log.err("readAdc fail: {}\n", .{err});
                 continue;
             };
             const duty_cycle = @as(f32, @floatFromInt(value)) / std.math.maxInt(u8);
@@ -83,7 +83,7 @@ pub fn main() !void {
                 continue;
             };
 
-            perf_main.add_sample(start);
+            perf_main.addSample(start);
         }
 
         std.log.info("# REPORT {}", .{report_number});
@@ -94,8 +94,8 @@ pub fn main() !void {
     }
 }
 
-fn read_adc(i2c_file: std.fs.File) !u8 {
-    var write_value = make_read_command(0);
+fn readAdc(i2c_file: std.fs.File) !u8 {
+    var write_value = makeReadCommand(0);
     var read_value: u8 = undefined;
 
     var msgs = [_]c.i2c_msg{
@@ -113,7 +113,7 @@ fn read_adc(i2c_file: std.fs.File) !u8 {
     return read_value;
 }
 
-fn make_read_command(channel: u3) u8 {
+fn makeReadCommand(channel: u3) u8 {
     // bit    7: single-ended inputs mode
     // bits 6-4: channel selection
     // bit    3: is internal reference enabled

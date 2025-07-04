@@ -42,12 +42,12 @@ pub const Counter = struct {
         self.samples.deinit();
     }
 
-    pub fn add_sample(self: *Self, start: Marker) void {
+    pub fn addSample(self: *Self, start: Marker) void {
         const end = Marker.now();
         const diff = end.cycle - start.cycle;
 
         if (self.samples.items.len >= self.samples.capacity) {
-            std.log.err("Counter.add_sample fail: buffer is full", .{});
+            std.log.err("Counter.addSample fail: buffer is full", .{});
             return;
         }
 

@@ -39,7 +39,7 @@ fn main() !void {
             };
             is_on = !is_on;
 
-            perf_main.add_sample(start);
+            perf_main.addSample(start);
         }
 
         std.log.info("# REPORT {}", .{report_number});

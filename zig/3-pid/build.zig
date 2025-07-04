@@ -8,8 +8,8 @@ pub fn build(b: *std.Build) !void {
 
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
 
-    const i2c_tools = try make_i2c_tools(b, .{ .target = target, .optimize = optimize });
-    const modbus = try make_modbus(b, .{ .target = target, .optimize = optimize });
+    const i2c_tools = try makeI2cTools(b, .{ .target = target, .optimize = optimize });
+    const modbus = try makeModbus(b, .{ .target = target, .optimize = optimize });
 
     const exe = b.addExecutable(.{
         .name = "3-pid-zig",
@@ -45,7 +45,7 @@ const MakeOptions = struct {
     optimize: std.builtin.OptimizeMode = .Debug,
 };
 
-fn make_i2c_tools(b: *std.Build, options: MakeOptions) !*std.Build.Step.Compile {
+fn makeI2cTools(b: *std.Build, options: MakeOptions) !*std.Build.Step.Compile {
     const src = b.dependency("i2c-tools", .{});
 
     const lib = b.addSharedLibrary(.{
@@ -64,7 +64,7 @@ fn make_i2c_tools(b: *std.Build, options: MakeOptions) !*std.Build.Step.Compile 
     return lib;
 }
 
-fn make_modbus(b: *std.Build, options: MakeOptions) !struct {
+fn makeModbus(b: *std.Build, options: MakeOptions) !struct {
     step: *std.Build.Step,
     includedir: std.Build.LazyPath,
     libname: []const u8,

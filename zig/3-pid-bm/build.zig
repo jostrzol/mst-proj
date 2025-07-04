@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
         .unwind_tables = .none,
     });
-    const idf = idf_wrapped_modules(b);
+    const idf = idfWrappedModules(b);
     lib.root_module.addImport("esp_idf", idf);
     lib.linkLibC(); // stubs for libc
 
@@ -41,8 +41,8 @@ fn includeDeps(
 
     const idf_path = std.process.getEnvVarOwned(b.allocator, "IDF_PATH") catch "";
     if (!std.mem.eql(u8, idf_path, "")) {
-        try searched_idf_include(b, lib, idf_path);
-        try searched_idf_libs(b, lib);
+        try searchedIdfInclude(b, lib, idf_path);
+        try searchedIdfLibs(b, lib);
     }
 
     const home_dir = std.process.getEnvVarOwned(b.allocator, "HOME") catch "";
@@ -75,7 +75,7 @@ fn includeDeps(
     lib.addIncludePath(b.path("include"));
 }
 
-pub fn searched_idf_libs(b: *std.Build, lib: *std.Build.Step.Compile) !void {
+pub fn searchedIdfLibs(b: *std.Build, lib: *std.Build.Step.Compile) !void {
     var dir = try b.build_root.handle.openDir(".", .{ .iterate = true });
     defer dir.close();
 
@@ -95,7 +95,7 @@ pub fn searched_idf_libs(b: *std.Build, lib: *std.Build.Step.Compile) !void {
     }
 }
 
-pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.Compile, idf_path: []const u8) !void {
+pub fn searchedIdfInclude(b: *std.Build, lib: *std.Build.Step.Compile, idf_path: []const u8) !void {
     const comp = b.pathJoin(&.{ idf_path, "components" });
     var dir = try std.fs.cwd().openDir(
         comp,
@@ -114,7 +114,7 @@ pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.Compile, idf_pat
     }
 }
 
-pub fn idf_wrapped_modules(b: *std.Build) *std.Build.Module {
+pub fn idfWrappedModules(b: *std.Build) *std.Build.Module {
     const src_path = std.fs.path.dirname(@src().file) orelse b.pathResolve(&.{"."});
     const sys = b.addModule("sys", .{
         .root_source_file = b.path(b.pathJoin(&.{

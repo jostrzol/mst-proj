@@ -40,7 +40,7 @@ pub const Channel = struct {
     id: c.ledc_channel_t,
     speed_mode: c.ledc_mode_t,
 
-    pub fn set_duty_cycle(self: *const Channel, duty_cycle: u32) !void {
+    pub fn setDutyCycle(self: *const Channel, duty_cycle: u32) !void {
         try c.espCheckError(c.ledc_set_duty(self.speed_mode, self.id, duty_cycle));
         try c.espCheckError(c.ledc_update_duty(self.speed_mode, self.id));
     }

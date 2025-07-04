@@ -9,7 +9,7 @@ pub const Marker = struct {
     pub fn now() Marker {
         var time: c.struct_timespec = undefined;
         const res = c.clock_gettime(c.CLOCK_THREAD_CPUTIME_ID, &time);
-        const time_ns = if (res != 0) 0 else ns_from_timespec(&time);
+        const time_ns = if (res != 0) 0 else nsFromTimespec(&time);
         return Marker{ .time_ns = time_ns };
     }
 };
@@ -28,7 +28,7 @@ pub const Counter = struct {
 
         std.log.info(
             "Performance counter {s}, cpu resolution: {} ns",
-            .{ name, ns_from_timespec(&resolution) },
+            .{ name, nsFromTimespec(&resolution) },
         );
 
         const samples_ns = try std.ArrayList(u32).initCapacity(allocator, length);
@@ -43,12 +43,12 @@ pub const Counter = struct {
         self.samples_ns.deinit();
     }
 
-    pub fn add_sample(self: *Self, start: Marker) void {
+    pub fn addSample(self: *Self, start: Marker) void {
         const end = Marker.now();
         const diff = end.time_ns - start.time_ns;
 
         if (self.samples_ns.items.len >= self.samples_ns.capacity) {
-            std.log.err("Counter.add_sample fail: buffer is full", .{});
+            std.log.err("Counter.addSample fail: buffer is full", .{});
             return;
         }
 
@@ -85,7 +85,7 @@ pub const Counter = struct {
     }
 };
 
-fn ns_from_timespec(timespec: *const c.struct_timespec) u64 {
+fn nsFromTimespec(timespec: *const c.struct_timespec) u64 {
     const tv_sec: u64 = @intCast(timespec.tv_sec);
     const tv_nsec: u64 = @intCast(timespec.tv_nsec);
     return tv_nsec + tv_sec * std.time.ns_per_s;

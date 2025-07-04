@@ -39,7 +39,7 @@ const controller_options: Controller.Options = .{
 };
 
 var do_continue = true;
-pub fn interrupt_handler(_: c_int) callconv(.C) void {
+pub fn interruptHandler(_: c_int) callconv(.C) void {
     std.debug.print("\nGracefully stopping\n", .{});
     do_continue = false;
 }
@@ -47,7 +47,7 @@ pub fn interrupt_handler(_: c_int) callconv(.C) void {
 pub fn main() !void {
     std.log.info("Controlling motor using PID from Zig", .{});
 
-    const signal = @intFromPtr(c.signal(c.SIGINT, &interrupt_handler));
+    const signal = @intFromPtr(c.signal(c.SIGINT, &interruptHandler));
     if (signal < 0)
         return std.posix.unexpectedErrno(std.posix.errno(signal));
 
@@ -71,8 +71,8 @@ pub fn main() !void {
     var poll_fds = try std.BoundedArray(posix.pollfd, n_fds).init(0);
     const initial_fds = try poll_fds.addManyAsArray(n_fds_system);
     initial_fds.* = .{
-        pollfd_init(server.socket.handle),
-        pollfd_init(controller.timer.handle),
+        pollfdInit(server.socket.handle),
+        pollfdInit(controller.timer.handle),
     };
 
     while (do_continue) {
@@ -93,7 +93,7 @@ pub fn main() !void {
 
             if (poll_fd.revents & (POLL.ERR | POLL.HUP) != 0) {
                 poll_fd.fd = -fd; // mark for removal
-                server.close_connection(fd);
+                server.closeConnection(fd);
             } else if (poll_fd.revents & POLL.IN != 0) {
                 const controller_res = controller.handle(fd) catch |err| {
                     std.log.err("Controller.handle fail: {}", .{err});
@@ -110,7 +110,7 @@ pub fn main() !void {
                 switch (server_res) {
                     .accepted => |file| {
                         const new_pollfd = poll_fds.addOneAssumeCapacity();
-                        new_pollfd.* = pollfd_init(file.handle);
+                        new_pollfd.* = pollfdInit(file.handle);
                     },
                     .closed => poll_fd.fd = -fd, // mark for removal
                     else => {},
@@ -130,7 +130,7 @@ pub fn main() !void {
     }
 }
 
-fn pollfd_init(fd: posix.fd_t) posix.pollfd {
+fn pollfdInit(fd: posix.fd_t) posix.pollfd {
     return .{ .fd = fd, .events = POLL.IN, .revents = 0 };
 }
 

@@ -108,7 +108,7 @@ pub fn init(
     const read_frequency = options.control_frequency * options.reads_per_bin;
     const read_interval_us = std.time.us_per_s / read_frequency;
 
-    const timerspec = timerspec_from_us(read_interval_us);
+    const timerspec = timerspecFromUs(read_interval_us);
     try posix.timerfd_settime(timer_fd, .{}, &timerspec, null);
 
     try channel.setParameters(.{
@@ -165,13 +165,13 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
     _ = try self.timer.readAll(std.mem.asBytes(&expirations));
 
     const read_start = perf.Marker.now();
-    self.read_phase() catch |err| std.log.err("read_phase fail: {}", .{err});
-    self.perf.read.add_sample(read_start);
+    self.readPhase() catch |err| std.log.err("readPhase fail: {}", .{err});
+    self.perf.read.addSample(read_start);
 
     if (self.state.iteration % self.options.reads_per_bin == 0) {
         const control_start = perf.Marker.now();
-        self.control_phase() catch |err| std.log.err("control_phase fail: {}", .{err});
-        self.perf.control.add_sample(control_start);
+        self.controlPhase() catch |err| std.log.err("controlPhase fail: {}", .{err});
+        self.perf.control.addSample(control_start);
     }
 
     const reads_per_report = self.options.reads_per_bin * self.options.control_frequency;
@@ -190,8 +190,8 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
     return .handled;
 }
 
-fn read_phase(self: *Self) !void {
-    const value = try self.read_adc();
+fn readPhase(self: *Self) !void {
+    const value = try self.readAdc();
 
     if (!self.state.is_close and value < self.options.revolution_treshold_close) {
         // gone close
@@ -203,8 +203,8 @@ fn read_phase(self: *Self) !void {
     }
 }
 
-fn read_adc(self: *Self) !u8 {
-    var write_value = make_read_command(0);
+fn readAdc(self: *Self) !u8 {
+    var write_value = makeReadCommand(0);
     var read_value: u8 = undefined;
 
     const addr = self.options.i2c_address;
@@ -223,7 +223,7 @@ fn read_adc(self: *Self) !u8 {
     return read_value;
 }
 
-fn make_read_command(channel: u3) u8 {
+fn makeReadCommand(channel: u3) u8 {
     // bit    7: single-ended inputs mode
     // bits 6-4: channel selection
     // bit    3: is internal reference enabled
@@ -235,26 +235,26 @@ fn make_read_command(channel: u3) u8 {
     return default_read_command & (channel_u8 << 4);
 }
 
-fn control_phase(self: *Self) !void {
-    const frequency = self.calculate_frequency();
+fn controlPhase(self: *Self) !void {
+    const frequency = self.calculateFrequency();
     self.state.revolutions.push(0);
     std.log.debug("frequency: {d:.2} Hz", .{frequency});
 
-    const control_params = self.read_control_params();
+    const control_params = self.readControlParams();
 
-    const control = self.calculate_control(&control_params, frequency);
+    const control = self.calculateControl(&control_params, frequency);
 
     const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
     std.log.debug("control signal limited: {d:.2}", .{control_signal_limited});
 
-    try self.set_duty_cycle(control_signal_limited);
+    try self.setDutyCycle(control_signal_limited);
 
-    self.write_registers(frequency, control_signal_limited);
+    self.writeRegisters(frequency, control_signal_limited);
 
     self.state.feedback = control.feedback;
 }
 
-fn calculate_frequency(self: *Self) f32 {
+fn calculateFrequency(self: *Self) f32 {
     var sum: u32 = 0;
     for (self.state.revolutions.items) |value|
         sum += value;
@@ -269,17 +269,17 @@ pub const ControlParams = struct {
     differentiation_time: f32,
 };
 
-fn read_control_params(self: *Self) ControlParams {
+fn readControlParams(self: *Self) ControlParams {
     const H = Registers.Holding;
     return .{
-        .target_frequency = self.registers.get_holding(H.target_frequency),
-        .proportional_factor = self.registers.get_holding(H.proportional_factor),
-        .integration_time = self.registers.get_holding(H.integration_time),
-        .differentiation_time = self.registers.get_holding(H.differentiation_time),
+        .target_frequency = self.registers.getHolding(H.target_frequency),
+        .proportional_factor = self.registers.getHolding(H.proportional_factor),
+        .integration_time = self.registers.getHolding(H.integration_time),
+        .differentiation_time = self.registers.getHolding(H.differentiation_time),
     };
 }
 
-fn calculate_control(
+fn calculateControl(
     self: *const Self,
     params: *const ControlParams,
     frequency: f32,
@@ -321,14 +321,14 @@ fn calculate_control(
     };
 }
 
-fn set_duty_cycle(self: *Self, value: f32) !void {
+fn setDutyCycle(self: *Self, value: f32) !void {
     try self.pwm_channel.setParameters(.{
         .frequency = null,
         .duty_cycle_ratio = value,
     });
 }
 
-fn finite_or_zero(value: f32) f32 {
+fn finiteOrZero(value: f32) f32 {
     return if (std.math.isFinite(value)) 0 else value;
 }
 
@@ -340,12 +340,12 @@ fn limit(value: f32, min: f32, max: f32) f32 {
     return if (result < min) min else if (result > max) max else result;
 }
 
-fn write_registers(self: *Self, frequency: f32, control_signal: f32) void {
-    self.registers.set_input(Registers.Input.frequency, frequency);
-    self.registers.set_input(Registers.Input.control_signal, control_signal);
+fn writeRegisters(self: *Self, frequency: f32, control_signal: f32) void {
+    self.registers.setInput(Registers.Input.frequency, frequency);
+    self.registers.setInput(Registers.Input.control_signal, control_signal);
 }
 
-fn timerspec_from_us(interval_us: u64) linux.itimerspec {
+fn timerspecFromUs(interval_us: u64) linux.itimerspec {
     const s = interval_us / std.time.us_per_s;
     const ns = (interval_us * std.time.ns_per_us) % std.time.ns_per_s;
     const timespec = linux.timespec{

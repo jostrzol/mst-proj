@@ -13,7 +13,7 @@ const update_frequency = 2 * blink_frequency;
 const sleep_time_ns = std.time.ns_per_s / update_frequency;
 
 var do_continue = true;
-pub fn interrupt_handler(_: c_int) callconv(.C) void {
+pub fn interruptHandler(_: c_int) callconv(.C) void {
     std.debug.print("\nGracefully stopping\n", .{});
     do_continue = false;
 }
@@ -25,7 +25,7 @@ pub fn main() !void {
     var counting = memory.CountingAllocator.init(gpa.allocator());
     const allocator = counting.allocator();
 
-    const signal = @intFromPtr(c.signal(c.SIGINT, &interrupt_handler));
+    const signal = @intFromPtr(c.signal(c.SIGINT, &interruptHandler));
     if (signal < 0)
         return std.posix.unexpectedErrno(std.posix.errno(signal));
 
@@ -51,7 +51,7 @@ pub fn main() !void {
             line.setValue(is_on) catch |err| std.log.err("Line.setValue fail: {}", .{err});
             is_on = !is_on;
 
-            perf_main.add_sample(start);
+            perf_main.addSample(start);
         }
 
         std.log.info("# REPORT {}", .{report_number});
