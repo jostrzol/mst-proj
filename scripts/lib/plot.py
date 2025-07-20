@@ -1,7 +1,12 @@
+import colorsys
 from collections.abc import Iterable
+from colorsys import rgb_to_hls, rgb_to_hsv
+from itertools import cycle
 from pathlib import Path
 
+import matplotlib.colors as mc
 from matplotlib.axes import Axes
+from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
 from matplotlib.typing import ColorType
 
@@ -11,20 +16,32 @@ def add_bar_texts(
     ys: Iterable[float],
     texts: Iterable[object],
     *,
-    above_color: str | None = None,
-    below_color: str | None = "white",
+    above_color: Iterable[ColorType] | ColorType | None = None,
+    below_color: Iterable[ColorType] | ColorType | None = None,
+    bg_color: Iterable[ColorType] | None = None,
     size: str | float | None = None,
 ):
     _, ymax = ax.get_ylim()
     margin = ymax / 50
-    for i, (y, text) in enumerate(zip(ys, texts)):
+
+    if isinstance(above_color, str | None):
+        above_color = cycle([above_color if above_color else "black"])
+    if isinstance(below_color, str | None):
+        if bg_color is not None and below_color is None:
+            below_color = map(fg_color_for_bg_color, bg_color)
+        else:
+            below_color = cycle([below_color if below_color else "white"])
+
+    for i, (y, text, above, below) in enumerate(
+        zip(ys, texts, above_color, below_color)
+    ):
         if y < 0.9 * ymax:
             _ = ax.text(
                 i,
                 y + margin,
                 str(text),
                 ha="center",
-                color=above_color,
+                color=above,
                 size=size,
             )
         else:
@@ -34,9 +51,23 @@ def add_bar_texts(
                 str(text),
                 ha="center",
                 va="top",
-                color=below_color,
+                color=below,
                 size=size,
             )
+
+
+def fg_color_for_bg_color(bg_color: ColorType) -> ColorType:
+    """
+    Source: https://stackoverflow.com/a/3943023/30363130
+    """
+    r, g, b = to_rgb(bg_color)
+    value = r * 0.299 + g * 0.587 + b * 0.114
+    return "black" if value > 170 / 255 else "white"
+    # rp, gp, bp = [
+    #     c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb
+    # ]
+    # L = 0.2126 * rp + 0.7152 * gp + 0.0722 * bp
+    # return "black" if L > 0.179 else "white"
 
 
 def lighten_color(color: ColorType | str, amount: float) -> ColorType:
@@ -51,10 +82,6 @@ def lighten_color(color: ColorType | str, amount: float) -> ColorType:
     >> lighten_color('#F034A3', 0.6)
     >> lighten_color((.3,.55,.1), 0.5)
     """
-    import colorsys
-
-    import matplotlib.colors as mc
-
     try:
         c = mc.cnames[color]  # pyright:ignore[reportArgumentType]
     except Exception:

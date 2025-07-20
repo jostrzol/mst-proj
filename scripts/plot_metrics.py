@@ -4,13 +4,15 @@
 
 import csv
 from collections.abc import Iterable
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import NamedTuple, final, override
 
 from lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
 from lib.language import LANGUAGES
-from lib.plot import savefig
+from lib.plot import add_bar_texts, savefig
 from matplotlib import pyplot as plt
+from matplotlib.figure import Figure
 
 EXPERIMENTS = [
     "1-blinky",
@@ -118,46 +120,67 @@ class FunctionInfos:
         return cls(infos)
 
 
-def plot_experiment(experiment: str):
-    langs_to_infos: dict[str, FunctionInfos] = {}
-    for lang in LANGUAGES.values():
-        path = ANALYSIS_DIR / f"{experiment}-{lang['slug']}.csv"
-        with path.open() as file:
-            infos = FunctionInfos.from_csv(file)
-        langs_to_infos[lang["slug"]] = infos
+@dataclass
+class ExperimentData:
+    langs_to_infos: dict[str, FunctionInfos]
+    sizes: list[float]
 
-    fig = plt.figure()
+    @classmethod
+    def from_fs(cls, experiment: str):
+        langs_to_infos: dict[str, FunctionInfos] = {}
+        for lang in LANGUAGES.values():
+            path = ANALYSIS_DIR / f"{experiment}-{lang['slug']}.csv"
+            with path.open() as file:
+                infos = FunctionInfos.from_csv(file)
+            langs_to_infos[lang["slug"]] = infos
 
+        execs = [
+            ARTIFACTS_DIR / "small" / f"{experiment}-{lang['slug']}"
+            for lang in LANGUAGES.values()
+        ]
+        sizes = [exec.stat().st_size / 1000 for exec in execs]
+
+        return cls(langs_to_infos=langs_to_infos, sizes=sizes)
+
+
+def plot_experiment(
+    figure: Figure, experiment: str, data: ExperimentData, suffix: str = ""
+):
     labels = [lang["name"] for lang in LANGUAGES.values()]
     colors = [lang["color"] for lang in LANGUAGES.values()]
 
-    execs = [
-        ARTIFACTS_DIR / "small" / f"{experiment}-{lang['slug']}"
-        for lang in LANGUAGES.values()
-    ]
-    sizes = [exec.stat().st_size / 1000 for exec in execs]
-    plt.subplot(2, 2, 1)
-    plt.bar(labels, sizes, edgecolor="black", facecolor=colors)
+    ax = plt.subplot(2, 2, 1)
+    plt.bar(labels, data.sizes, edgecolor="black", facecolor=colors)
+    texts = [f"{s:.0f}" for s in data.sizes]
+    add_bar_texts(ax, data.sizes, texts, bg_color=colors)
     plt.title("Rozmiar pliku binarnego")
-    plt.ylabel("Rozmiar [KB]")
+    plt.ylabel("Rozmiar $[kB]$")
 
     titles = ["CCN'", "NLOC", "Liczba tokenów"]
     fields = ["ccn_prim", "nloc_count", "token_count"]
     for i, (title, field) in enumerate(zip(titles, fields)):
-        values = [getattr(infos, field) for infos in langs_to_infos.values()]
-        plt.subplot(2, 2, i + 2)
+        values = [getattr(infos, field) for infos in data.langs_to_infos.values()]
+
+        ax = plt.subplot(2, 2, i + 2)
         plt.bar(labels, values, edgecolor="black", facecolor=colors)
+        add_bar_texts(ax, values, values, bg_color=colors)
         plt.title(title)
 
     plt.tight_layout()
 
-    out_path = PLOT_DIR / f"{experiment}"
-    savefig(fig, out_path)
+    out_path = PLOT_DIR / f"{experiment}{suffix}"
+    savefig(figure, out_path)
 
 
 def main():
     for experiment in EXPERIMENTS:
-        plot_experiment(experiment)
+        data = ExperimentData.from_fs(experiment)
+
+        figure = plt.figure()
+        plot_experiment(figure=figure, experiment=experiment, data=data)
+
+        figure = plt.figure(figsize=(4.8, 4.8))
+        plot_experiment(figure=figure, experiment=experiment, data=data, suffix="-doc")
 
 
 if __name__ == "__main__":

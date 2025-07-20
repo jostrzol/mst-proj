@@ -18,6 +18,7 @@ from lib.types import Benchmark
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.container import Container
+from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.typing import ColorType
@@ -60,8 +61,8 @@ BEST_MEM_PROFILE = {
 }
 
 
-def plot_experiment(experiment: str):
-    results: list[LangResult] = []
+def get_experiment_data(experiment: str) -> list[LangResult]:
+    data: list[LangResult] = []
     for lang in LANGUAGES.values():
         slug = f"{experiment}-{lang['slug']}"
         perf = read_reports(f"{slug}-perf-*.csv")
@@ -72,20 +73,25 @@ def plot_experiment(experiment: str):
             time_us_per_loop=group_reports(perf),
             mem_usage_per_task=group_reports(mem, divider=1000),
         )
-        results.append(result)
+        data.append(result)
+    return data
 
-    fig, axes = plt.subplots(ncols=2, figsize=(8, 4))
+
+def plot_experiment(
+    figure: Figure, experiment: str, data: list[LangResult], suffix: str = "-perf"
+):
+    axes = figure.subplots(ncols=2)
     axes: Iterable[Axes]
     ax_perf, ax_mem = axes
 
-    plot_perf(ax_perf, results)
-    plot_mem(ax_mem, results)
+    plot_perf(ax_perf, data)
+    plot_mem(ax_mem, data)
 
-    fig.tight_layout()
-    fig.subplots_adjust(top=0.88, wspace=0.4)
+    figure.tight_layout()
+    figure.subplots_adjust(top=0.88, wspace=0.4)
 
-    out_path = PLOT_DIR / f"{experiment}-perf"
-    savefig(fig, out_path)
+    out_path = PLOT_DIR / f"{experiment}{suffix}"
+    savefig(figure, out_path)
 
 
 def read_reports(
@@ -155,24 +161,21 @@ def plot_mem(ax: Axes, results: list[LangResult]):
     heap_stats = [result.mem_usage_per_task["Heap"] for result in results]
     n_stacks = len(stacks_stats)
 
-    series_stats: list[Sequence[Stats]] = [*stacks_stats, heap_stats]
-    series_names = [*("stos" for _ in stacks[0].keys()), "sterta"]
+    series_stats: list[Sequence[Stats]] = [heap_stats, *stacks_stats]
+    series_names = ["sterta", *("stos" for _ in stacks[0].keys())]
 
-    patterns = [*PATTERNS[:n_stacks], "."]
+    patterns = [".", *PATTERNS[:n_stacks]]
 
-    ax_stack = ax
-    ax_heap = ax.twinx()
-    axs = [ax_stack] * n_stacks + [ax_heap, ax_heap]
+    axs = [ax] * (n_stacks + 1)
 
     plot(
         axs=axs,
         series_names=series_names,
         series_stats=series_stats,
         patterns=patterns,
-        plottype="bar",
+        plottype="stack",
     )
-    ax_stack.set_ylabel(r"Zajętość stosu $[kB]$")
-    ax_heap.set_ylabel(r"Zajętość sterty $[kB]$")
+    ax.set_ylabel(r"Zajętość pamięci $[kB]$")
 
 
 PATTERNS = ["/", "x", "-", "|", "\\", "+", "o", "O", ".", "*"]
@@ -184,7 +187,7 @@ def plot(
     series_stats: list[Sequence[Stats]],
     patterns: list[str] | None = None,
     width: float | None = None,
-    plottype: Literal["box"] | Literal["bar"] = "bar",
+    plottype: Literal["box"] | Literal["bar"] | Literal["stack"] = "bar",
 ):
     n_series = len(series_stats)
     if isinstance(axs, Axes):
@@ -221,8 +224,16 @@ def plot(
                 colors=colors,
                 width=width,
             )
+        case "stack":
+            plot_stack(
+                axs=axs,
+                series_stats=series_stats,
+                patterns=patterns,
+                positions_init=positions_init,
+                colors=colors,
+                width=width,
+            )
 
-    ax = axs[0]
     ax.set_xticks(positions_init + width * (n_series - 1) / 2, names)
 
     legend_stubs = [
@@ -340,13 +351,53 @@ def plot_bar(
     return containers
 
 
+def plot_stack(
+    axs: Sequence[Axes],
+    series_stats: list[Sequence[Stats]],
+    patterns: list[str],
+    positions_init: Stats,
+    colors: Sequence[ColorType],
+    width: float,
+):
+    containers: list[Container] = []
+    bottom = np.zeros_like(positions_init, dtype=np.float64)
+    for stats, pattern, ax in zip(series_stats, patterns, axs):
+        if len(stats) == 0:
+            continue
+
+        xs = positions_init + width / 2
+        ys = np.array([stat.mean() for stat in stats])
+
+        bar = ax.bar(
+            xs,
+            ys,
+            width,
+            edgecolor="black",
+            facecolor=colors,
+            hatch=pattern * 2,
+            bottom=bottom,
+        )
+
+        bottom += ys
+        containers.append(Container(bar))
+    return containers
+
+
 def sem(values: NDArray[Any]) -> float:
     return values.std() / np.sqrt(len(values))
 
 
 def main():
     for experiment in EXPERIMENTS:
-        plot_experiment(experiment)
+        data = get_experiment_data(experiment=experiment)
+
+        figure = plt.figure(figsize=(8, 4))
+        plot_experiment(figure=figure, experiment=experiment, data=data, suffix="-perf")
+
+        figure = plt.figure(figsize=(6, 4))
+        plot_experiment(
+            figure=figure, experiment=experiment, data=data, suffix="-perf-doc"
+        )
 
 
 if __name__ == "__main__":
