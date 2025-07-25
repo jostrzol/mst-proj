@@ -6,7 +6,7 @@ const sys = idf.sys;
 const memory = @import("memory.zig");
 const perf = @import("perf.zig");
 
-usingnamespace @import("comptime-rt.zig");
+usingnamespace @import("compiler-rt.zig");
 
 const blink_frequency = 10;
 const update_frequency = 2 * blink_frequency;

@@ -4,7 +4,7 @@ const idf = @import("esp_idf");
 const sys = idf.sys;
 
 const c = @import("c.zig");
-usingnamespace @import("comptime-rt.zig");
+usingnamespace @import("compiler-rt.zig");
 
 const Services = @import("Services.zig");
 const Server = @import("Server.zig");

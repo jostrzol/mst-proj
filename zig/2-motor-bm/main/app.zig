@@ -4,7 +4,7 @@ const idf = @import("esp_idf");
 const sys = idf.sys;
 
 const c = @import("c.zig");
-usingnamespace @import("comptime-rt.zig");
+usingnamespace @import("compiler-rt.zig");
 
 const adc = @import("adc.zig");
 const pwm = @import("pwm.zig");
