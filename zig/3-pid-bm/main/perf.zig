@@ -4,7 +4,6 @@ const Allocator = std.mem.Allocator;
 const sys = idf.sys;
 
 const c = @import("c.zig");
-const utils = @import("utils.zig");
 
 pub const Marker = struct {
     cycle: sys.esp_cpu_cycle_count_t,

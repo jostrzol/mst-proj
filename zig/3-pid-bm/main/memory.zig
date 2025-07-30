@@ -2,7 +2,7 @@ const std = @import("std");
 const idf = @import("esp_idf");
 const sys = idf.sys;
 
-const utils = @import("utils.zig");
+const c = @import("c.zig");
 
 pub fn report() void {
     const task = sys.xTaskGetCurrentTaskHandle();
@@ -23,7 +23,7 @@ pub fn report() void {
 
 fn stackUsage(task: sys.TaskHandle_t) !u32 {
     var snapshot: sys.TaskSnapshot_t = undefined;
-    try utils.rtosCheckError(sys.vTaskGetSnapshot(task, &snapshot));
+    try c.rtosCheckError(sys.vTaskGetSnapshot(task, &snapshot));
 
     return snapshot.pxEndOfStack - snapshot.pxTopOfStack;
 }

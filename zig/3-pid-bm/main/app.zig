@@ -10,7 +10,6 @@ const Services = @import("Services.zig");
 const Server = @import("Server.zig");
 const Registers = @import("Registers.zig");
 const Controller = @import("Controller.zig");
-const utils = @import("utils.zig");
 
 const stack_size = 4096;
 
@@ -45,7 +44,7 @@ fn main() !void {
     defer controller.deinit();
 
     var server_task: sys.TaskHandle_t = undefined;
-    try utils.rtosCheckError(idf.xTaskCreatePinnedToCore(
+    try c.rtosCheckError(idf.xTaskCreatePinnedToCore(
         Server.run,
         "SERVER_LOOP",
         stack_size,
@@ -57,7 +56,7 @@ fn main() !void {
     defer sys.vTaskDelete(server_task);
 
     var controller_task: sys.TaskHandle_t = undefined;
-    try utils.rtosCheckError(idf.xTaskCreatePinnedToCore(
+    try c.rtosCheckError(idf.xTaskCreatePinnedToCore(
         Controller.run,
         "CONTROLLER_LOOP",
         stack_size,

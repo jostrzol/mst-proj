@@ -1,5 +1,6 @@
 const std = @import("std");
 const idf = @import("esp_idf");
+const sys = idf.sys;
 
 const c = @cImport({
     @cInclude("esp_adc/adc_oneshot.h");
@@ -19,6 +20,10 @@ pub fn espLogError(errc: c.esp_err_t, operation: []const u8) void {
     espCheckError(errc) catch |err| {
         std.log.err("{s} fail: {}", .{ operation, err });
     };
+}
+
+pub fn rtosCheckError(result: sys.BaseType_t) !void {
+    if (result != 1) return error.ErrorRtos;
 }
 
 // Needed, because c-translate cannot properly translate flags
