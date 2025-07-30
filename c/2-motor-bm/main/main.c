@@ -25,17 +25,37 @@ static const adc_unit_t ADC_UNIT = ADC_UNIT_1;
 static const adc_channel_t ADC_CHANNEL = ADC_CHANNEL_4;
 static const adc_atten_t ADC_ATTENUATION = ADC_ATTEN_DB_12;
 static const adc_bitwidth_t ADC_BITWIDTH = ADC_BITWIDTH_9;
+static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
+static const adc_oneshot_chan_cfg_t ADC_CONFIG = {
+    .atten = ADC_ATTENUATION,
+    .bitwidth = ADC_BITWIDTH,
+};
 
 static const uint32_t PWM_TIMER_NUM = LEDC_TIMER_0;
 static const uint32_t PWM_SPEED = LEDC_LOW_SPEED_MODE;
 static const uint32_t PWM_CHANNEL = LEDC_CHANNEL_0;
-static const uint32_t PWM_GPIO = 5;
-static const uint32_t PWM_FREQUENCY = 1000;
-static const uint32_t PWM_DUTY_RESOLUTION = LEDC_TIMER_13_BIT;
-
-// Derived constants
-static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
-static const uint32_t PWM_DUTY_MAX = (1 << PWM_DUTY_RESOLUTION) - 1;
+static const uint32_t PWM_BITWIDTH = LEDC_TIMER_13_BIT;
+static const uint32_t PWM_DUTY_MAX = (1 << PWM_BITWIDTH) - 1;
+static const ledc_timer_config_t PWM_TIMER_CONFIG = {
+    .timer_num = PWM_TIMER_NUM,
+    .speed_mode = PWM_SPEED,
+    .duty_resolution = PWM_BITWIDTH,
+    .freq_hz = 1000,
+    .clk_cfg = LEDC_AUTO_CLK,
+};
+static const ledc_timer_config_t PWM_TIMER_DECONFIG = {
+    .timer_num = PWM_TIMER_NUM,
+    .deconfigure = true,
+};
+static const ledc_channel_config_t PWM_CHANNEL_CONFIG = {
+    .timer_sel = PWM_TIMER_NUM,
+    .channel = PWM_CHANNEL,
+    .speed_mode = PWM_SPEED,
+    .intr_type = LEDC_INTR_DISABLE,
+    .gpio_num = GPIO_NUM_5,
+    .duty = 0,
+    .hpoint = 0,
+};
 
 void app_main(void) {
   esp_err_t err;
@@ -50,47 +70,24 @@ void app_main(void) {
     abort();
   }
 
-  adc_oneshot_chan_cfg_t config = {
-      .atten = ADC_ATTENUATION,
-      .bitwidth = ADC_BITWIDTH,
-  };
-  err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &config);
+  err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &ADC_CONFIG);
   if (err != ERR_OK) {
     ESP_LOGE(TAG, "adc_oneshot_config_channel fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
 
-  const ledc_timer_config_t led_timer_config = {
-      .speed_mode = PWM_SPEED,
-      .duty_resolution = PWM_DUTY_RESOLUTION,
-      .timer_num = PWM_TIMER_NUM,
-      .freq_hz = PWM_FREQUENCY,
-      .clk_cfg = LEDC_AUTO_CLK,
-  };
-  err = ledc_timer_config(&led_timer_config);
+  err = ledc_timer_config(&PWM_TIMER_CONFIG);
   if (err != ERR_OK) {
     ESP_LOGE(TAG, "ledc_timer_config fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
-  ledc_timer_config_t timer_deconfig = {
-      .timer_num = PWM_TIMER_NUM, .deconfigure = true
-  };
 
-  ledc_channel_config_t ledc_channel = {
-      .speed_mode = PWM_SPEED,
-      .channel = PWM_CHANNEL,
-      .timer_sel = led_timer_config.timer_num,
-      .intr_type = LEDC_INTR_DISABLE,
-      .gpio_num = PWM_GPIO,
-      .duty = 0,
-      .hpoint = 0
-  };
-  err = ledc_channel_config(&ledc_channel);
+  err = ledc_channel_config(&PWM_CHANNEL_CONFIG);
   if (err != ERR_OK) {
     ESP_LOGE(TAG, "ledc_channel_config fail (0x%x)", (int)err);
-    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&timer_deconfig));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
@@ -100,7 +97,7 @@ void app_main(void) {
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "perf_counter_init fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&timer_deconfig));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
@@ -150,6 +147,6 @@ void app_main(void) {
 
   perf_counter_deinit(perf);
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
-  ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&timer_deconfig));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
   ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
 }

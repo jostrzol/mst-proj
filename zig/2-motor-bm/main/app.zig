@@ -6,16 +6,43 @@ const sys = idf.sys;
 const c = @import("c.zig");
 usingnamespace @import("compiler-rt.zig");
 
-const adc = @import("adc.zig");
-const pwm = @import("pwm.zig");
 const memory = @import("memory.zig");
 const perf = @import("perf.zig");
 
+const adc_unit = c.ADC_UNIT_1;
+const adc_channel = c.ADC_CHANNEL_4;
 const adc_bitwidth = c.ADC_BITWIDTH_9;
 const adc_max = (1 << adc_bitwidth) - 1;
+const adc_channel_config = c.adc_oneshot_chan_cfg_t{
+    .atten = c.ADC_ATTEN_DB_12,
+    .bitwidth = adc_bitwidth,
+};
 
+const pwm_timer = c.LEDC_TIMER_0;
+const pwm_speed_mode = c.LEDC_LOW_SPEED_MODE;
+const pwm_channel = c.LEDC_CHANNEL_0;
 const pwm_bitwidth = c.LEDC_TIMER_13_BIT;
 const pwm_max = (1 << pwm_bitwidth) - 1;
+const pwm_timer_config = c.ledc_timer_config_t{
+    .timer_num = pwm_timer,
+    .speed_mode = pwm_speed_mode,
+    .duty_resolution = pwm_bitwidth,
+    .freq_hz = 1000,
+    .clk_cfg = c.LEDC_AUTO_CLK,
+};
+const pwm_timer_deconfig = c.ledc_timer_config_t{
+    .timer_num = pwm_timer,
+    .deconfigure = true,
+};
+const pwm_channel_config = c.fixed.ledc_channel_config_t{
+    .timer_sel = pwm_timer,
+    .channel = pwm_channel,
+    .speed_mode = pwm_speed_mode,
+    .intr_type = c.LEDC_INTR_DISABLE,
+    .gpio_num = c.GPIO_NUM_5,
+    .duty = 0,
+    .hpoint = 0,
+};
 
 const update_frequency = 10;
 const sleep_time_ms = std.time.ms_per_s / update_frequency;
@@ -25,23 +52,17 @@ fn main() !void {
 
     const allocator = std.heap.raw_c_allocator;
 
-    const adc_unit = try adc.Unit.init(c.ADC_UNIT_1);
-    defer adc_unit.deinit();
-    const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
-        .atten = c.ADC_ATTEN_DB_12,
-        .bitwidth = adc_bitwidth,
-    });
+    var adc: c.adc_oneshot_unit_handle_t = undefined;
+    try c.espCheckError(c.adc_oneshot_new_unit(&.{ .unit_id = adc_unit }, &adc));
+    defer c.espLogError(c.adc_oneshot_del_unit(adc), "adc_oneshot_del_unit");
 
-    const pwm_timer = try pwm.Timer.init(&.{
-        .speed_mode = c.LEDC_LOW_SPEED_MODE,
-        .duty_resolution = c.LEDC_TIMER_13_BIT,
-        .timer_num = c.LEDC_TIMER_0,
-        .freq_hz = 1000,
-        .clk_cfg = c.LEDC_AUTO_CLK,
-    });
-    defer pwm_timer.deinit();
-    const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
-    defer pwm_channel.deinit();
+    try c.espCheckError(c.adc_oneshot_config_channel(adc, adc_channel, &adc_channel_config));
+
+    try c.espCheckError(c.ledc_timer_config(&pwm_timer_config));
+    defer c.espLogError(c.ledc_timer_config(&pwm_timer_deconfig), "ledc_timer_config");
+
+    try c.espCheckError(c.fixed.ledc_channel_config(&pwm_channel_config));
+    defer c.espLogError(c.ledc_stop(pwm_speed_mode, pwm_channel, 0), "ledc_stop");
 
     var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
     defer perf_main.deinit();
@@ -53,8 +74,9 @@ fn main() !void {
 
             const start = perf.Marker.now();
 
-            const value = adc_channel.read() catch |err| {
-                log.err("AdcChannel.read fail: {}", .{err});
+            var value: c_int = undefined;
+            c.espCheckError(c.adc_oneshot_read(adc, adc_channel, &value)) catch |err| {
+                log.err("adc_oneshot_read fail: {}", .{err});
                 continue;
             };
 
@@ -65,8 +87,13 @@ fn main() !void {
             );
 
             const duty_cycle: u32 = @intFromFloat(value_normalized * pwm_max);
-            pwm_channel.setDutyCycle(duty_cycle) catch |err| {
-                log.err("AdcChannel.read fail: {}", .{err});
+
+            c.espCheckError(c.ledc_set_duty(pwm_speed_mode, pwm_channel, duty_cycle)) catch |err| {
+                log.err("ledc_set_duty fail: {}", .{err});
+                continue;
+            };
+            c.espCheckError(c.ledc_update_duty(pwm_speed_mode, pwm_channel)) catch |err| {
+                log.err("ledc_update_duty fail: {}", .{err});
                 continue;
             };
 
