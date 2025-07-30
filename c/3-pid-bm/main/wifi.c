@@ -66,6 +66,10 @@ esp_err_t my_wifi_init(my_wifi_t *self) {
     return ESP_ERR_INVALID_STATE;
   }
   s_wifi_event_group = xEventGroupCreate();
+  if (s_wifi_event_group == NULL) {
+    ESP_LOGE(TAG, "xEventGroupCreate fail");
+    return ESP_ERR_INVALID_STATE;
+  }
 
   err = esp_netif_init();
   if (err != ESP_OK) {
