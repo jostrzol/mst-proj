@@ -86,39 +86,45 @@ void server_deinit(server_t *self) {
   ESP_ERROR_CHECK_WITHOUT_ABORT(mbc_slave_destroy());
 }
 
-void server_loop(void *params) {
+esp_err_t server_iteration() {
   mb_param_info_t reg_info;
 
+  mbc_slave_check_event(MB_READ_WRITE_MASK);
+
+  esp_err_t err = mbc_slave_get_param_info(&reg_info, SERVER_PAR_INFO_GET_TOUT);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "mbc_slave_get_param_info fail (0x%x)", (int)err);
+    return err;
+  }
+
+  if (reg_info.type & MB_READ_MASK)
+    return ESP_OK; // Don't log reads
+
+  const char *rw_str = (reg_info.type & MB_READ_MASK) ? "READ" : "WRITE";
+
+  const char *type_str;
+  if (reg_info.type & MB_HOLDING_MASK) {
+    type_str = "HOLDING";
+  } else if (reg_info.type & MB_INPUT_MASK) {
+    type_str = "INPUT";
+  } else {
+    type_str = "UNKNOWN";
+  }
+
+  ESP_LOGI(
+      TAG,
+      "%s %s (%" PRIu32 " us), ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIx32
+      ", SIZE:%u",
+      type_str, rw_str, reg_info.time_stamp, (unsigned)reg_info.mb_offset,
+      (unsigned)reg_info.type, (uint32_t)reg_info.address,
+      (unsigned)reg_info.size
+  );
+  return ESP_OK;
+}
+
+void server_loop(void *params) {
   ESP_LOGI(TAG, "Listening for modbus requests...");
 
-  while (true) {
-    mbc_slave_check_event(MB_READ_WRITE_MASK);
-
-    ESP_ERROR_CHECK_WITHOUT_ABORT(
-        mbc_slave_get_param_info(&reg_info, SERVER_PAR_INFO_GET_TOUT)
-    );
-
-    if (reg_info.type & MB_READ_MASK)
-      continue; // Don't log reads
-
-    const char *rw_str = (reg_info.type & MB_READ_MASK) ? "READ" : "WRITE";
-
-    const char *type_str;
-    if (reg_info.type & MB_HOLDING_MASK) {
-      type_str = "HOLDING";
-    } else if (reg_info.type & MB_INPUT_MASK) {
-      type_str = "INPUT";
-    } else {
-      type_str = "UNKNOWN";
-    }
-
-    ESP_LOGI(
-        TAG,
-        "%s %s (%" PRIu32 " us), ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIx32
-        ", SIZE:%u",
-        type_str, rw_str, reg_info.time_stamp, (unsigned)reg_info.mb_offset,
-        (unsigned)reg_info.type, (uint32_t)reg_info.address,
-        (unsigned)reg_info.size
-    );
-  }
+  while (true)
+    ESP_ERROR_CHECK_WITHOUT_ABORT(server_iteration());
 }
