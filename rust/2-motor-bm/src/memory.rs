@@ -14,7 +14,7 @@ pub fn memory_report() {
     };
 
     let Some(stack_usage) = stack_usage(task.clone()) else {
-        error!("Failed to get stack usage of task {}", name);
+        error!("stack_usage fail");
         return;
     };
 

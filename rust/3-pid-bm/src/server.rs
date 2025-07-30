@@ -90,7 +90,7 @@ impl Server {
 
         loop {
             if let Err(err) = self.handle_request() {
-                error!("Error while handling modbus request: {}", err);
+                error!("Server.handle_request fail: {}", err);
             }
         }
     }

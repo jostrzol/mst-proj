@@ -202,14 +202,14 @@ where
                     let _read_measure = perf_read.measure();
 
                     if let Err(err) = self.read_phase() {
-                        error!("Error while running controller read phase: {}", err);
+                        error!("Controller.read_phase fail: {}", err);
                     }
                 }
 
                 let _control_measure = perf_control.measure();
 
                 if let Err(err) = self.control_phase() {
-                    error!("Error while running controller control phase: {}", err);
+                    error!("Controller.control_phase fail: {}", err);
                 }
             }
 
