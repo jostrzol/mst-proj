@@ -158,6 +158,7 @@ _analyze_zig: (
     "--exclude" "'./*/.zig-cache/*'"
     "--exclude" "'./*/managed_components/*'"
     "--exclude" "'./*/compiler-rt.zig'"
+    "--exclude" "'./*/c.zig'"
     "--exclude" "'./*/perf.zig'"
     "--exclude" "'./*/memory.zig'"
   )
