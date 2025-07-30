@@ -17,7 +17,6 @@
 
 static const char TAG[] = "motor";
 
-// Configuration
 const uint64_t CONTROL_FREQUENCY = 10;
 const uint64_t SLEEP_DURATION_MS = 1000 / CONTROL_FREQUENCY;
 
@@ -26,7 +25,7 @@ static const adc_channel_t ADC_CHANNEL = ADC_CHANNEL_4;
 static const adc_atten_t ADC_ATTENUATION = ADC_ATTEN_DB_12;
 static const adc_bitwidth_t ADC_BITWIDTH = ADC_BITWIDTH_9;
 static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
-static const adc_oneshot_chan_cfg_t ADC_CONFIG = {
+static const adc_oneshot_chan_cfg_t ADC_CHANNEL_CONFIG = {
     .atten = ADC_ATTENUATION,
     .bitwidth = ADC_BITWIDTH,
 };
@@ -70,7 +69,7 @@ void app_main(void) {
     abort();
   }
 
-  err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &ADC_CONFIG);
+  err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &ADC_CHANNEL_CONFIG);
   if (err != ERR_OK) {
     ESP_LOGE(TAG, "adc_oneshot_config_channel fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));

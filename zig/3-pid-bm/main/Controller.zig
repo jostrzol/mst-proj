@@ -5,8 +5,6 @@ const Allocator = std.mem.Allocator;
 
 const Registers = @import("Registers.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
-const adc_m = @import("adc.zig");
-const pwm_m = @import("pwm.zig");
 const perf_m = @import("perf.zig");
 const memory = @import("memory.zig");
 const c = @import("c.zig");
@@ -14,32 +12,54 @@ const utils = @import("utils.zig");
 const logErr = utils.logErr;
 const panicErr = utils.panicErr;
 
+const adc_unit = c.ADC_UNIT_1;
+const adc_channel = c.ADC_CHANNEL_4;
 const adc_bitwidth = c.ADC_BITWIDTH_9;
 const adc_max = (1 << adc_bitwidth) - 1;
+const adc_channel_config = c.adc_oneshot_chan_cfg_t{
+    .atten = c.ADC_ATTEN_DB_12,
+    .bitwidth = adc_bitwidth,
+};
 
+const pwm_timer = c.LEDC_TIMER_0;
+const pwm_speed_mode = c.LEDC_LOW_SPEED_MODE;
+const pwm_channel = c.LEDC_CHANNEL_0;
 const pwm_bitwidth = c.LEDC_TIMER_13_BIT;
 const pwm_duty_max = (1 << pwm_bitwidth) - 1;
-
-const timer_frequency = 1000000; // period = 1us
-const control_iters_per_perf_report = 10;
+const pwm_timer_config = c.ledc_timer_config_t{
+    .timer_num = pwm_timer,
+    .speed_mode = pwm_speed_mode,
+    .duty_resolution = pwm_bitwidth,
+    .freq_hz = 1000,
+    .clk_cfg = c.LEDC_AUTO_CLK,
+};
+const pwm_timer_deconfig = c.ledc_timer_config_t{
+    .timer_num = pwm_timer,
+    .deconfigure = true,
+};
+const pwm_channel_config = c.fixed.ledc_channel_config_t{
+    .timer_sel = pwm_timer,
+    .channel = pwm_channel,
+    .speed_mode = pwm_speed_mode,
+    .intr_type = c.LEDC_INTR_DISABLE,
+    .gpio_num = c.GPIO_NUM_5,
+    .duty = 0,
+    .hpoint = 0,
+};
 
 const pwm_min = 0.1;
 const pwm_max = 1.0;
 const limit_min_deadzone = 0.001;
+
+const timer_frequency = 1000000; // period = 1us
+const control_iters_per_perf_report = 10;
 
 var controller_task: sys.TaskHandle_t = null;
 
 allocator: Allocator,
 options: InitOptions,
 registers: *Registers,
-adc: struct {
-    unit: adc_m.Unit,
-    channel: adc_m.Channel,
-},
-pwm: struct {
-    timer: pwm_m.Timer,
-    channel: pwm_m.Channel,
-},
+adc: c.adc_oneshot_unit_handle_t,
 timer: c.gptimer_handle_t,
 interval: struct {
     rotate_once_s: f32,
@@ -85,23 +105,20 @@ const Feedback = struct {
 const Self = @This();
 
 pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !Self {
-    const adc_unit = try adc_m.Unit.init(c.ADC_UNIT_1);
-    errdefer adc_unit.deinit();
-    const adc_channel = try adc_unit.channel(c.ADC_CHANNEL_4, &.{
-        .atten = c.ADC_ATTEN_DB_12,
-        .bitwidth = adc_bitwidth,
-    });
+    const revolutions = try RingBuffer(u32).init(allocator, options.time_window_bins);
+    errdefer revolutions.deinit(allocator);
 
-    const pwm_timer = try pwm_m.Timer.init(&.{
-        .speed_mode = c.LEDC_LOW_SPEED_MODE,
-        .duty_resolution = c.LEDC_TIMER_13_BIT,
-        .timer_num = c.LEDC_TIMER_0,
-        .freq_hz = 1000,
-        .clk_cfg = c.LEDC_AUTO_CLK,
-    });
-    errdefer pwm_timer.deinit();
-    const pwm_channel = try pwm_timer.channel(c.LEDC_CHANNEL_0, c.GPIO_NUM_5);
-    errdefer pwm_channel.deinit();
+    var adc: c.adc_oneshot_unit_handle_t = undefined;
+    try c.espCheckError(c.adc_oneshot_new_unit(&.{ .unit_id = adc_unit }, &adc));
+    errdefer c.espLogError(c.adc_oneshot_del_unit(adc), "adc_oneshot_del_unit");
+
+    try c.espCheckError(c.adc_oneshot_config_channel(adc, adc_channel, &adc_channel_config));
+
+    try c.espCheckError(c.ledc_timer_config(&pwm_timer_config));
+    errdefer c.espLogError(c.ledc_timer_config(&pwm_timer_deconfig), "ledc_timer_config");
+
+    try c.espCheckError(c.fixed.ledc_channel_config(&pwm_channel_config));
+    errdefer c.espLogError(c.ledc_stop(pwm_speed_mode, pwm_channel, 0), "ledc_stop");
 
     var timer: c.gptimer_handle_t = undefined;
     try c.espCheckError(gptimer_new_timer(
@@ -135,21 +152,11 @@ pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !
     const interval_rotate_all_s: f32 =
         interval_rotate_once_s * @as(f32, @floatFromInt(options.time_window_bins));
 
-    const revolutions = try RingBuffer(u32).init(allocator, options.time_window_bins);
-    errdefer revolutions.deinit(allocator);
-
     return .{
         .allocator = allocator,
         .options = options,
         .registers = registers,
-        .adc = .{
-            .unit = adc_unit,
-            .channel = adc_channel,
-        },
-        .pwm = .{
-            .timer = pwm_timer,
-            .channel = pwm_channel,
-        },
+        .adc = adc,
         .timer = timer,
         .interval = .{
             .rotate_once_s = interval_rotate_once_s,
@@ -164,13 +171,13 @@ pub fn init(allocator: Allocator, registers: *Registers, options: InitOptions) !
 }
 
 pub fn deinit(self: *const Self) void {
-    self.state.revolutions.deinit(self.allocator);
-    self.adc.unit.deinit();
-    self.pwm.timer.deinit();
-    self.pwm.channel.deinit();
     c.espLogError(c.gptimer_stop(self.timer), "gptimer_stop");
     c.espLogError(c.gptimer_disable(self.timer), "gptimer_disable");
     c.espLogError(c.gptimer_del_timer(self.timer), "gptimer_del_timer");
+    c.espLogError(c.ledc_stop(pwm_speed_mode, pwm_channel, 0), "ledc_stop");
+    c.espLogError(c.ledc_timer_config(&pwm_timer_deconfig), "ledc_timer_config");
+    c.espLogError(c.adc_oneshot_del_unit(self.adc), "adc_oneshot_del_unit");
+    self.state.revolutions.deinit(self.allocator);
 }
 
 pub fn run(args: ?*anyopaque) callconv(.c) void {
@@ -246,7 +253,8 @@ fn readPhase(self: *Self) !void {
 }
 
 fn readAdc(self: *Self) !f32 {
-    const value = try self.adc.channel.read();
+    var value: c_int = undefined;
+    try c.espCheckError(c.adc_oneshot_read(self.adc, adc_channel, &value));
     return @as(f32, @floatFromInt(value)) / adc_max;
 }
 
@@ -262,7 +270,7 @@ fn controlPhase(self: *Self) !void {
     const control_signal_limited = limit(control.signal, pwm_min, pwm_max);
     std.log.debug("control signal limited: {d:.2}", .{control_signal_limited});
 
-    try self.setDutyCycle(control_signal_limited);
+    try setDutyCycle(control_signal_limited);
 
     self.writeRegisters(frequency, control_signal_limited);
 
@@ -336,9 +344,10 @@ fn calculateControl(
     };
 }
 
-fn setDutyCycle(self: *Self, value: f32) !void {
+fn setDutyCycle(value: f32) !void {
     const duty_cycle: u32 = @intFromFloat(value * pwm_duty_max);
-    try self.pwm.channel.setDutyCycle(duty_cycle);
+    try c.espCheckError(c.ledc_set_duty(pwm_speed_mode, pwm_channel, duty_cycle));
+    try c.espCheckError(c.ledc_update_duty(pwm_speed_mode, pwm_channel));
 }
 
 fn finiteOrZero(value: f32) f32 {

@@ -10,8 +10,6 @@ const Services = @import("Services.zig");
 const Server = @import("Server.zig");
 const Registers = @import("Registers.zig");
 const Controller = @import("Controller.zig");
-const adc = @import("adc.zig");
-const pwm = @import("pwm.zig");
 const utils = @import("utils.zig");
 
 const stack_size = 4096;

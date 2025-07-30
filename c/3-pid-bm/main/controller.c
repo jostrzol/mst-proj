@@ -15,27 +15,51 @@
 #include "perf.h"
 #include "ringbuffer.h"
 
-// Configuration
+const uint64_t CONTROL_FREQUENCY = 10;
+const uint64_t SLEEP_DURATION_MS = 1000 / CONTROL_FREQUENCY;
+
 static const adc_unit_t ADC_UNIT = ADC_UNIT_1;
 static const adc_channel_t ADC_CHANNEL = ADC_CHANNEL_4;
 static const adc_atten_t ADC_ATTENUATION = ADC_ATTEN_DB_12;
 static const adc_bitwidth_t ADC_BITWIDTH = ADC_BITWIDTH_9;
+static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
+static const adc_oneshot_chan_cfg_t ADC_CHANNEL_CONFIG = {
+    .atten = ADC_ATTENUATION,
+    .bitwidth = ADC_BITWIDTH,
+};
 
+static const uint32_t PWM_TIMER_NUM = LEDC_TIMER_0;
 static const uint32_t PWM_SPEED = LEDC_LOW_SPEED_MODE;
 static const uint32_t PWM_CHANNEL = LEDC_CHANNEL_0;
-static const uint32_t PWM_GPIO = 5;
-static const uint32_t PWM_FREQUENCY = 1000;
-static const uint32_t PWM_DUTY_RESOLUTION = LEDC_TIMER_13_BIT;
+static const uint32_t PWM_BITWIDTH = LEDC_TIMER_13_BIT;
+static const uint32_t PWM_DUTY_MAX = (1 << PWM_BITWIDTH) - 1;
+static const ledc_timer_config_t PWM_TIMER_CONFIG = {
+    .timer_num = PWM_TIMER_NUM,
+    .speed_mode = PWM_SPEED,
+    .duty_resolution = PWM_BITWIDTH,
+    .freq_hz = 1000,
+    .clk_cfg = LEDC_AUTO_CLK,
+};
+static const ledc_timer_config_t PWM_TIMER_DECONFIG = {
+    .timer_num = PWM_TIMER_NUM,
+    .deconfigure = true,
+};
+static const ledc_channel_config_t PWM_CHANNEL_CONFIG = {
+    .timer_sel = PWM_TIMER_NUM,
+    .channel = PWM_CHANNEL,
+    .speed_mode = PWM_SPEED,
+    .intr_type = LEDC_INTR_DISABLE,
+    .gpio_num = GPIO_NUM_5,
+    .duty = 0,
+    .hpoint = 0,
+};
+
 static const float PWM_MIN = 0.10;
 static const float PWM_MAX = 1.00;
 static const float PWM_LIMIT_MIN_DEADZONE = 0.001;
 
 static const uint32_t TIMER_FREQUENCY = 1000000; // period = 1us
 static const size_t CONTROL_ITERS_PER_PERF_REPORT = 10;
-
-// Derived constants
-static const uint32_t ADC_MAX_VALUE = (1 << ADC_BITWIDTH) - 1;
-static const uint32_t PWM_DUTY_MAX = (1 << PWM_DUTY_RESOLUTION) - 1;
 
 static const char TAG[] = "controller";
 
@@ -106,11 +130,7 @@ esp_err_t controller_init(
     return err;
   }
 
-  adc_oneshot_chan_cfg_t config = {
-      .atten = ADC_ATTENUATION,
-      .bitwidth = ADC_BITWIDTH,
-  };
-  err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &config);
+  err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &ADC_CHANNEL_CONFIG);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "adc_oneshot_config_channel fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
@@ -118,14 +138,7 @@ esp_err_t controller_init(
     return err;
   }
 
-  const ledc_timer_config_t led_timer_config = {
-      .speed_mode = PWM_SPEED,
-      .duty_resolution = PWM_DUTY_RESOLUTION,
-      .timer_num = LEDC_TIMER_0,
-      .freq_hz = PWM_FREQUENCY,
-      .clk_cfg = LEDC_AUTO_CLK,
-  };
-  err = ledc_timer_config(&led_timer_config);
+  err = ledc_timer_config(&PWM_TIMER_CONFIG);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "ledc_timer_config fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
@@ -133,18 +146,10 @@ esp_err_t controller_init(
     return err;
   }
 
-  ledc_channel_config_t ledc_channel = {
-      .speed_mode = PWM_SPEED,
-      .channel = PWM_CHANNEL,
-      .timer_sel = led_timer_config.timer_num,
-      .intr_type = LEDC_INTR_DISABLE,
-      .gpio_num = PWM_GPIO,
-      .duty = 0,
-      .hpoint = 0
-  };
-  err = ledc_channel_config(&ledc_channel);
+  err = ledc_channel_config(&PWM_CHANNEL_CONFIG);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "ledc_channel_config fail (0x%x)", err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     ringbuffer_deinit(revolutions);
     return err;
@@ -161,6 +166,7 @@ esp_err_t controller_init(
   );
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "timer_init fail (0x%x)", err);
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     ringbuffer_deinit(revolutions);
     return err;
@@ -176,6 +182,7 @@ esp_err_t controller_init(
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_register_event_callbacks fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     ringbuffer_deinit(revolutions);
     return err;
@@ -184,6 +191,7 @@ esp_err_t controller_init(
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "gptimer_enable fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     ringbuffer_deinit(revolutions);
     return err;
@@ -202,6 +210,7 @@ esp_err_t controller_init(
     ESP_LOGE(TAG, "gptimer_set_alarm_action fail (0x%x)", err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(timer));
     ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(timer));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     ringbuffer_deinit(revolutions);
     return err;
@@ -233,11 +242,11 @@ esp_err_t controller_init(
 }
 
 void controller_deinit(controller_t *self) {
-  free(self->state.revolutions);
   ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_stop(self->timer));
   ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_disable(self->timer));
   ESP_ERROR_CHECK_WITHOUT_ABORT(gptimer_del_timer(self->timer));
   ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_stop(PWM_SPEED, PWM_CHANNEL, 0));
+  ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
   ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(self->adc));
   ringbuffer_deinit(self->state.revolutions);
 }
