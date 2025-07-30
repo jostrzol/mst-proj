@@ -24,6 +24,10 @@ cpu := "arm1176jzf_s"
 artifacts_dir := "../artifacts" / lowercase(env("BUILD_PROFILE", "DEBUG"))
 esp_export := ". ../esp-export/zig.sh"
 
+build-every-profile:
+  BUILD_PROFILE=SMALL just build \
+  && BUILD_PROFILE=FAST just build \
+  && BUILD_PROFILE=DEBUG just pid-build
 build: build-os build-bm
 build-os: blinky-build motor-build pid-build
 build-bm:

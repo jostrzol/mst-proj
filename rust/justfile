@@ -28,6 +28,9 @@ arch_bm := "xtensa-esp32-espidf"
 artifacts_dir := "../artifacts" / lowercase(env("BUILD_PROFILE", "DEBUG"))
 esp_export := ". ../esp-export/rust.sh"
 
+build-every-profile:
+  BUILD_PROFILE=SMALL just build \
+  && BUILD_PROFILE=FAST just build
 build: build-os build-bm
 build-os: blinky-build motor-build pid-build #dmc-build
 build-bm:

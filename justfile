@@ -30,6 +30,11 @@ export SDKCONFIG := if build_profile == "SMALL" {
   "sdkconfig"
 }
 
+build-every-profile:
+  BUILD_PROFILE=SMALL just build \
+  && BUILD_PROFILE=FAST just build \
+  && BUILD_PROFILE=DEBUG just zig::pid-build
+
 build:
   just rust::build \
   & just c::build \
