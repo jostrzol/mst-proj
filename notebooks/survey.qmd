@@ -7,28 +7,37 @@ jupyter: python3
 ---
 
 ```{python}
+# | echo: false
+
 # pyright: reportUnusedCallResult=false
 # pyright: reportUnknownVariableType=false
 
+from collections.abc import Iterable
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 import pandas as pd
+import numpy as np
+
 
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Callable, cast, override
+from typing import Any, Callable, override
 from matplotlib.axes import Axes
 from IPython.display import display
 
-plt.rcParams['figure.figsize'] = [6.4, 4.8]
+
+plt.rcParams["figure.figsize"] = [6.4, 4.8]
+
 
 def find_root_dir():
-    start_path = Path(__file__).parent if '__file__' in globals() else Path.cwd()
+    start_path = Path(__file__).parent if "__file__" in globals() else Path.cwd()
     current = start_path
     while current != current.parent:
-        if (current / '.git').exists():
+        if (current / ".git").exists():
             return current
         current = current.parent
     return start_path
+
 
 ROOT_DIR = find_root_dir()
 SURVEY_PATH = ROOT_DIR / "./analysis-src/survey.csv"
@@ -126,11 +135,11 @@ class Column(Enum):
 df = pd.read_csv(SURVEY_PATH)
 df.columns = [column for column in Column]
 display(df.head())
-display(df.info())
 ```
 
 ```{python}
-#| echo: false
+# | echo: false
+
 
 def preprocess_multichoice(
     series: pd.Series,
@@ -151,14 +160,19 @@ def preprocess_multichoice(
 
     return series.apply(preprocess_row)
 
+
 def plot_hist(
     series: pd.Series,
+    range: Iterable[Any] | None = None,
     rotated: bool = False,
     sort_by_index: bool = False,
-    format: Callable[[Any], Any] | None = None
+    format: Callable[[Any], Any] | None = None,
 ):
     series = series.explode()  # in case multichoice
     values = series.value_counts()
+    for label in range or []:
+        if label not in values:
+            values[label] = 0
     if sort_by_index:
         values = values.sort_index()
     if format:
@@ -168,14 +182,28 @@ def plot_hist(
     ax = values.plot(kind="bar")
 
     if rotated:
-        plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     else:
         plt.setp(ax.get_xticklabels(), rotation=0)
 
     for i, v in enumerate(values):
-        ax.text(i, v + 0.1, str(v), ha='center', va='bottom')
+        ax.text(i, v + 0.1, str(v), ha="center", va="bottom")
 
+    ax.set_ylim(top=max(values) * 1.07)
+    ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
     return ax
+
+
+def plot_pie(series: pd.Series):
+    values = series.value_counts()
+    total = values.sum()
+
+    def fmt(percent: np.float64):
+        count = (percent / 100 * total).astype(np.int64)
+        return f"{count} ({percent:.0f}%)"
+
+    values.plot(kind="pie", autopct=fmt)
+
 
 ax: Axes
 df_out = pd.DataFrame()
@@ -189,9 +217,10 @@ df_out = pd.DataFrame()
 column = Column.S1_INDUSTRY
 values = df[column].str.split(";")
 
+
 values = preprocess_multichoice(
     values,
-    replace = {
+    replace={
         "Material Handling (Forklifts)": "Automotive",
         "Transport": "Automotive",
         "Silicon photonics and lasers": "Silicon production",
@@ -208,10 +237,10 @@ values = preprocess_multichoice(
         "Hobby": "Consumer electronics",
         "Scientific Research Instrumentation": "Research",
     },
-    drop = ["Software Development", "Open Source"]
+    drop=["Software Development", "Open Source"],
 )
 df_out[column] = values
-plot_hist(values, rotated = True)
+plot_hist(values, rotated=True)
 plt.show()
 ```
 
@@ -223,11 +252,15 @@ values = df[column]
 
 values = preprocess_multichoice(
     values,
-    replace = {
+    replace={
         "Hardware and Software": ["Software engineer", "Hardware engineer"],
         "Both hard and software (firmware)": ["Software engineer", "Hardware engineer"],
         "HW / SW engineer": ["Software engineer", "Hardware engineer"],
-        "all of the above": ["Software engineer", "Hardware engineer", "System architect"],
+        "all of the above": [
+            "Software engineer",
+            "Hardware engineer",
+            "System architect",
+        ],
     },
 )
 df_out[column] = values
@@ -245,7 +278,7 @@ values = df[column].str.split(";")
 
 values = preprocess_multichoice(
     values,
-    replace = {
+    replace={
         "JavaScript / TypeScript (e.g. Espruino)": "JavaScript/TypeScript",
         "Assembler": "Assembly",
         "Bash": "Shell scripts",
@@ -264,25 +297,133 @@ column = Column.S2_C_CPP_RATIO
 values = df[column]
 df_out[column] = values
 
-plot_hist(values, rotated=True, sort_by_index=True, format = lambda x: f"{x*10} %")
+plot_hist(
+    values,
+    rotated=True,
+    sort_by_index=True,
+    format=lambda x: f"{x*10} %",
+    range=range(11),
+)
 plt.show()
 ```
 
-## Problems
+## Section 3: Pain points and challenges
 
 ```{python}
-values = df[Column.S1_ROLE]
+# | layout-ncol: 3
+
+columns = [
+    Column.S3_PERFORMANCE,
+    Column.S3_DEBUGGING,
+    Column.S3_LEGACY,
+    Column.S3_HARDWARE,
+    Column.S3_MEMORY,
+    Column.S3_MEMORY_SAFETY,
+    Column.S3_POWER,
+    Column.S3_CERTIFICATION,
+    Column.S3_TOOLING,
+]
+
+for column in columns:
+    values = df[column]
+    df_out[column] = values
+
+    plot_hist(values, sort_by_index=True, range=range(1, 6))
+    plt.show()
+```
+
+## Section 4: Language selection criteria
+
+```{python}
+# | layout-ncol: 3
+
+columns = [
+    Column.S4_LIBRARIES,
+    Column.S4_C_INTEROPERABILITY,
+    Column.S4_MATURITY,
+    Column.S4_PERFORMANCE,
+    Column.S4_MEMORY_SAFETY,
+    Column.S4_COMMUNITY,
+    Column.S4_TRAINING,
+    Column.S4_TOOLING,
+]
+
+for column in columns:
+    values = df[column]
+    df_out[column] = values
+
+    plot_hist(values, sort_by_index=True, range=range(1, 6))
+    plt.show()
+```
+
+## Section 5: Modern language adoption
+
+### Modern language use
+
+```{python}
+column = Column.S5_DID_USE_MODERN
+values = df[column]
+df_out[column] = values
+
+plot_pie(values)
+plt.show()
+```
+
+### Barriers
+
+```{python}
+column = Column.S5_BARRIERS
+values = df[column].str.split(";")
+
+print(values.explode().unique().tolist())
 
 values = preprocess_multichoice(
     values,
-    replace = {
-        "Hardware and Software": ["Software engineer", "Hardware engineer"],
-        "Both hard and software (firmware)": ["Software engineer", "Hardware engineer"],
-        "HW / SW engineer": ["Software engineer", "Hardware engineer"],
-        "all of the above": ["Software engineer", "Hardware engineer", "System architect"],
+    replace={
+        "No need for such language in the workflow": "No need",
+        "no need to": "No need",
+        "Don't see the need for any of these languages. C can do all I need.": "No need",
+        "Satisfied with existing tools no nee to look elsewhere": "No need",
+        "No significant benefits": "No need",
+        "C works": "No need",
+        "Irrelevance": "No need",
+        "doesn't seem worth the effort for most of our needs": "Not worth trying",
+        "Makes no sense to waste time in something which is 99% likely unnecessary hype, does not solve actual problems, solves non-problems, and introduces new problems, only to be forgotten in 1-2 more years like happened to Rust already": "Not worth trying",
+        "Lack of time - it is faster for me to write in C, especially when there is many projects in a backlog": "Not worth trying",
+        "I want my code to build and work the same after 30 years.": "Lack of mature toolchain",
+        "Resourse constraints": "Insufficient performance",
+        "code size, compilation time (Rust), obstacles to breaking abstraction layers, lack of code portability across 8/16/32/64 bit and older or non-mainstream ISAs, coding speed": [
+            "Insufficient performance",
+            "Insufficient producivity",
+            "Insufficient portability",
+        ],
+        "lightness of C": "Insufficient performance",
+        "Fear of insufficient performance": "Insufficient performance",
+        "Difficulty of integrating into existing codebase": "Difficulty of integrating\n...into existing codebase",
+        "Insufficient libraries/driver support": "Insufficient libraries\n.../driver support",
     },
+    drop=[
+        "Both are terrible languages with horrific syntax",
+        "Yes, I have used it and scrapped it for these reasons. It was a mess.",
+    ],
 )
-df_out[Column.S1_ROLE] = values
-plot_hist(values)
+df_out[column] = values
+
+plot_hist(values, rotated=True)
 plt.show()
 ```
+
+### How likely to adopt
+
+```{python}
+column = Column.S5_MODERN_ADOPTION
+values = df[column]
+df_out[column] = values
+
+plot_hist(values, sort_by_index=True, range=range(1, 6))
+plt.show()
+```
+
+## Section 6: Tooling and ecosystem
+
+## Section 7: Open section
