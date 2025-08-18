@@ -25,6 +25,12 @@
 # Python scripts
 __pycache__
 
+# Notebooks
+/notebooks/*_files/
+/notebooks/*.html
+/notebooks/*.md
+/notebooks/*.quarto_ipynb
+
 # esp-idf
 managed_components
 sdkconfig

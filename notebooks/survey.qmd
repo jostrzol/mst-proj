@@ -1,0 +1,288 @@
+---
+title: "Survey analysis"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+```{python}
+# pyright: reportUnusedCallResult=false
+# pyright: reportUnknownVariableType=false
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from enum import Enum, auto
+from pathlib import Path
+from typing import Any, Callable, cast, override
+from matplotlib.axes import Axes
+from IPython.display import display
+
+plt.rcParams['figure.figsize'] = [6.4, 4.8]
+
+def find_root_dir():
+    start_path = Path(__file__).parent if '__file__' in globals() else Path.cwd()
+    current = start_path
+    while current != current.parent:
+        if (current / '.git').exists():
+            return current
+        current = current.parent
+    return start_path
+
+ROOT_DIR = find_root_dir()
+SURVEY_PATH = ROOT_DIR / "./analysis-src/survey.csv"
+
+
+class Column(Enum):
+    "Columns in the survey dataframe"
+
+    TIMESTAMP = auto()
+    "Timestamp"
+
+    # Section 1: Demographics and role
+    S1_INDUSTRY = auto()
+    "Industry segment"
+    S1_ROLE = auto()
+    "Your primary role"
+
+    # Section 2: Current language usage
+    S2_LANGUAGES_USED = auto()
+    """Which programming languages do you currently use or have used in the past
+    for microcontroller projects?"""
+    S2_C_CPP_RATIO = auto()
+    "What ratio of your embedded codebase is in C/C++?"
+
+    # Section 3: Pain points and challenges
+    S3_PERFORMANCE = auto()
+    "Real‑time performance"
+    S3_DEBUGGING = auto()
+    "Debugging microcontroller programs"
+    S3_LEGACY = auto()
+    "Integration with legacy code"
+    S3_HARDWARE = auto()
+    "Interacting with hardware"
+    S3_MEMORY = auto()
+    "Memory constraints (binary size, RAM/flash usage)"
+    S3_MEMORY_SAFETY = auto()
+    "Memory vulnerabilities (e.g. use after free, buffer overflows)"
+    S3_POWER = auto()
+    "Power consumption management"
+    S3_CERTIFICATION = auto()
+    "Safety certification (e.g. IEC 61508, ISO 26262)"
+    S3_TOOLING = auto()
+    "Tooling complexity (e.g. build system)"
+
+    # Section 4: Language selection criteria
+    S4_LIBRARIES = auto()
+    "Availability of libraries"
+    S4_C_INTEROPERABILITY = auto()
+    "Interoperability with C code"
+    S4_MATURITY = auto()
+    "Maturity of compiler/toolchain"
+    S4_PERFORMANCE = auto()
+    "Real-time performance"
+    S4_MEMORY_SAFETY = auto()
+    "Safety of memory management"
+    S4_COMMUNITY = auto()
+    "Strong community support"
+    S4_TRAINING = auto()
+    "Team expertise and training cost"
+    S4_TOOLING = auto()
+    "Tooling features and usability (e.g. build system)"
+
+    # Section 5: Modern language adoption
+    S5_DID_USE_MODERN = auto()
+    "Have you ever used any “modern” language (e.g. Rust, Zig) for embedded development?"
+    S5_BARRIERS = auto()
+    "If not, what barriers prevent you?"
+    S5_MODERN_ADOPTION = auto()
+    "How likely are you to adopt any “modern” language in the next 12 months?"
+
+    # Section 6: Tooling and ecosystem
+    S6_BUILD_SYSTEM_SATISFACTION = auto()
+    """Rate your satisfaction with the build system for C/C++ that you use for
+    embedded projects."""
+    S6_STATIC_ANALYSIS_RELIANCE = auto()
+    """How much do you rely on C/C++ static analysis tools for microcontroller
+    code? (e.g. clang-tidy, MISRA checkers)"""
+    S6_STATIC_ANALYSIS_SATISFACTION = auto()
+    """Rate your satisfaction with C/C++ static analysis tools for
+    microcontroller code."""
+
+    # Section 7: Open section
+    S7_WANTED_FEATURES = auto()
+    """Can you think of any language or tooling features would most help your
+    embedded development?"""
+    S7_COMMENTS = auto()
+    "Any additional comments?"
+
+    @override
+    def __str__(self) -> str:
+        return self.name
+```
+
+```{python}
+df = pd.read_csv(SURVEY_PATH)
+df.columns = [column for column in Column]
+display(df.head())
+display(df.info())
+```
+
+```{python}
+#| echo: false
+
+def preprocess_multichoice(
+    series: pd.Series,
+    replace: dict[Any, Any | list[Any]] | None = None,
+    drop: list[Any] | None = None,
+) -> pd.Series:
+    replace = replace or {}
+
+    def replace_value(value: Any) -> list[Any]:
+        replacement = replace.get(value, value)
+        return replacement if isinstance(replacement, list) else [replacement]
+
+    def preprocess_row(lst: list[Any]) -> list[Any]:
+        series = pd.Series(lst)
+        series = series.map(replace_value).explode()
+        series = series[~series.isin(drop or [])]
+        return series.to_list()
+
+    return series.apply(preprocess_row)
+
+def plot_hist(
+    series: pd.Series,
+    rotated: bool = False,
+    sort_by_index: bool = False,
+    format: Callable[[Any], Any] | None = None
+):
+    series = series.explode()  # in case multichoice
+    values = series.value_counts()
+    if sort_by_index:
+        values = values.sort_index()
+    if format:
+        labels = values.index.map(format)
+        values.index = labels
+
+    ax = values.plot(kind="bar")
+
+    if rotated:
+        plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+    else:
+        plt.setp(ax.get_xticklabels(), rotation=0)
+
+    for i, v in enumerate(values):
+        ax.text(i, v + 0.1, str(v), ha='center', va='bottom')
+
+    return ax
+
+ax: Axes
+df_out = pd.DataFrame()
+```
+
+## Section 1: Demographics and role
+
+### Industry segment
+
+```{python}
+column = Column.S1_INDUSTRY
+values = df[column].str.split(";")
+
+values = preprocess_multichoice(
+    values,
+    replace = {
+        "Material Handling (Forklifts)": "Automotive",
+        "Transport": "Automotive",
+        "Silicon photonics and lasers": "Silicon production",
+        "Fabless semiconductor company": "Silicon production",
+        "Computer networking": "Networks",
+        "Telecoms": "Networks",
+        "IMS": "Networks",
+        "Wireless charging": "Consumer electronics",
+        "Stage lighting equipment": "Professional electronics",
+        "Professionnel Photography/Lighting": "Professional electronics",
+        "test and measurements": "Professional electronics",
+        "Metering": "Professional electronics",
+        "Datacenter": "Professional electronics",
+        "Hobby": "Consumer electronics",
+        "Scientific Research Instrumentation": "Research",
+    },
+    drop = ["Software Development", "Open Source"]
+)
+df_out[column] = values
+plot_hist(values, rotated = True)
+plt.show()
+```
+
+### Primary role
+
+```{python}
+column = Column.S1_ROLE
+values = df[column]
+
+values = preprocess_multichoice(
+    values,
+    replace = {
+        "Hardware and Software": ["Software engineer", "Hardware engineer"],
+        "Both hard and software (firmware)": ["Software engineer", "Hardware engineer"],
+        "HW / SW engineer": ["Software engineer", "Hardware engineer"],
+        "all of the above": ["Software engineer", "Hardware engineer", "System architect"],
+    },
+)
+df_out[column] = values
+plot_hist(values)
+plt.show()
+```
+
+## Section 2: Current language use
+
+### Language use
+
+```{python}
+column = Column.S2_LANGUAGES_USED
+values = df[column].str.split(";")
+
+values = preprocess_multichoice(
+    values,
+    replace = {
+        "JavaScript / TypeScript (e.g. Espruino)": "JavaScript/TypeScript",
+        "Assembler": "Assembly",
+        "Bash": "Shell scripts",
+        "scheme, forth, Dylan": ["Scheme", "Forth", "Dylan"],
+    },
+)
+df_out[column] = values
+plot_hist(values, rotated=True)
+plt.show()
+```
+
+### C/C++ vs other languages
+
+```{python}
+column = Column.S2_C_CPP_RATIO
+values = df[column]
+df_out[column] = values
+
+plot_hist(values, rotated=True, sort_by_index=True, format = lambda x: f"{x*10} %")
+plt.show()
+```
+
+## Problems
+
+```{python}
+values = df[Column.S1_ROLE]
+
+values = preprocess_multichoice(
+    values,
+    replace = {
+        "Hardware and Software": ["Software engineer", "Hardware engineer"],
+        "Both hard and software (firmware)": ["Software engineer", "Hardware engineer"],
+        "HW / SW engineer": ["Software engineer", "Hardware engineer"],
+        "all of the above": ["Software engineer", "Hardware engineer", "System architect"],
+    },
+)
+df_out[Column.S1_ROLE] = values
+plot_hist(values)
+plt.show()
+```
