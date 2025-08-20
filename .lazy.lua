@@ -51,7 +51,11 @@ return {
 		opts = {
 			filesystem = {
 				filtered_items = {
-					hide_by_pattern = { "*/analysis/plots/*.pdf" },
+					hide_by_pattern = {
+						"*/analysis/plots/*.pdf",
+						"*/scripts/*_files",
+						"*/scripts/*.html",
+					},
 				},
 			},
 		},

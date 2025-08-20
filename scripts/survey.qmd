@@ -1,9 +1,14 @@
 ---
 title: "Survey analysis"
 format:
-  html:
-    code-fold: true
-    echo: false
+  html: {}
+  pdf:
+    toc: true
+    highlight-style: github
+    fig-pos: 'h'
+execute:
+  echo: false
+  code-fold: true
 jupyter: python3
 ---
 
@@ -34,6 +39,7 @@ from lib.constants import PLOT_DIR
 
 _ = scienceplots
 plt.style.use(["science", "ieee", "notebook"])
+# plt.rcParams["figure.figsize"] = (6.4, 4.8)
 plt.rcParams["figure.dpi"] = 100
 
 
@@ -51,6 +57,7 @@ ROOT_DIR = find_root_dir()
 SURVEY_PATH = ROOT_DIR / "analysis-src/survey.csv"
 OUT_DIR = PLOT_DIR / "survey"
 
+print(os.getcwd())
 os.chdir(ROOT_DIR)
 OUT_DIR.mkdir(exist_ok=True)
 
@@ -152,6 +159,7 @@ def plot_hist(
     sort_by_index: bool = False,
     format: Callable[[Any], Any] | None = None,
     xlabel: str | None = None,
+    xlabel_fontsize: int = 16,
     xmargin: float = 0,
     xtick_fontsize: int = 16,
 ) -> Axes:
@@ -166,7 +174,8 @@ def plot_hist(
         labels = values.index.map(format)
         values.index = labels
 
-    ax = values.plot(kind="bar", xlabel=xlabel or "")
+    ax = values.plot(kind="bar")
+    ax.set_xlabel(xlabel or "", fontsize=xlabel_fontsize)
 
     ax.tick_params(axis="x", bottom=False)
     ax.tick_params(axis="x", which="minor", bottom=False)
@@ -362,6 +371,7 @@ for column in columns:
         sort_by_index=True,
         range=range(1, 6),
         xlabel=column.value,
+        xlabel_fontsize=15 if column == Column.S3_MEMORY_SAFETY else 16,
     )
     plt.show()
 ```
