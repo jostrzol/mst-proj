@@ -14,6 +14,7 @@ jupyter: python3
 # pyright: reportUnknownVariableType=false
 
 from collections.abc import Iterable
+import os
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 import pandas as pd
@@ -26,6 +27,9 @@ from pathlib import Path
 from typing import Any, Callable, override
 from matplotlib.axes import Axes
 from IPython.display import display
+
+from lib.plot import savefig
+from lib.constants import PLOT_DIR
 
 
 _ = scienceplots
@@ -44,7 +48,11 @@ def find_root_dir():
 
 
 ROOT_DIR = find_root_dir()
-SURVEY_PATH = ROOT_DIR / "./analysis-src/survey.csv"
+SURVEY_PATH = ROOT_DIR / "analysis-src/survey.csv"
+OUT_DIR = PLOT_DIR / "survey"
+
+os.chdir(ROOT_DIR)
+OUT_DIR.mkdir(exist_ok=True)
 
 
 class Column(Enum):
@@ -180,6 +188,9 @@ def plot_hist(
     xmargin = xmargin * (xmax - xmin)
     ax.set_xlim(xmin - xmargin, xmax + xmargin)
 
+    if series.name is not None:
+        savefig(plt.gcf(), OUT_DIR / str(series.name))
+
     return ax
 
 
@@ -241,6 +252,7 @@ values = preprocess(
     drop=["Software Development", "Open Source"],
 )
 df_out[column] = values
+
 plot_hist(values, rotation=True, xlabel="")
 plt.show()
 ```

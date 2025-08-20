@@ -26,10 +26,10 @@
 __pycache__
 
 # Notebooks
-/notebooks/*_files/
-/notebooks/*.html
-/notebooks/*.md
-/notebooks/*.quarto_ipynb
+/scripts/*_files/
+/scripts/*.html
+/scripts/*.md
+/scripts/*.quarto_ipynb
 
 # esp-idf
 managed_components

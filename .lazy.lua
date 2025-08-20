@@ -46,4 +46,15 @@ return {
 			},
 		},
 	},
+	{
+		"nvim-neo-tree/neo-tree.nvim",
+		opts = {
+			filesystem = {
+				filtered_items = {
+					hide_by_pattern = { "*/analysis/plots/*.pdf" },
+				},
+			},
+		},
+		opts_extend = { "filesystem.filtered_items.hide_by_pattern" },
+	},
 }
