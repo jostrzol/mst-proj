@@ -57,7 +57,6 @@ ROOT_DIR = find_root_dir()
 SURVEY_PATH = ROOT_DIR / "analysis-src/survey.csv"
 OUT_DIR = PLOT_DIR / "survey"
 
-print(os.getcwd())
 os.chdir(ROOT_DIR)
 OUT_DIR.mkdir(exist_ok=True)
 
