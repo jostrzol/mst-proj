@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scripts"
+version = "0.1.0"
+description = "MST project scripts for benchmarking and plotting"
+authors = [{ name = "MST Project" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "ipython>=8.12.3",
+    "jupyter>=1.1.1",
+    "lizard",
+    "matplotlib",
+    "numpy>=1.24.4",
+    "pandas>=2.0.3",
+    "quarto-cli>=1.7.33",
+    "rich",
+    "scienceplots>=2.1.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts"]
+
+[tool.uv.sources]
+lizard = { git = "https://github.com/jostrzol/lizard" }
+
+[dependency-groups]
+dev = ["jupyter-client>=8.6.3", "pandas-stubs>=2.0.2.230605", "pynvim>=0.5.2"]
+
+[project.scripts]
+benchmark = "scripts.benchmark:main"
+benchmark-bm = "scripts.benchmark_bm:main"
+metrics = "scripts.metrics:main"
+plot-issues = "scripts.plot_issues:main"
+plot-metrics = "scripts.plot_metrics:main"
+plot-metrics-dyn = "scripts.plot_metrics_dyn:main"
+plot-motor-characteristics = "scripts.plot_motor_characteristics:main"
+plot-so-survey = "scripts.plot_so_survey:main"
+plot-square-wave = "scripts.plot_square_wave:main"
+plot-top-tags = "scripts.plot_top_tags:main"
+plot-all = "scripts.plot_all:main"

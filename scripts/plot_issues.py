@@ -7,11 +7,12 @@ import csv
 from collections.abc import Iterable
 from itertools import groupby
 
-from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
-from lib.plot import add_bar_texts, savefig
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
+
+from scripts.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from scripts.lib.plot import add_bar_texts, savefig
 
 ISSUES_PATH = ANALYSIS_SRC_DIR / "issues.csv"
 OUT_PATH = PLOT_DIR / "issues"
@@ -42,6 +43,7 @@ def main():
     add_bar_texts(ax, totals, totals)
     ax.set_ylabel("Liczba pytań")
     savefig(fig, OUT_PATH.with_name(f"{OUT_PATH.name}-0-totals"))
+    plt.close(fig)
 
     i = 0
     for group, members in groupby(groups):
@@ -73,6 +75,7 @@ def main():
             ax.yaxis.set_major_formatter(PercentFormatter(decimals=2))
 
         savefig(fig, OUT_PATH.with_name(f"{OUT_PATH.name}-{group}"))
+        plt.close(fig)
 
 
 if __name__ == "__main__":

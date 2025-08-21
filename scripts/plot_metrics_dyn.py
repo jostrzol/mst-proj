@@ -11,10 +11,6 @@ from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import numpy as np
-from lib.constants import PERF_DIR, PLOT_DIR
-from lib.language import LANGUAGES, Language
-from lib.plot import savefig
-from lib.types import Benchmark
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.container import Container
@@ -23,6 +19,11 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.typing import ColorType
 from numpy.typing import NDArray
+
+from scripts.lib.constants import PERF_DIR, PLOT_DIR
+from scripts.lib.language import LANGUAGES, Language
+from scripts.lib.plot import savefig
+from scripts.lib.types import Benchmark
 
 if TYPE_CHECKING:
     from _typeshed import SupportsRichComparison
@@ -92,6 +93,7 @@ def plot_experiment(
 
     out_path = PLOT_DIR / f"{experiment}{suffix}"
     savefig(figure, out_path)
+    plt.close(figure)
 
 
 def read_reports(

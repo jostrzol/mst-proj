@@ -8,11 +8,12 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import NamedTuple, final, override
 
-from lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
-from lib.language import LANGUAGES
-from lib.plot import add_bar_texts, savefig
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
+
+from scripts.lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
+from scripts.lib.language import LANGUAGES
+from scripts.lib.plot import add_bar_texts, savefig
 
 EXPERIMENTS = [
     "1-blinky",
@@ -170,6 +171,7 @@ def plot_experiment(
 
     out_path = PLOT_DIR / f"{experiment}{suffix}"
     savefig(figure, out_path)
+    plt.close(figure)
 
 
 def main():

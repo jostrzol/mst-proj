@@ -5,12 +5,13 @@
 import csv
 from typing import TypedDict
 
-from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
-from lib.language import LANGUAGES
-from lib.plot import add_bar_texts, lighten_color, savefig
 from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from matplotlib.typing import ColorType
+
+from scripts.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from scripts.lib.language import LANGUAGES
+from scripts.lib.plot import add_bar_texts, lighten_color, savefig
 
 SRC_PATH = ANALYSIS_SRC_DIR / "so-survey.csv"
 OUT_PATH = PLOT_DIR / "so-survey"
@@ -36,7 +37,7 @@ def main():
     ax = fig.subplots()
     ax.bar(labels, popularities, facecolor=colors)
     ax.set_xticks(
-        ax.get_xticks(),  # pyright: ignore[reportUnknownArgumentType]
+        ax.get_xticks(),
         ax.get_xticklabels(),  # pyright: ignore[reportArgumentType]
         rotation=45,
         ha="right",
@@ -48,6 +49,7 @@ def main():
 
     fig.tight_layout()
     savefig(fig, OUT_PATH)
+    plt.close(fig)
 
 
 def language_to_color(language: str) -> ColorType:

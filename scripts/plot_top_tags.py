@@ -5,11 +5,12 @@
 import csv
 from typing import TypedDict
 
-from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
-from lib.language import LANGUAGES
-from lib.plot import lighten_color, savefig
 from matplotlib import pyplot as plt
 from matplotlib.typing import ColorType
+
+from scripts.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from scripts.lib.language import LANGUAGES
+from scripts.lib.plot import lighten_color, savefig
 
 
 class DataRow(TypedDict):
@@ -69,7 +70,7 @@ def main():
             facecolor=colors(language["slug"], tags),
         )
         ax.set_xticks(
-            ax.get_xticks(),  # pyright: ignore[reportUnknownArgumentType]
+            ax.get_xticks(),
             ax.get_xticklabels(),  # pyright: ignore[reportArgumentType]
             rotation=45,
             ha="right",
@@ -79,6 +80,7 @@ def main():
         fig.tight_layout()
         out_path = PLOT_DIR / f"top-tags-{language['slug']}"
         savefig(fig, out_path)
+        plt.close(fig)
 
 
 def substitute(tag: str) -> str:

@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 import pandas as pd
 import numpy as np
-import scienceplots
+import scienceplots  # pyright: ignore[reportMissingTypeStubs]
 
 
 from enum import Enum
@@ -199,6 +199,7 @@ def plot_hist(
 
     if series.name is not None:
         savefig(plt.gcf(), OUT_DIR / str(series.name))
+        plt.close()
 
     ax.set_xlabel(xlabel or "", fontsize=xlabel_fontsize)
 

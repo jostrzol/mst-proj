@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+# pyright: reportUnusedCallResult=false
+
 import csv
 
-from lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 from matplotlib import pyplot as plt
+
+from scripts.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 
 MOTOR_CHARACTERISTICS_PATH = ANALYSIS_SRC_DIR / "motor-characteristics.csv"
 OUT_PATH = PLOT_DIR / "motor-characteristics.pdf"
@@ -16,27 +19,28 @@ def main():
 
     xs, ys = zip(*points)
 
-    _ = plt.figure()
-    _ = plt.title("Charakterystyka statyczna silnika")
+    plt.figure()
+    plt.title("Charakterystyka statyczna silnika")
 
-    _ = plt.plot(xs, ys, color="black")
+    plt.plot(xs, ys, color="black")
 
     match points:
         case [(x_first, y_first), *_]:
             xs = [0, x_first, x_first]
             ys = [0, 0, y_first]
-            _ = plt.plot(xs, ys, color="black", linestyle="--")
+            plt.plot(xs, ys, color="black", linestyle="--")
         case _:
             pass
 
-    _ = plt.xlim(0, 1)
-    _ = plt.xlabel("Sterowanie")
-    _ = plt.ylim(0, None)
-    _ = plt.ylabel("Frequency $[Hz]$")
+    plt.xlim(0, 1)
+    plt.xlabel("Sterowanie")
+    plt.ylim(0, None)
+    plt.ylabel("Frequency $[Hz]$")
 
-    _ = plt.tight_layout()
+    plt.tight_layout()
 
-    _ = plt.savefig(OUT_PATH)
+    plt.savefig(OUT_PATH)
+    plt.close()
 
 
 if __name__ == "__main__":
