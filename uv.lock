@@ -11,6 +11,62 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "analyze"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "ipython", version = "8.12.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "ipython", version = "8.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
+    { name = "ipython", version = "8.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "ipython", version = "9.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "jupyter" },
+    { name = "lizard" },
+    { name = "matplotlib", version = "3.7.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
+    { name = "matplotlib", version = "3.10.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "numpy", version = "1.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pandas", version = "2.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "pandas", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "quarto" },
+    { name = "quarto-cli" },
+    { name = "rich" },
+    { name = "scienceplots" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "jupyter-client" },
+    { name = "pandas-stubs", version = "2.0.2.230605", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "pandas-stubs", version = "2.2.2.240807", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
+    { name = "pandas-stubs", version = "2.3.0.250703", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pynvim" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ipython", specifier = ">=8.12.3" },
+    { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "lizard", git = "https://github.com/jostrzol/lizard" },
+    { name = "matplotlib" },
+    { name = "numpy", specifier = ">=1.24.4" },
+    { name = "pandas", specifier = ">=2.0.3" },
+    { name = "quarto", specifier = ">=0.1.0" },
+    { name = "quarto-cli", specifier = ">=1.7.33" },
+    { name = "rich" },
+    { name = "scienceplots", specifier = ">=2.1.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jupyter-client", specifier = ">=8.6.3" },
+    { name = "pandas-stubs", specifier = ">=2.0.2.230605" },
+    { name = "pynvim", specifier = ">=0.5.2" },
+]
+
+[[package]]
 name = "anyio"
 version = "4.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3940,6 +3996,24 @@ wheels = [
 ]
 
 [[package]]
+name = "quarto"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ipykernel", version = "6.29.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "ipykernel", version = "6.30.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "jupyter-core" },
+    { name = "nbclient", version = "0.10.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "nbclient", version = "0.10.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "nbformat" },
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/a4/33dc28f6fcd5ff80ee80b2afddea9bc46a42f5e2bbc000eeb1b5f6194918/quarto-0.1.0.tar.gz", hash = "sha256:d9a4978110204f5b9d3af39faa9e195083efcbac8f6a23789e29cb27c72ded15", size = 2920, upload-time = "2021-02-03T21:53:12.381Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/14/8af79508df038ab05953ecf862420c7f4cc131b1682f0c80cb4f78c58593/quarto-0.1.0-py3-none-any.whl", hash = "sha256:8138fc9d1bee6269a5436837baedc699a262be1478f96444d6f99029f1a114f0", size = 10319, upload-time = "2021-02-03T21:53:10.812Z" },
+]
+
+[[package]]
 name = "quarto-cli"
 version = "1.7.33"
 source = { registry = "https://pypi.org/simple" }
@@ -4369,60 +4443,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5e/04/aff33daa212cf6dd5427999062aab0289976dd1b0b842752e81ab17aef66/SciencePlots-2.1.1.tar.gz", hash = "sha256:d8d197e3410f87ebdad0b9c265eaab596094fb082d97123e835f6bc32800ab54", size = 10757, upload-time = "2023-11-25T19:10:12.943Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/2a/debffdd7061c7a65ab46c51e671b895dc8231c4a14950849c40699eb2070/SciencePlots-2.1.1-py3-none-any.whl", hash = "sha256:2e64d2e93b4f98702f30145dbb70d238f5dc315e227fec331489631232dfc9e0", size = 16472, upload-time = "2023-11-25T19:10:11.01Z" },
-]
-
-[[package]]
-name = "scripts"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "ipython", version = "8.12.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "ipython", version = "8.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
-    { name = "ipython", version = "8.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "ipython", version = "9.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "jupyter" },
-    { name = "lizard" },
-    { name = "matplotlib", version = "3.7.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "matplotlib", version = "3.9.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
-    { name = "matplotlib", version = "3.10.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "numpy", version = "1.24.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "numpy", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "pandas", version = "2.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "pandas", version = "2.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "quarto-cli" },
-    { name = "rich" },
-    { name = "scienceplots" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "jupyter-client" },
-    { name = "pandas-stubs", version = "2.0.2.230605", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "pandas-stubs", version = "2.2.2.240807", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
-    { name = "pandas-stubs", version = "2.3.0.250703", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "pynvim" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ipython", specifier = ">=8.12.3" },
-    { name = "jupyter", specifier = ">=1.1.1" },
-    { name = "lizard", git = "https://github.com/jostrzol/lizard" },
-    { name = "matplotlib" },
-    { name = "numpy", specifier = ">=1.24.4" },
-    { name = "pandas", specifier = ">=2.0.3" },
-    { name = "quarto-cli", specifier = ">=1.7.33" },
-    { name = "rich" },
-    { name = "scienceplots", specifier = ">=2.1.1" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "jupyter-client", specifier = ">=8.6.3" },
-    { name = "pandas-stubs", specifier = ">=2.0.2.230605" },
-    { name = "pynvim", specifier = ">=0.5.2" },
 ]
 
 [[package]]

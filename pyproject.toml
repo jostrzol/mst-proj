@@ -3,10 +3,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "scripts"
+name = "analyze"
 version = "0.1.0"
-description = "MST project scripts for benchmarking and plotting"
-authors = [{ name = "MST Project" }]
+description = "Scripts and notebooks for benchmarking and plotting"
+authors = [{ name = "Jakub Ostrzołek" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.8"
@@ -17,13 +17,14 @@ dependencies = [
     "matplotlib",
     "numpy>=1.24.4",
     "pandas>=2.0.3",
+    "quarto>=0.1.0",
     "quarto-cli>=1.7.33",
     "rich",
     "scienceplots>=2.1.1",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["scripts"]
+packages = ["analyze"]
 
 [tool.uv.sources]
 lizard = { git = "https://github.com/jostrzol/lizard" }
@@ -32,14 +33,16 @@ lizard = { git = "https://github.com/jostrzol/lizard" }
 dev = ["jupyter-client>=8.6.3", "pandas-stubs>=2.0.2.230605", "pynvim>=0.5.2"]
 
 [project.scripts]
-benchmark = "scripts.benchmark:main"
-benchmark-bm = "scripts.benchmark_bm:main"
-metrics = "scripts.metrics:main"
-plot-issues = "scripts.plot_issues:main"
-plot-metrics = "scripts.plot_metrics:main"
-plot-metrics-dyn = "scripts.plot_metrics_dyn:main"
-plot-motor-characteristics = "scripts.plot_motor_characteristics:main"
-plot-so-survey = "scripts.plot_so_survey:main"
-plot-square-wave = "scripts.plot_square_wave:main"
-plot-top-tags = "scripts.plot_top_tags:main"
-plot-all = "scripts.plot_all:main"
+benchmark = "analyze.benchmark:main"
+benchmark-bm = "analyze.benchmark_bm:main"
+metrics = "analyze.utils.metrics:main"
+plot-issues = "analyze.plot.issues:main"
+plot-metrics = "analyze.plot.metrics:main"
+plot-metrics-dyn = "analyze.plot.metrics_dyn:main"
+plot-motor-characteristics = "analyze.plot.motor_characteristics:main"
+plot-so-survey = "analyze.plot.so_survey:main"
+plot-square-wave = "analyze.plot.square_wave:main"
+plot-top-tags = "analyze.plot.top_tags:main"
+plot-all = "analyze.plot.all:main"
+survey-render = "analyze.notebooks.survey:render"
+survey-preview = "analyze.notebooks.survey:preview"

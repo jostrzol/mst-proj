@@ -20,10 +20,10 @@ from matplotlib.patches import Patch, Rectangle
 from matplotlib.typing import ColorType
 from numpy.typing import NDArray
 
-from scripts.lib.constants import PERF_DIR, PLOT_DIR
-from scripts.lib.language import LANGUAGES, Language
-from scripts.lib.plot import savefig
-from scripts.lib.types import Benchmark
+from analyze.lib.constants import PERF_DIR, PLOT_DIR
+from analyze.lib.language import LANGUAGES, Language
+from analyze.lib.plot import savefig
+from analyze.lib.types import Benchmark
 
 if TYPE_CHECKING:
     from _typeshed import SupportsRichComparison

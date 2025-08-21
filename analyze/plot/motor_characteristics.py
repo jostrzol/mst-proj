@@ -6,7 +6,7 @@ import csv
 
 from matplotlib import pyplot as plt
 
-from scripts.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from analyze.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
 
 MOTOR_CHARACTERISTICS_PATH = ANALYSIS_SRC_DIR / "motor-characteristics.csv"
 OUT_PATH = PLOT_DIR / "motor-characteristics.pdf"

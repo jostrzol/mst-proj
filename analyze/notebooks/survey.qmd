@@ -34,8 +34,8 @@ from matplotlib.axes import Axes
 from IPython.display import display
 from textwrap import wrap
 
-from lib.plot import savefig
-from lib.constants import PLOT_DIR
+from analyze.lib.plot import savefig
+from analyze.lib.constants import PLOT_DIR
 
 
 _ = scienceplots

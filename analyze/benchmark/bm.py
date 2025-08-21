@@ -14,8 +14,8 @@ from pathlib import Path
 from time import sleep
 from typing import IO, Callable, Protocol
 
-from scripts.lib.constants import PERF_DIR
-from scripts.lib.types import Benchmark
+from analyze.lib.constants import PERF_DIR
+from analyze.lib.types import Benchmark
 from rich.progress import Progress
 
 REPORT = re.compile(rb"# REPORT (?P<report_number>\d+)")

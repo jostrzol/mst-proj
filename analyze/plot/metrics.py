@@ -11,9 +11,9 @@ from typing import NamedTuple, final, override
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
-from scripts.lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
-from scripts.lib.language import LANGUAGES
-from scripts.lib.plot import add_bar_texts, savefig
+from analyze.lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
+from analyze.lib.language import LANGUAGES
+from analyze.lib.plot import add_bar_texts, savefig
 
 EXPERIMENTS = [
     "1-blinky",

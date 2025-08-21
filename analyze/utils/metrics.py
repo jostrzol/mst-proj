@@ -1,8 +1,10 @@
 # pyright: reportUnknownArgumentType=false
+# pyright: reportUnknownLambdaType=false
+# pyright: reportUnknownVariableType=false
 
 from pathlib import Path
 
-import pandas as pd  # pyright: ignore[reportMissingTypeStubs]
+import pandas as pd
 
 EXPERIMENT = "3-pid-bm"
 LANGUAGES = ["c", "zig"]

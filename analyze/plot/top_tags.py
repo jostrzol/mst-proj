@@ -8,9 +8,9 @@ from typing import TypedDict
 from matplotlib import pyplot as plt
 from matplotlib.typing import ColorType
 
-from scripts.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
-from scripts.lib.language import LANGUAGES
-from scripts.lib.plot import lighten_color, savefig
+from analyze.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from analyze.lib.language import LANGUAGES
+from analyze.lib.plot import lighten_color, savefig
 
 
 class DataRow(TypedDict):
