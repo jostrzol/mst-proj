@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, Callable, override
 from matplotlib.axes import Axes
 from IPython.display import display
+from textwrap import wrap
 
 from lib.plot import savefig
 from lib.constants import PLOT_DIR
@@ -39,7 +40,7 @@ from lib.constants import PLOT_DIR
 
 _ = scienceplots
 plt.style.use(["science", "ieee", "notebook"])
-# plt.rcParams["figure.figsize"] = (6.4, 4.8)
+plt.rcParams["figure.figsize"] = (8, 6)
 plt.rcParams["figure.dpi"] = 100
 
 
@@ -160,6 +161,7 @@ def plot_hist(
     xlabel: str | None = None,
     xlabel_fontsize: int = 16,
     xmargin: float = 0,
+    ymargin: float = 0.09,
     xtick_fontsize: int = 16,
 ) -> Axes:
     series = series.explode()  # in case multichoice
@@ -173,11 +175,10 @@ def plot_hist(
         labels = values.index.map(format)
         values.index = labels
 
-    ax = values.plot(kind="bar")
-    ax.set_xlabel(xlabel or "", fontsize=xlabel_fontsize)
+    ax = values.plot(kind="bar", xlabel="")
 
-    ax.tick_params(axis="x", bottom=False)
-    ax.tick_params(axis="x", which="minor", bottom=False)
+    ax.tick_params(axis="x", length=0)
+    ax.tick_params(axis="x", which="minor", length=0)
 
     if rotation == True:
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=xtick_fontsize)
@@ -189,7 +190,7 @@ def plot_hist(
     for i, v in enumerate(values):
         ax.text(i, v + 0.1, str(v), ha="center", va="bottom", fontsize=16)
 
-    ax.set_ylim(top=max(values) * 1.09)
+    ax.set_ylim(top=max(values) * (1 + ymargin))
     ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
 
     xmin, xmax = ax.get_xlim()
@@ -198,6 +199,8 @@ def plot_hist(
 
     if series.name is not None:
         savefig(plt.gcf(), OUT_DIR / str(series.name))
+
+    ax.set_xlabel(xlabel or "", fontsize=xlabel_fontsize)
 
     return ax
 
@@ -334,12 +337,14 @@ column = Column.S2_C_CPP_RATIO
 values = df[column]
 df_out[column] = values
 
+avg = values.mean() * 10
 plot_hist(
     values,
     rotation=True,
     sort_by_index=True,
     format=lambda x: f"{x*10}%",
     range=range(11),
+    xlabel=f"{avg:.2f}% avg",
 )
 plt.show()
 ```
@@ -350,27 +355,30 @@ plt.show()
 # | layout-ncol: 3
 
 columns = [
-    Column.S3_PERFORMANCE,
-    Column.S3_DEBUGGING,
-    Column.S3_LEGACY,
     Column.S3_HARDWARE,
+    Column.S3_PERFORMANCE,
     Column.S3_MEMORY,
+    Column.S3_DEBUGGING,
     Column.S3_MEMORY_SAFETY,
-    Column.S3_POWER,
-    Column.S3_CERTIFICATION,
     Column.S3_TOOLING,
+    Column.S3_POWER,
+    Column.S3_LEGACY,
+    Column.S3_CERTIFICATION,
 ]
 
 for column in columns:
     values = df[column]
     df_out[column] = values
 
+    plt.figure(figsize=(3, 2.5))
+    avg = values.mean()
     plot_hist(
         values,
         sort_by_index=True,
         range=range(1, 6),
-        xlabel=column.value,
-        xlabel_fontsize=15 if column == Column.S3_MEMORY_SAFETY else 16,
+        xlabel="\n".join(wrap(f"{column.value} ({avg:.3} avg)", 22)),
+        ymargin=0.2,
+        xmargin=0.05,
     )
     plt.show()
 ```
@@ -381,25 +389,29 @@ for column in columns:
 # | layout-ncol: 3
 
 columns = [
-    Column.S4_LIBRARIES,
-    Column.S4_C_INTEROPERABILITY,
     Column.S4_MATURITY,
     Column.S4_PERFORMANCE,
-    Column.S4_MEMORY_SAFETY,
-    Column.S4_COMMUNITY,
-    Column.S4_TRAINING,
+    Column.S4_C_INTEROPERABILITY,
     Column.S4_TOOLING,
+    Column.S4_MEMORY_SAFETY,
+    Column.S4_TRAINING,
+    Column.S4_LIBRARIES,
+    Column.S4_COMMUNITY,
 ]
 
 for column in columns:
     values = df[column]
     df_out[column] = values
 
+    plt.figure(figsize=(3, 2.5))
+    avg = values.mean()
     plot_hist(
         values,
         sort_by_index=True,
         range=range(1, 6),
-        xlabel=column.value,
+        xlabel="\n".join(wrap(f"{column.value} ({avg:.3} avg)", 22)),
+        ymargin=0.2,
+        xmargin=0.05,
     )
     plt.show()
 ```
