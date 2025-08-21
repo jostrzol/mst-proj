@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+vars:
+  LANGS: &langs [c, rust, zig]
+  PROJECTS: &projects [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
+  LANG_EXCLUDES_OS:
+    map:
+      c: ["'memory.c'", "'perf.c'"]
+      rust: ["'src/memory.rs'", "'src/perf.rs'"]
+      zig: ["'.zig-cache/*'", "'zig-out/*'", "'build.zig'", "'memory.zig'", "'perf.zig'", "'c.zig'"]
+  LANG_EXCLUDES_BM:
+    map:
+      c: ["'build/*'", "'managed_components/*'", "'main/memory.c'", "'main/perf.c'"]
+      rust: ["'target/*'", "'.embuild/*'", "'src/memory.rs'", "'src/perf.rs'"]
+      zig:
+        - "'build/*'"
+        - "'managed_components/*'"
+        - "'.zig-cache/*'"
+        - "'zig-out/*'"
+        - "'imports/*'"
+        - "'build.zig'"
+        - "'main/memory.zig'"
+        - "'main/perf.zig'"
+        - "'main/compiler-rt.zig'"
+        - "'main/c.zig'"
+  LIZARD_OUT_DIR: {ref: joinPath .OUT_DIR "lizard"}
+tasks:
+  all:
+    cmds:
+      - for:
+          matrix:
+            LANG: {ref: .LANGS}
+            PROJECT: {ref: .PROJECTS}
+        task: run
+        vars:
+          LANG: "{{.ITEM.LANG}}"
+          PROJECT: "{{.ITEM.PROJECT}}"
+  run:
+    dir: ..
+    requires:
+      vars:
+        - name: LANG
+          enum: *langs
+        - name: PROJECT
+          enum: *projects
+    vars:
+      IS_BM: {ref: .PROJECT | hasSuffix "-bm"}
+      EXCLUDES_STR: |
+        {{if .IS_BM}}
+          {{.LANG | get .LANG_EXCLUDES_BM | toJson}}
+        {{else}}
+          {{.LANG | get .LANG_EXCLUDES_OS | toJson}}
+        {{end}}
+      EXCLUDES: {ref: .EXCLUDES_STR | fromJson}
+      DIR: {ref: joinPath "." .LANG .PROJECT}
+      OUT_PATH: '{{joinPath .LIZARD_OUT_DIR .PROJECT}}-{{.LANG}}.csv'
+    sources:
+      - '{{.DIR}}/*.{{.LANG | get .LANG_EXT}}'
+      - '{{.DIR}}/main/*.{{.LANG | get .LANG_EXT}}'
+      - '{{.DIR}}/src/*.{{.LANG | get .LANG_EXT}}'
+    generates: ['{{.OUT_PATH}}']
+    label: 'lizard:{{.PROJECT}}:{{.LANG}}'
+    deps: [lizard-out-dir]
+    cmds:
+      - lizard --csv {{.DIR}} {{range $path := .EXCLUDES}} --exclude {{joinPath $.DIR $path}} {{end}} >{{.OUT_PATH}}
+  lizard-out-dir:
+    internal: true
+    dir: ..
+    run: when_changed
+    status: ['test -d {{.LIZARD_OUT_DIR}}']
+    generates: ['{{.LIZARD_OUT_DIR}}']
+    cmds: ['mkdir -p {{.LIZARD_OUT_DIR}}']

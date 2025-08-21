@@ -4,6 +4,7 @@
 /.nlsp-settings/
 /.venv/
 /.cache/
+/.task/
 
 # C
 /c/build/

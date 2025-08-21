@@ -26,8 +26,8 @@ dependencies = [
 [tool.hatch.build.targets.wheel]
 packages = ["analyze"]
 
-[tool.uv.sources]
-lizard = { git = "https://github.com/jostrzol/lizard" }
+# [tool.uv.sources]
+# lizard = { git = "https://github.com/jostrzol/lizard" }
 
 [dependency-groups]
 dev = ["jupyter-client>=8.6.3", "pandas-stubs>=2.0.2.230605", "pynvim>=0.5.2"]

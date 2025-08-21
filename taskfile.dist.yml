@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+dotenv: [.env]
+vars:
+  LANGS: [c, rust, zig]
+  PROJECTS: [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
+  LANG_EXT: {map: {c: c, rust: rs, zig: zig}}
+  OUT_DIR: analysis
+includes:
+  lizard: ./analyze/taskfile.lizard.yml

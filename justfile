@@ -179,33 +179,3 @@ _analyze LANG *FLAGS:
   && for proj in ./{{LANG}}/?-*; \
     do lizard "$proj" --csv {{FLAGS}} >"./analysis/$(basename "$proj")-{{LANG}}.csv"; \
   done
-
-
-# venv private
-_venv_dependency_packages := "setuptools matplotlib pandas numpy"
-_venv_dev_dependency_packages := "ruff basedpyright"
-
-_venv_init: _venv_dependencies _venv_lizard
-
-_venv_lizard: _venv_dependencies 
-  { . ./.venv/bin/activate && pip3 list 2>/dev/null | grep -q "^lizard\b"; } \
-  || { just _download_lizard && cd "./.cache/lizard" && ./build.sh && python3 setup.py install; }
-
-_download_lizard: _cache
-  { test -d "./.cache/lizard" \
-    || git clone "https://github.com/jostrzol/lizard.git" "./.cache/lizard"; } \
-  && { cd "./.cache/lizard" && git pull; }
-
-_cache:
-  mkdir -p "./.cache"
-
-_venv_dependencies: (_venv_install_packages _venv_dependency_packages)
-_venv_dev_dependencies: (_venv_install_packages _venv_dev_dependency_packages)
-_venv_install_packages *PACKAGES: _venv_create
-  . ./.venv/bin/activate \
-  && pip3 install --dry-run {{PACKAGES}} 2>/dev/null | grep -q "^Would install"; \
-  if test "$?" -eq "0"; then pip3 install {{PACKAGES}}; fi
-  
-_venv_create:
-  test -d "./.venv" || python3 -m venv ".venv"
-
