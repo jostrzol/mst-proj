@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+vars:
+  SCRIPTS: &plots [issues, metrics, metrics-dyn, motor-characteristics, so-survey, top-tags]
+  DATA_DIR: "analyze/data"
+  PLOT_DIR: "analyze/plot"
+  ARTIFACTS_DIR: "artifacts"
+  NOTEBOOKS_DIR: "analyze/notebooks"
+tasks:
+  all:
+    deps:
+      - for: {var: SCRIPTS}
+        task: '{{.ITEM}}'
+      - task: survey
+  issues:
+    sources:
+      - '{{joinPath .DATA_DIR "issues.csv"}}'
+      - '{{joinPath .PLOT_DIR "issues.py"}}'
+    cmds:
+      - task: plot
+        vars: {SCRIPT: issues}
+  metrics:
+    sources:
+      - '{{joinPath .LIZARD_OUT_DIR "**/*"}}'
+      - '{{joinPath .ARTIFACTS_DIR "**/*"}}'
+      - '{{joinPath .PLOT_DIR "metrics.py"}}'
+    cmds:
+      - task: plot
+        vars: {SCRIPT: metrics}
+  metrics-dyn:
+    sources:
+      - '{{joinPath .ANALYZE_OUT_DIR "perf/**/*.csv"}}'
+      - '{{joinPath .PLOT_DIR "metrics_dyn.py"}}'
+    cmds:
+      - task: plot
+        vars: {SCRIPT: metrics-dyn}
+  motor-characteristics:
+    sources:
+      - '{{joinPath .DATA_DIR "motor-characteristics.csv"}}'
+      - '{{joinPath .PLOT_DIR "motor_characteristics.py"}}'
+    cmds:
+      - task: plot
+        vars: {SCRIPT: motor-characteristics}
+  so-survey:
+    sources:
+      - '{{joinPath .DATA_DIR "so-survey.csv"}}'
+      - '{{joinPath .PLOT_DIR "so_survey.py"}}'
+    cmds:
+      - task: plot
+        vars: {SCRIPT: so-survey}
+  top-tags:
+    sources:
+      - '{{joinPath .DATA_DIR "top-tags-*.csv"}}'
+      - '{{joinPath .PLOT_DIR "top_tags.py"}}'
+    cmds:
+      - task: plot
+        vars: {SCRIPT: top-tags}
+  survey:
+    sources:
+      - '{{joinPath .DATA_DIR "survey.csv"}}'
+      - '{{joinPath .NOTEBOOKS_DIR "survey.py"}}'
+      - '{{joinPath .NOTEBOOKS_DIR "survey.qmd"}}'
+    cmds:
+      - 'uv run survey-render'
+  plot:
+    internal: true
+    requires:
+      vars:
+        - name: SCRIPT
+          enum: *plots
+    label: 'plot:{{.SCRIPT}}'
+    cmds:
+      - 'uv run plot-{{.SCRIPT}}'

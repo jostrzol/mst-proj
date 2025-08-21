@@ -11,7 +11,7 @@ from typing import NamedTuple, final, override
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 
-from analyze.lib.constants import ANALYSIS_DIR, ARTIFACTS_DIR, PLOT_DIR
+from analyze.lib.constants import ARTIFACTS_DIR, LIZARD_DIR, PLOT_DIR
 from analyze.lib.language import LANGUAGES
 from analyze.lib.plot import add_bar_texts, savefig
 
@@ -130,7 +130,7 @@ class ExperimentData:
     def from_fs(cls, experiment: str):
         langs_to_infos: dict[str, FunctionInfos] = {}
         for lang in LANGUAGES.values():
-            path = ANALYSIS_DIR / f"{experiment}-{lang['slug']}.csv"
+            path = LIZARD_DIR / f"{experiment}-{lang['slug']}.csv"
             with path.open() as file:
                 infos = FunctionInfos.from_csv(file)
             langs_to_infos[lang["slug"]] = infos
