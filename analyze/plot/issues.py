@@ -11,10 +11,10 @@ from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
-from analyze.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from analyze.lib.constants import DATA_DIR, PLOT_DIR
 from analyze.lib.plot import add_bar_texts, savefig
 
-ISSUES_PATH = ANALYSIS_SRC_DIR / "issues.csv"
+ISSUES_PATH = DATA_DIR / "issues.csv"
 OUT_PATH = PLOT_DIR / "issues"
 
 

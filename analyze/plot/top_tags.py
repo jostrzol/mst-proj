@@ -8,7 +8,7 @@ from typing import TypedDict
 from matplotlib import pyplot as plt
 from matplotlib.typing import ColorType
 
-from analyze.lib.constants import ANALYSIS_SRC_DIR, PLOT_DIR
+from analyze.lib.constants import DATA_DIR, PLOT_DIR
 from analyze.lib.language import LANGUAGES
 from analyze.lib.plot import lighten_color, savefig
 
@@ -53,7 +53,7 @@ HIGHLIGHTED_TAGS = {
 
 def main():
     for language in LANGUAGES.values():
-        data_path = ANALYSIS_SRC_DIR / f"top-tags-{language['slug']}.csv"
+        data_path = DATA_DIR / f"top-tags-{language['slug']}.csv"
         with data_path.open() as file:
             reader = csv.DictReader(file)
             rows: list[DataRow] = list(reader)  # pyright: ignore[reportAssignmentType]

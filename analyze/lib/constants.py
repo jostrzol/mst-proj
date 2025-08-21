@@ -1,7 +1,8 @@
 from pathlib import Path
 
-ANALYSIS_SRC_DIR = Path("./analysis-src/")
 ARTIFACTS_DIR = Path("./artifacts/")
 ANALYSIS_DIR = Path("./analysis/")
+
+DATA_DIR = ANALYSIS_DIR / "data"
 PLOT_DIR = ANALYSIS_DIR / "plots/"
 PERF_DIR = ANALYSIS_DIR / "perf/"
