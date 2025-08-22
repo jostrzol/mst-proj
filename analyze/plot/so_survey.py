@@ -24,6 +24,7 @@ class DataRow(TypedDict):
 
 
 def main():
+    PLOT_DIR.mkdir(exist_ok=True, parents=True)
     with SRC_PATH.open() as file:
         reader = csv.DictReader(file)
         rows: list[DataRow] = list(reader)  # pyright: ignore[reportAssignmentType]

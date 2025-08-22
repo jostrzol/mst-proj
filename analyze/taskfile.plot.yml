@@ -6,6 +6,7 @@ vars:
   PLOT_DIR: "analyze/plot"
   ARTIFACTS_DIR: "artifacts"
   NOTEBOOKS_DIR: "analyze/notebooks"
+  PLOT_OUT_DIR: '{{joinPath .ANALYZE_OUT_DIR "plots"}}'
 tasks:
   all:
     deps:
@@ -16,6 +17,8 @@ tasks:
     sources:
       - '{{joinPath .DATA_DIR "issues.csv"}}'
       - '{{joinPath .PLOT_DIR "issues.py"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "issues/**/*"}}'
     cmds:
       - task: plot
         vars: {SCRIPT: issues}
@@ -24,6 +27,8 @@ tasks:
       - '{{joinPath .LIZARD_OUT_DIR "**/*"}}'
       - '{{joinPath .ARTIFACTS_DIR "**/*"}}'
       - '{{joinPath .PLOT_DIR "metrics.py"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "metrics/**/*"}}'
     cmds:
       - task: plot
         vars: {SCRIPT: metrics}
@@ -31,6 +36,8 @@ tasks:
     sources:
       - '{{joinPath .ANALYZE_OUT_DIR "perf/**/*.csv"}}'
       - '{{joinPath .PLOT_DIR "metrics_dyn.py"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "metrics-dyn/**/*"}}'
     cmds:
       - task: plot
         vars: {SCRIPT: metrics-dyn}
@@ -38,6 +45,8 @@ tasks:
     sources:
       - '{{joinPath .DATA_DIR "motor-characteristics.csv"}}'
       - '{{joinPath .PLOT_DIR "motor_characteristics.py"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "motor-characteristics.*"}}'
     cmds:
       - task: plot
         vars: {SCRIPT: motor-characteristics}
@@ -45,6 +54,8 @@ tasks:
     sources:
       - '{{joinPath .DATA_DIR "so-survey.csv"}}'
       - '{{joinPath .PLOT_DIR "so_survey.py"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "so-survey.*"}}'
     cmds:
       - task: plot
         vars: {SCRIPT: so-survey}
@@ -52,6 +63,8 @@ tasks:
     sources:
       - '{{joinPath .DATA_DIR "top-tags-*.csv"}}'
       - '{{joinPath .PLOT_DIR "top_tags.py"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "top-tags/**/*"}}'
     cmds:
       - task: plot
         vars: {SCRIPT: top-tags}
@@ -60,6 +73,8 @@ tasks:
       - '{{joinPath .DATA_DIR "survey.csv"}}'
       - '{{joinPath .NOTEBOOKS_DIR "survey.py"}}'
       - '{{joinPath .NOTEBOOKS_DIR "survey.qmd"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "survey/**/*"}}'
     cmds:
       - 'uv run survey-render'
   plot:

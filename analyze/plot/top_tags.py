@@ -12,6 +12,8 @@ from analyze.lib.constants import DATA_DIR, PLOT_DIR
 from analyze.lib.language import LANGUAGES
 from analyze.lib.plot import lighten_color, savefig
 
+OUT_DIR = PLOT_DIR / "top-tags"
+
 
 class DataRow(TypedDict):
     TagName: str
@@ -52,6 +54,7 @@ HIGHLIGHTED_TAGS = {
 
 
 def main():
+    OUT_DIR.mkdir(exist_ok=True, parents=True)
     for language in LANGUAGES.values():
         data_path = DATA_DIR / f"top-tags-{language['slug']}.csv"
         with data_path.open() as file:
@@ -78,7 +81,7 @@ def main():
         # ax.set_title(f"Najpopularniejsze tagi dla języka {language['name']}")
 
         fig.tight_layout()
-        out_path = PLOT_DIR / f"top-tags-{language['slug']}"
+        out_path = OUT_DIR / f"top-tags-{language['slug']}"
         savefig(fig, out_path)
         plt.close(fig)
 

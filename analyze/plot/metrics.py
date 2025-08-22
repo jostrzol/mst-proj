@@ -15,6 +15,8 @@ from analyze.lib.constants import ARTIFACTS_DIR, LIZARD_DIR, PLOT_DIR
 from analyze.lib.language import LANGUAGES
 from analyze.lib.plot import add_bar_texts, savefig
 
+OUT_DIR = PLOT_DIR / "metrics"
+
 EXPERIMENTS = [
     "1-blinky",
     "1-blinky-bm",
@@ -169,12 +171,13 @@ def plot_experiment(
 
     plt.tight_layout()
 
-    out_path = PLOT_DIR / f"{experiment}{suffix}"
+    out_path = OUT_DIR / f"{experiment}{suffix}"
     savefig(figure, out_path)
     plt.close(figure)
 
 
 def main():
+    OUT_DIR.mkdir(exist_ok=True, parents=True)
     for experiment in EXPERIMENTS:
         data = ExperimentData.from_fs(experiment)
 

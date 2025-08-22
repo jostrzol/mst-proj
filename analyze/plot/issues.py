@@ -15,10 +15,11 @@ from analyze.lib.constants import DATA_DIR, PLOT_DIR
 from analyze.lib.plot import add_bar_texts, savefig
 
 ISSUES_PATH = DATA_DIR / "issues.csv"
-OUT_PATH = PLOT_DIR / "issues"
+OUT_DIR = PLOT_DIR / "issues"
 
 
 def main():
+    OUT_DIR.mkdir(exist_ok=True, parents=True)
     with ISSUES_PATH.open() as file:
         reader = csv.reader(file)
         it = iter(reader)
@@ -42,7 +43,7 @@ def main():
     ax.bar(names, totals, facecolor=colors, edgecolor="black")
     add_bar_texts(ax, totals, totals)
     ax.set_ylabel("Liczba pytań")
-    savefig(fig, OUT_PATH.with_name(f"{OUT_PATH.name}-0-totals"))
+    savefig(fig, OUT_DIR / "0-totals")
     plt.close(fig)
 
     i = 0
@@ -74,7 +75,7 @@ def main():
             ax.set_ylabel("Część")
             ax.yaxis.set_major_formatter(PercentFormatter(decimals=2))
 
-        savefig(fig, OUT_PATH.with_name(f"{OUT_PATH.name}-{group}"))
+        savefig(fig, OUT_DIR / str(group))
         plt.close(fig)
 
 

@@ -28,6 +28,8 @@ from analyze.lib.types import Benchmark
 if TYPE_CHECKING:
     from _typeshed import SupportsRichComparison
 
+OUT_DIR = PLOT_DIR / "metrics-dyn"
+
 EXPERIMENTS = [
     "1-blinky",
     "1-blinky-bm",
@@ -91,7 +93,7 @@ def plot_experiment(
     figure.tight_layout()
     figure.subplots_adjust(top=0.88, wspace=0.4)
 
-    out_path = PLOT_DIR / f"{experiment}{suffix}"
+    out_path = OUT_DIR / f"{experiment}{suffix}"
     savefig(figure, out_path)
     plt.close(figure)
 
@@ -390,6 +392,7 @@ def sem(values: NDArray[Any]) -> float:
 
 
 def main():
+    OUT_DIR.mkdir(exist_ok=True, parents=True)
     for experiment in EXPERIMENTS:
         data = get_experiment_data(experiment=experiment)
 

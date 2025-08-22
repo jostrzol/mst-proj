@@ -7,12 +7,14 @@ import csv
 from matplotlib import pyplot as plt
 
 from analyze.lib.constants import DATA_DIR, PLOT_DIR
+from analyze.lib.plot import savefig
 
 MOTOR_CHARACTERISTICS_PATH = DATA_DIR / "motor-characteristics.csv"
-OUT_PATH = PLOT_DIR / "motor-characteristics.pdf"
+OUT_PATH = PLOT_DIR / "motor-characteristics"
 
 
 def main():
+    PLOT_DIR.mkdir(exist_ok=True, parents=True)
     with MOTOR_CHARACTERISTICS_PATH.open() as file:
         reader = csv.reader(file)
         points = [(float(x) / 100, float(y)) for x, y in reader]
@@ -39,7 +41,7 @@ def main():
 
     plt.tight_layout()
 
-    plt.savefig(OUT_PATH)
+    savefig(plt.gcf(), OUT_PATH)
     plt.close()
 
 
