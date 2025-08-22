@@ -149,18 +149,20 @@ tasks:
       vars:
         - FILE
         - PROJECT
-        - name: PROFILE
-          enum: *profiles
+        - {name: PROFILE, enum: *profiles}
     vars:
       SUFFIX: '{{.SUFFIX | default ""}}'
       OUTPUT_FILE: '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
     sources: ['{{.FILE}}']
     generates: ['{{.OUTPUT_FILE}}']
+    deps:
+      - task: artifact-dir-exists
+        vars: {PROFILE: '{{.PROFILE}}'}
     cmd: 'cp {{.FILE}} {{.OUTPUT_FILE}}'
     label: 'c:copy-artifact:{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
-
-# _build PROJECT: _make_artifact_dir
-#   mkdir -p build && cd build \
-#   && cmake -Werror=dev --warn-uninitialized {{build_flags_os}} .. \
-#   && make {{PROJECT}} \
-#   && cp ./bin/{{PROJECT}} ../{{artifacts_dir}}/{{PROJECT}}-c
+  artifact-dir-exists:
+    requires:
+      vars:
+        - {name: PROFILE, enum: *profiles}
+    internal: true
+    cmd: mkdir -p '{{.ARTIFACTS_DIR}}/{{.PROFILE}}'
