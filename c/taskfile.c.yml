@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+vars:
+  PROFILES: &profiles [debug, fast, small]
+  PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
+  PROJECTS_BM: &projects_bm [1-blinky-bm, 2-motor-bm, 3-pid-bm]
+  BUILD_TYPE_MAP:
+    map:
+      debug: Debug
+      fast: Release
+      small: MinSizeRel
+  BUILD_DIR: "./c/build/"
+tasks:
+  build-os-every-profile:
+    cmds:
+      - for: {matrix: {PROFILE: [fast, small]}}
+        task: build-os-all
+        vars:
+          PROFILE: '{{.ITEM.PROFILE}}'
+  build-os-all:
+    requires:
+      vars:
+        - name: PROFILE
+          enum: *profiles
+    cmds:
+      - for: {matrix: {PROJECT: {ref: .PROJECTS_OS}}}
+        task: build-os
+        vars:
+          PROJECT: '{{.ITEM.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
+  build-os:
+    requires:
+      vars:
+        - name: PROJECT
+          enum: *projects_os
+        - name: PROFILE
+          enum: *profiles
+    sources: ['{{joinPath "./c" .PROJECT "**/*.c"}}']
+    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
+    cmds:
+      - task: configure-os
+        vars: {PROFILE: '{{.PROFILE}}'}
+      - cd {{.BUILD_DIR}} && make {{.PROJECT}}
+      - task: copy-artifact
+        vars:
+          FILE: '{{joinPath .BUILD_DIR "bin" .PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
+          PROJECT: '{{.PROJECT}}'
+    label: 'c:build-os:{{.PROFILE}}:{{.PROJECT}}'
+  configure-os:
+    dir: '{{.BUILD_DIR}}'
+    internal: true
+    requires:
+      vars:
+        - name: PROFILE
+          enum: *profiles
+    vars:
+      BUILD_TYPE: '{{.PROFILE | get .BUILD_TYPE_MAP}}'
+    cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ..
+  copy-artifact:
+    internal: true
+    requires:
+      vars:
+        - FILE
+        - name: PROJECT
+          enum: *projects_os
+        - name: PROFILE
+          enum: *profiles
+    sources: ['{{.FILE}}']
+    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
+    cmd: 'cp {{.FILE}} {{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
+    label: 'c:copy-artifact:{{.PROFILE}}/{{.PROJECT}}-c'
+
+# _build PROJECT: _make_artifact_dir
+#   mkdir -p build && cd build \
+#   && cmake -Werror=dev --warn-uninitialized {{build_flags_os}} .. \
+#   && make {{PROJECT}} \
+#   && cp ./bin/{{PROJECT}} ../{{artifacts_dir}}/{{PROJECT}}-c

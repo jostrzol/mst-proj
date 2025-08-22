@@ -4,7 +4,6 @@ vars:
   SCRIPTS: &plots [issues, metrics, metrics-dyn, motor-characteristics, so-survey, top-tags]
   DATA_DIR: "analyze/data"
   PLOT_DIR: "analyze/plot"
-  ARTIFACTS_DIR: "artifacts"
   NOTEBOOKS_DIR: "analyze/notebooks"
   PLOT_OUT_DIR: '{{joinPath .ANALYZE_OUT_DIR "plots"}}'
 includes:

@@ -5,8 +5,10 @@ vars:
   LANGS: [c, rust, zig]
   PROJECTS: [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
   LANG_EXT: {map: {c: c, rust: rs, zig: zig}}
+  ARTIFACTS_DIR: "./artifacts"
   ANALYZE_OUT_DIR: ./analyze/out
 includes:
   lizard: ./analyze/taskfile.lizard.yml
   plot: ./analyze/taskfile.plot.yml
   bench: ./analyze/taskfile.benchmark.yml
+  c: ./c/taskfile.c.yml
