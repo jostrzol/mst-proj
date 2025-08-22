@@ -152,6 +152,15 @@ def preprocess(
     return series.apply(preprocess_row)
 
 
+def wrap_series(series: "pd.Series[str]", count: int = 22, sep: str = "\n"):
+    def do_wrap(value: str) -> str:
+        if pd.isna(value):
+            return value
+        return sep.join(wrap(value, count))
+
+    return series.map(do_wrap)
+
+
 def plot_hist(
     series: pd.Series,
     range: Iterable[Any] | None = None,
@@ -164,7 +173,7 @@ def plot_hist(
     ymargin: float = 0.09,
     xtick_fontsize: int = 16,
 ) -> Axes:
-    series = series.explode()  # in case multichoice
+    # TODO: dodać linie z xticks do barów
     values = series.value_counts()
     for label in range or []:
         if label not in values:
@@ -262,9 +271,27 @@ values = preprocess(
     },
     drop=["Software Development", "Open Source"],
 )
+values = preprocess(
+    values,
+    replace={
+        "Consumer electronics": "Elektronika dla masowego klienta",
+        "IoT / Edge Computing": "Internet rzeczy",
+        "Industrial automation": "Automatyka",
+        "Automotive": "Motoryzacja",
+        "Medical devices": "Medycyna",
+        "Aerospace": "Lotnictwo",
+        "Professional electronics": "Elektronika profesjonalna",
+        "Networks": "Sieci komputerowe",
+        "Silicon production": "Układy scalone",
+        "Energy": "Energia",
+        "Defense": "Militaria",
+        "Research": "Nauka",
+    },
+)
 df_out[column] = values
 
-plot_hist(values, rotation=True, xlabel="")
+to_plot = wrap_series(values.explode(), sep="\n...")
+plot_hist(to_plot, rotation=True, xlabel="", xtick_fontsize=14)
 plt.show()
 ```
 
@@ -287,8 +314,18 @@ values = preprocess(
         ],
     },
 )
+values = preprocess(
+    values,
+    replace={
+        "Software engineer": "Inżnier oprogramowana",
+        "Hardware engineer": "Inżnier sprzętu",
+        "System architect": "Architekt systemu",
+    },
+)
 df_out[column] = values
-plot_hist(values, xtick_fontsize=15)
+
+to_plot = wrap_series(values.explode(), count=20)
+plot_hist(to_plot, xtick_fontsize=15)
 plt.show()
 ```
 
@@ -318,7 +355,7 @@ values = preprocess(
     },
 )
 df_out[column] = values
-plot_hist(values, rotation=True, xmargin=0.02)
+plot_hist(values.explode(), rotation=True, xmargin=0.02)
 plt.show()
 ```
 
@@ -430,9 +467,16 @@ print(f"*{column.value}*")
 
 ```{python}
 values = df[column]
+values = preprocess(
+    values,
+    replace={
+        "Yes": "Tak",
+        "No": "Nie",
+    },
+)
 df_out[column] = values
 
-plot_pie(values)
+plot_pie(values.explode())
 plt.show()
 ```
 
@@ -471,17 +515,32 @@ values = preprocess(
         ],
         "lightness of C": "Insufficient performance",
         "Fear of insufficient performance": "Insufficient performance",
-        "Difficulty of integrating into existing codebase": "Difficulty of integrating\n...into existing codebase",
-        "Insufficient libraries/driver support": "Insufficient libraries\n.../driver support",
     },
     drop=[
         "Both are terrible languages with horrific syntax",
         "Yes, I have used it and scrapped it for these reasons. It was a mess.",
     ],
 )
+
+values = preprocess(
+    values,
+    replace={
+        "Difficulty of integrating into existing codebase": "Trudność integracji z istniejącym kodem",
+        "Team unfamiliarity": "Brak ekspertyzy zespołu",
+        "Lack of mature toolchain": "Brak dojrzałości",
+        "Insufficient performance": "Gorsza wydajność",
+        "Insufficient libraries/driver support": "Brak bibliotek, sterowników",
+        "Insufficient producivity": "Gorsza produktywność",
+        "Insufficient portability": "Gorsza przenośność",
+        "No need": "Brak potrzeby",
+        "Not worth trying": "Nie opłaca się próbować",
+        "Certification concerns": "Obawy przed certyfikacją",
+    },
+)
 df_out[column] = values
 
-plot_hist(values, rotation=True)
+to_plot = wrap_series(values.explode(), count=24, sep="\n...")
+plot_hist(to_plot, rotation=True, xtick_fontsize=14)
 plt.show()
 ```
 
@@ -555,7 +614,8 @@ print(f"*{column.value}*")
 values = df[column]
 df_out[column] = values
 
-plot_hist(values, sort_by_index=True, range=range(1, 6))
+to_plot = values[~values.isna()].astype(np.int8)
+plot_hist(to_plot, sort_by_index=True, range=range(1, 6))
 plt.show()
 ```
 
