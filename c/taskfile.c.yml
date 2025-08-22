@@ -9,8 +9,27 @@ vars:
       debug: Debug
       fast: Release
       small: MinSizeRel
+  SDKCONFIG_MAP:
+    map:
+      debug: sdkconfig
+      fast: sdkconfig.fast
+      small: sdkconfig.small
   BUILD_DIR: "./c/build/"
+  ESP_EXPORT: ". esp-export/c.sh"
 tasks:
+  # os and bm
+  build-every-profile:
+    deps: [build-os-every-profile, build-bm-every-profile]
+  build-all:
+    requires:
+      vars:
+        - {name: PROFILE, enum: *profiles}
+    deps:
+      - task: build-os-all
+        vars: {PROFILE: '{{.PROFILE}}'}
+      - task: build-bm-all
+        vars: {PROFILE: '{{.PROFILE}}'}
+  # os
   build-os-every-profile:
     cmds:
       - for: {matrix: {PROFILE: [fast, small]}}
@@ -20,21 +39,18 @@ tasks:
   build-os-all:
     requires:
       vars:
-        - name: PROFILE
-          enum: *profiles
+        - {name: PROFILE, enum: *profiles}
     cmds:
-      - for: {matrix: {PROJECT: {ref: .PROJECTS_OS}}}
+      - for: {var: PROJECTS_OS}
         task: build-os
         vars:
-          PROJECT: '{{.ITEM.PROJECT}}'
+          PROJECT: '{{.ITEM}}'
           PROFILE: '{{.PROFILE}}'
   build-os:
     requires:
       vars:
-        - name: PROJECT
-          enum: *projects_os
-        - name: PROFILE
-          enum: *profiles
+        - {name: PROJECT, enum: *projects_os}
+        - {name: PROFILE, enum: *profiles}
     sources: ['{{joinPath "./c" .PROJECT "**/*.c"}}']
     generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
     cmds:
@@ -57,19 +73,91 @@ tasks:
     vars:
       BUILD_TYPE: '{{.PROFILE | get .BUILD_TYPE_MAP}}'
     cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ..
+  # bm
+  build-bm-every-profile:
+    cmds:
+      - for: {matrix: {PROFILE: [fast, small]}}
+        task: build-bm-all
+        vars:
+          PROFILE: '{{.ITEM.PROFILE}}'
+  build-bm-all:
+    requires:
+      vars:
+        - {name: PROFILE, enum: *profiles}
+    deps:
+      - for: {var: PROJECTS_BM}
+        task: build-bm
+        vars:
+          PROJECT: '{{.ITEM}}'
+          PROFILE: '{{.PROFILE}}'
+  build-bm:
+    requires:
+      vars:
+        - {name: PROJECT, enum: *projects_bm}
+        - {name: PROFILE, enum: *profiles}
+    vars:
+      NAME: '{{index (splitList "-" .PROJECT) 1}}'
+    sources: ['{{joinPath "./c" .PROJECT "main" "**/*.c"}}']
+    generates:
+      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
+      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c.elf'
+    cmds:
+      - task: cmd-bm
+        vars:
+          PROJECT: '{{.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
+          CMD: 'build'
+      - task: copy-artifact
+        vars:
+          FILE: '{{joinPath "./c" .PROJECT "build" (printf "%s.bin" .NAME)}}'
+          PROJECT: '{{.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
+      - task: copy-artifact
+        vars:
+          FILE: '{{joinPath "./c" .PROJECT "build" (printf "%s.elf" .NAME)}}'
+          PROJECT: '{{.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
+          SUFFIX: '.elf'
+    label: 'c:build-bm:{{.PROFILE}}:{{.PROJECT}}'
+  flash-bm:
+    requires:
+      vars:
+        - {name: PROJECT, enum: *projects_bm}
+    cmds:
+      - task: cmd-bm
+        vars:
+          PROJECT: '{{.PROJECT}}'
+          CMD: 'flash monitor'
+  cmd-bm:
+    internal: true
+    requires:
+      vars:
+        - {name: PROJECT, enum: *projects_bm}
+    # optional: PROFILE
+    vars:
+      PROJECT_DIR: '{{joinPath "./c" .PROJECT}}'
+      SDKCONFIG: '{{.PROFILE | get .SDKCONFIG_MAP | default "sdkconfig"}}'
+    cmd: |
+      sh -c '
+        {{if not .IDF_PATH}}{{.ESP_EXPORT}}{{end}}
+        cd {{.PROJECT_DIR}} && idf.py -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
+      '
+  # utils
   copy-artifact:
     internal: true
     requires:
       vars:
         - FILE
-        - name: PROJECT
-          enum: *projects_os
+        - PROJECT
         - name: PROFILE
           enum: *profiles
+    vars:
+      SUFFIX: '{{.SUFFIX | default ""}}'
+      OUTPUT_FILE: '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
     sources: ['{{.FILE}}']
-    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
-    cmd: 'cp {{.FILE}} {{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
-    label: 'c:copy-artifact:{{.PROFILE}}/{{.PROJECT}}-c'
+    generates: ['{{.OUTPUT_FILE}}']
+    cmd: 'cp {{.FILE}} {{.OUTPUT_FILE}}'
+    label: 'c:copy-artifact:{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
 
 # _build PROJECT: _make_artifact_dir
 #   mkdir -p build && cd build \
