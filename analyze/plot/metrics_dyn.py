@@ -81,7 +81,7 @@ def get_experiment_data(experiment: str) -> list[LangResult]:
 
 
 def plot_experiment(
-    figure: Figure, experiment: str, data: list[LangResult], suffix: str = "-perf"
+    figure: Figure, experiment: str, data: list[LangResult], suffix: str = ""
 ):
     axes = figure.subplots(ncols=2)
     axes: Iterable[Axes]
@@ -397,12 +397,10 @@ def main():
         data = get_experiment_data(experiment=experiment)
 
         figure = plt.figure(figsize=(8, 4))
-        plot_experiment(figure=figure, experiment=experiment, data=data, suffix="-perf")
+        plot_experiment(figure=figure, experiment=experiment, data=data)
 
         figure = plt.figure(figsize=(6, 4))
-        plot_experiment(
-            figure=figure, experiment=experiment, data=data, suffix="-perf-doc"
-        )
+        plot_experiment(figure=figure, experiment=experiment, data=data, suffix="-doc")
 
 
 if __name__ == "__main__":
