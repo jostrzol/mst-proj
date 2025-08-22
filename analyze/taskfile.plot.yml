@@ -78,8 +78,9 @@ tasks:
       - '{{joinPath .NOTEBOOKS_DIR "survey.qmd"}}'
     generates:
       - '{{joinPath .PLOT_OUT_DIR "survey/**/*"}}'
-    cmds:
-      - 'uv run survey-render'
+    cmd: 'uv run survey-render'
+  survey-preview:
+    cmd: 'uv run survey-preview'
   plot:
     internal: true
     requires:
@@ -87,5 +88,4 @@ tasks:
         - name: SCRIPT
           enum: *plots
     label: 'plot:{{.SCRIPT}}'
-    cmds:
-      - 'uv run plot-{{.SCRIPT}}'
+    cmd: 'uv run plot-{{.SCRIPT}}'

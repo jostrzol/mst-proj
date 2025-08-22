@@ -27,7 +27,8 @@ __pycache__
 /analysis/
 /analyze/out/
 /analyze/notebooks/*_files/
-/analyze/notebooks/*.html/
+/analyze/notebooks/*.html
+/analyze/notebooks/.gitignore
 
 # esp-idf
 managed_components
