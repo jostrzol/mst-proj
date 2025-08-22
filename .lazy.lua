@@ -52,9 +52,9 @@ return {
 			filesystem = {
 				filtered_items = {
 					hide_by_pattern = {
-						"*/analysis/plots/*.pdf",
-						"*/scripts/*_files",
-						"*/scripts/*.html",
+						"*/analyze/out/plots/*.pdf",
+						"*/analze/notebooks/*_files",
+						"*/analze/notebooks/*.html",
 					},
 				},
 			},

@@ -1,5 +1,4 @@
 # Not language specific 
-/analysis/
 /artifacts/
 /.nlsp-settings/
 /.venv/
@@ -23,14 +22,12 @@
 /zig/*/build
 /zig/*/.cache
 
-# Python scripts
+# Analysis
 __pycache__
-
-# Notebooks
-/scripts/*_files/
-/scripts/*.html
-/scripts/*.md
-/scripts/*.quarto_ipynb
+/analysis/
+/analyze/out/
+/analyze/notebooks/*_files/
+/analyze/notebooks/*.html/
 
 # esp-idf
 managed_components

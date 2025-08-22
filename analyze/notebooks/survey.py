@@ -14,7 +14,7 @@ def render():
             "pdf",
             "--toc",
             "--output-dir",
-            "../../analysis/notebooks",
+            "../out/notebooks",
         ],
         check=True,
     )

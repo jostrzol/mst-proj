@@ -7,6 +7,8 @@ vars:
   ARTIFACTS_DIR: "artifacts"
   NOTEBOOKS_DIR: "analyze/notebooks"
   PLOT_OUT_DIR: '{{joinPath .ANALYZE_OUT_DIR "plots"}}'
+includes:
+  lizard: 'taskfile.lizard.yml'
 tasks:
   all:
     deps:
@@ -29,6 +31,8 @@ tasks:
       - '{{joinPath .PLOT_DIR "metrics.py"}}'
     generates:
       - '{{joinPath .PLOT_OUT_DIR "metrics/**/*"}}'
+    deps:
+      - lizard:all
     cmds:
       - task: plot
         vars: {SCRIPT: metrics}
