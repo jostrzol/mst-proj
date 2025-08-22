@@ -13,9 +13,10 @@ from signal import SIGINT
 from time import sleep
 from typing import IO, Callable, Protocol
 
+from rich.progress import Progress
+
 from analyze.lib.constants import PERF_DIR
 from analyze.lib.types import Benchmark
-from rich.progress import Progress
 
 REPORT = re.compile(rb"# REPORT (?P<report_number>\d+)")
 PERFORMANCE = re.compile(

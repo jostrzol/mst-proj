@@ -9,3 +9,4 @@ vars:
 includes:
   lizard: ./analyze/taskfile.lizard.yml
   plot: ./analyze/taskfile.plot.yml
+  bench: ./analyze/taskfile.benchmark.yml

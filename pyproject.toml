@@ -30,8 +30,8 @@ packages = ["analyze"]
 dev = ["jupyter-client>=8.6.3", "pandas-stubs>=2.0.2.230605", "pynvim>=0.5.2"]
 
 [project.scripts]
-benchmark = "analyze.benchmark:main"
-benchmark-bm = "analyze.benchmark_bm:main"
+benchmark-os = "analyze.benchmark.os:main"
+benchmark-bm = "analyze.benchmark.bm:main"
 metrics = "analyze.utils.metrics:main"
 plot-issues = "analyze.plot.issues:main"
 plot-metrics = "analyze.plot.metrics:main"

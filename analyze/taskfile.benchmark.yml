@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+tasks:
+  os:
+    cmds:
+      - task: blinky-os
+      - task: motor-os
+      - task: pid-os
+  bm:
+    cmds:
+      - task: blinky-bm
+      - task: motor-bm
+      - task: pid-bm
+  blinky-os:
+    cmds:
+      - task: run
+        vars:
+          TYPE: os
+          FILES:
+            - "./artifacts/fast/1-blinky-c"
+            - "./artifacts/fast/1-blinky-zig"
+            - "./artifacts/fast/1-blinky-rust"
+  motor-os:
+    cmds:
+      - task: run
+        vars:
+          TYPE: os
+          FILES:
+            - "./artifacts/fast/2-motor-c"
+            - "./artifacts/fast/2-motor-zig"
+            - "./artifacts/fast/2-motor-rust"
+  pid-os:
+    cmds:
+      - task: run
+        vars:
+          TYPE: os
+          FILES:
+            - "./artifacts/fast/3-pid-c"
+            - "./artifacts/fast/3-pid-zig"
+            - "./artifacts/debug/3-pid-zig"
+            - "./artifacts/fast/3-pid-rust"
+  blinky-bm:
+    cmds:
+      - task: run
+        vars:
+          TYPE: os
+          FILES:
+            - "./artifacts/fast/1-blinky-bm-c.elf"
+            - "./artifacts/fast/1-blinky-bm-zig.elf"
+            - "./artifacts/fast/1-blinky-bm-rust.elf"
+  motor-bm:
+    cmds:
+      - task: run
+        vars:
+          TYPE: os
+          FILES:
+            - "./artifacts/fast/2-motor-bm-c.elf"
+            - "./artifacts/fast/2-motor-bm-zig.elf"
+            - "./artifacts/fast/2-motor-bm-rust.elf"
+  pid-bm:
+    cmds:
+      - task: run
+        vars:
+          TYPE: os
+          FILES:
+            - "./artifacts/fast/3-pid-bm-c.elf"
+            - "./artifacts/fast/3-pid-bm-zig.elf"
+            - "./artifacts/fast/3-pid-bm-rust.elf"
+  run:
+    requires:
+      vars:
+        - FILES
+        - name: TYPE
+          enum: [os, bm]
+    cmds:
+      - 'uv run benchmark-{{.TYPE}} --reports {{.REPORTS | default "130"}} {{range $file := .FILES}}{{$file}} {{end}}'
