@@ -82,7 +82,7 @@ int main(int, char **) {
       const perf_mark_t start = perf_mark();
 
 #ifdef DEBUG
-      printf("Turning the LED %s", led_state ? "ON" : "OFF");
+      printf("Turning the LED %s", is_on ? "ON" : "OFF");
 #endif
 
       res = gpiod_line_set_value(line, is_on);
