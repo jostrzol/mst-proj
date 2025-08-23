@@ -6,6 +6,7 @@ vars:
   PLOT_DIR: "analyze/plot"
   NOTEBOOKS_DIR: "analyze/notebooks"
   PLOT_OUT_DIR: '{{joinPath .ANALYZE_OUT_DIR "plots"}}'
+  SCRIPT_OUT_DIR: '{{joinPath .ANALYZE_OUT_DIR "notebooks/scripts"}}'
 includes:
   lizard: 'taskfile.lizard.yml'
 tasks:
@@ -72,6 +73,21 @@ tasks:
       - task: plot
         vars: {SCRIPT: top-tags}
   survey:
+    vars:
+      NAME: 'survey.qmd'
+      SCRIPT: '{{joinPath .SCRIPT_OUT_DIR .NAME}}.py'
+    sources:
+      - '{{joinPath .DATA_DIR "survey.csv"}}'
+      - '{{joinPath .NOTEBOOKS_DIR "survey.py"}}'
+      - '{{joinPath .NOTEBOOKS_DIR "survey.qmd"}}'
+    generates:
+      - '{{joinPath .PLOT_OUT_DIR "survey/**/*"}}'
+    deps:
+      - task: scriptize-notebook
+        vars:
+          NAME: '{{.NAME}}'
+    cmd: 'MPLBACKEND=pdf uv run python3 {{.SCRIPT}} >/dev/null'
+  survey-render:
     sources:
       - '{{joinPath .DATA_DIR "survey.csv"}}'
       - '{{joinPath .NOTEBOOKS_DIR "survey.py"}}'
@@ -89,3 +105,17 @@ tasks:
           enum: *plots
     label: 'plot:{{.SCRIPT}}'
     cmd: 'uv run plot-{{.SCRIPT}}'
+  scriptize-notebook:
+    internal: true
+    requires:
+      vars: [NAME]
+    vars:
+      OUT: '{{joinPath .SCRIPT_OUT_DIR .NAME}}.py'
+    sources: ['{{joinPath .NOTEBOOKS_DIR .NAME}}']
+    generates: ['{{.OUT}}']
+    cmds:
+      - 'mkdir -p {{.SCRIPT_OUT_DIR}}'
+      - for: sources
+        cmd: |
+          uv run jupytext --to py {{.ITEM}} --output - \
+          | sed 's/^\s*plt.show()\s*$/plt.close("all")/' >{{.OUT}}

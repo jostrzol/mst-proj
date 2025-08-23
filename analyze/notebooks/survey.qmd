@@ -37,6 +37,8 @@ from textwrap import wrap
 from analyze.lib.plot import figsize_rel, savefig, use_plot_style
 from analyze.lib.constants import PLOT_DIR
 
+pd.options.mode.copy_on_write = True
+
 
 def find_root_dir():
     start_path = Path(__file__).parent if "__file__" in globals() else Path.cwd()
@@ -166,6 +168,7 @@ def plot_hist(
     format: Callable[[Any], Any] | None = None,
     xlabel: str | None = None,
     fontsize: int | None = None,
+    save: bool = True,
 ) -> Axes:
     values = series.value_counts()
     for label in xrange or []:
@@ -203,7 +206,7 @@ def plot_hist(
     ax.margins(y=0.2, x=0.5 / len(ys))
     ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
 
-    if series.name is not None:
+    if save and series.name is not None:
         savefig(plt.gcf(), OUT_DIR / str(series.name))
 
     ax.set_xlabel(xlabel or "", fontsize=fontsize)
@@ -643,6 +646,7 @@ print(f"*{column.value}*")
 values = df[column]
 df_out[column] = values
 
+plt.figure(figsize=figsize_rel(0.3, 0.6))
 plot_hist(values, sort_by_index=True, xrange=range(1, 6))
 plt.show()
 ```
@@ -661,6 +665,7 @@ print(f"*{column.value}*")
 values = df[column]
 df_out[column] = values
 
+plt.figure(figsize=figsize_rel(0.3, 0.6))
 plot_hist(values, sort_by_index=True, xrange=range(1, 6))
 plt.show()
 ```
@@ -677,10 +682,23 @@ print(f"*{column.value}*")
 
 ```{python}
 values = df[column]
+values[values.isna()] = 0
 df_out[column] = values
 
+plt.figure(figsize=figsize_rel(0.3, 0.6))
 to_plot = values[~values.isna()].astype(np.int8)
-plot_hist(to_plot, sort_by_index=True, xrange=range(1, 6))
+plot_hist(to_plot, sort_by_index=True, xrange=range(0, 6))
+plt.show()
+```
+
+```{python}
+reliance = df_out[Column.S6_STATIC_ANALYSIS_RELIANCE]
+reliant = values[reliance > 3]
+values = reliant
+
+plt.figure(figsize=figsize_rel(0.3, 0.6))
+to_plot = values[~values.isna()].astype(np.int8)
+plot_hist(to_plot, sort_by_index=True, xrange=range(1, 6), save=False)
 plt.show()
 ```
 
