@@ -6,5 +6,8 @@
   "reportUnknownMemberType": false,
   "reportImplicitRelativeImport": false,
   "reportAny": false,
-  "reportExplicitAny": false
+  "reportExplicitAny": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownLambdaType": false
 }

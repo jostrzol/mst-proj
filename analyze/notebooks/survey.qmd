@@ -24,24 +24,18 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 import pandas as pd
 import numpy as np
-import scienceplots  # pyright: ignore[reportMissingTypeStubs]
+import scienceplots as _  # pyright: ignore[reportMissingTypeStubs]
 
 
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, override
+from typing import Any, Callable, Literal, override
 from matplotlib.axes import Axes
 from IPython.display import display
 from textwrap import wrap
 
-from analyze.lib.plot import savefig
+from analyze.lib.plot import figsize_rel, savefig, use_plot_style
 from analyze.lib.constants import PLOT_DIR
-
-
-_ = scienceplots
-plt.style.use(["science", "ieee", "notebook"])
-plt.rcParams["figure.figsize"] = (8, 6)
-plt.rcParams["figure.dpi"] = 100
 
 
 def find_root_dir():
@@ -60,6 +54,8 @@ OUT_DIR = PLOT_DIR / "survey"
 
 os.chdir(ROOT_DIR)
 OUT_DIR.mkdir(exist_ok=True)
+
+use_plot_style()
 
 
 class Column(Enum):
@@ -125,7 +121,8 @@ class Column(Enum):
 ```{python}
 df = pd.read_csv(SURVEY_PATH)
 df.columns = [column for column in Column]
-display(df.head())
+display(df)
+total = len(df)
 ```
 
 ```{python}
@@ -163,19 +160,15 @@ def wrap_series(series: "pd.Series[str]", count: int = 22, sep: str = "\n"):
 
 def plot_hist(
     series: pd.Series,
-    range: Iterable[Any] | None = None,
+    xrange: Iterable[Any] | None = None,
     rotation: bool | float = False,
     sort_by_index: bool = False,
     format: Callable[[Any], Any] | None = None,
     xlabel: str | None = None,
-    xlabel_fontsize: int = 16,
-    xmargin: float = 0,
-    ymargin: float = 0.09,
-    xtick_fontsize: int = 16,
+    fontsize: int | None = None,
 ) -> Axes:
-    # TODO: dodać linie z xticks do barów
     values = series.value_counts()
-    for label in range or []:
+    for label in xrange or []:
         if label not in values:
             values[label] = 0
     if sort_by_index:
@@ -184,43 +177,100 @@ def plot_hist(
         labels = values.index.map(format)
         values.index = labels
 
-    ax = values.plot(kind="bar", xlabel="")
+    ys = values / total * 100
+    xs = range(len(ys))
 
+    ax = plt.axes()
+    bar = ax.bar(xs, ys, width=0.5)
+
+    if rotation == True:
+        rotation = 45
+    elif rotation == False:
+        rotation = 0
+    ax.set_xticks(
+        xs,
+        values.index,
+        fontsize=fontsize,
+        ha="right" if rotation != 0 else "center",
+        multialignment="right",
+        rotation=rotation,
+    )
     ax.tick_params(axis="x", length=0)
     ax.tick_params(axis="x", which="minor", length=0)
 
-    if rotation == True:
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=xtick_fontsize)
-    elif rotation != False:
-        plt.setp(ax.get_xticklabels(), rotation=rotation, fontsize=xtick_fontsize)
-    else:
-        plt.setp(ax.get_xticklabels(), rotation=0, fontsize=xtick_fontsize)
+    ax.bar_label(bar, values)
 
-    for i, v in enumerate(values):
-        ax.text(i, v + 0.1, str(v), ha="center", va="bottom", fontsize=16)
-
-    ax.set_ylim(top=max(values) * (1 + ymargin))
+    ax.margins(y=0.2, x=0.5 / len(ys))
     ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
-
-    xmin, xmax = ax.get_xlim()
-    xmargin = xmargin * (xmax - xmin)
-    ax.set_xlim(xmin - xmargin, xmax + xmargin)
 
     if series.name is not None:
         savefig(plt.gcf(), OUT_DIR / str(series.name))
 
-    ax.set_xlabel(xlabel or "", fontsize=xlabel_fontsize)
+    ax.set_xlabel(xlabel or "", fontsize=fontsize)
 
     return ax
 
 
-def plot_pie(series: pd.Series, label: str | None = None) -> Axes:
+def plot_hist_horizontal(
+    series: pd.Series,
+    yrange: Iterable[Any] | None = None,
+    sort_by_index: bool = False,
+    format: Callable[[Any], Any] | None = None,
+    ylabel: str | None = None,
+    fontsize: int | None = None,
+    xlabel_side: Literal["left"] | Literal["right"] = "left",
+) -> Axes:
+    values = series.value_counts()
+    for label in yrange or []:
+        if label not in values:
+            values[label] = 0
+    if sort_by_index:
+        values = values.sort_index()
+    if format:
+        labels = values.index.map(format)
+        values.index = labels
+    values = values[::-1]
+
+    xs = values / total * 100
+    ys = range(len(xs))
+
+    ax = plt.axes()
+    bar = ax.barh(ys, xs, height=0.5)
+
+    ax.set_yticks(ys, values.index)
+    ax.tick_params(axis="y", length=0)
+    ax.tick_params(axis="y", which="minor", length=0)
+
+    if xlabel_side == "right":
+        ax.tick_params(labelleft=False, labelright=True)
+        ax.invert_xaxis()
+
+    ax.bar_label(bar, values, padding=3)
+
+    ax.margins(x=0.2, y=0.8 / len(ys))
+    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
+
+    if series.name is not None:
+        savefig(plt.gcf(), OUT_DIR / str(series.name))
+
+    ax.set_ylabel(ylabel or "", fontsize=fontsize)
+
+    return ax
+
+
+def plot_pie(
+    series: pd.Series,
+    label: str | None = None,
+    fontsize: int | None = None,
+    labeldistance: float | None = 1.1,
+    pctdistance: float | None = 0.7,
+) -> Axes:
     values = series.value_counts()
     total = values.sum()
 
     def fmt(percent: np.float64):
         count = (percent / 100 * total).astype(np.int64)
-        return f"{count} ({percent:.0f}%)"
+        return f"{count}\n({percent:.0f}%)"
 
     gray_shades = [f"{shade:.2f}" for shade in np.linspace(0.9, 0.6, len(values))]
 
@@ -230,8 +280,10 @@ def plot_pie(series: pd.Series, label: str | None = None) -> Axes:
         label=label or "",
         colors=gray_shades,
         wedgeprops={"edgecolor": "black", "linewidth": 2},
-        textprops={"fontsize": 16},
-        explode=[0.03] * len(values),
+        textprops={"fontsize": fontsize},
+        labeldistance=labeldistance,
+        pctdistance=pctdistance,
+        explode=[0.05] * len(values),
     )
 
     return ax
@@ -290,8 +342,10 @@ values = preprocess(
 )
 df_out[column] = values
 
-to_plot = wrap_series(values.explode(), sep="\n...")
-plot_hist(to_plot, rotation=True, xlabel="", xtick_fontsize=14)
+plt.figure(figsize=figsize_rel(w=0.6))
+
+to_plot = values.explode()
+plot_hist_horizontal(to_plot, ylabel="")
 plt.show()
 ```
 
@@ -317,15 +371,16 @@ values = preprocess(
 values = preprocess(
     values,
     replace={
-        "Software engineer": "Inżnier oprogramowana",
+        "Software engineer": "Programista",
         "Hardware engineer": "Inżnier sprzętu",
         "System architect": "Architekt systemu",
     },
 )
 df_out[column] = values
 
-to_plot = wrap_series(values.explode(), count=20)
-plot_hist(to_plot, xtick_fontsize=15)
+plt.figure(figsize=figsize_rel(w=0.3))
+to_plot = values.explode().str.split().apply("\n".join)
+plot_hist(to_plot, rotation=True)
 plt.show()
 ```
 
@@ -355,8 +410,18 @@ values = preprocess(
     },
 )
 df_out[column] = values
-plot_hist(values.explode(), rotation=True, xmargin=0.02)
+
+plot_hist(values.explode(), rotation=True)
 plt.show()
+```
+
+Obserwacje
+
+```{python}
+# | output: asis
+has_c = values.map(lambda row: "C" in row or "C++" in row).sum()
+percent = has_c / total * 100
+print(f"* Odpowiedzi z zaznaczonym C lub C++: {has_c}/{total} ({percent:.0f}%)")
 ```
 
 ### Codebase
@@ -375,12 +440,13 @@ values = df[column]
 df_out[column] = values
 
 avg = values.mean() * 10
+plt.figure(figsize=figsize_rel(h=0.8))
 plot_hist(
     values,
     rotation=True,
     sort_by_index=True,
     format=lambda x: f"{x*10}%",
-    range=range(11),
+    xrange=range(11),
     xlabel=f"{avg:.2f}% avg",
 )
 plt.show()
@@ -407,15 +473,13 @@ for column in columns:
     values = df[column]
     df_out[column] = values
 
-    plt.figure(figsize=(3, 2.5))
+    plt.figure(figsize=figsize_rel(0.3, 0.6))
     avg = values.mean()
     plot_hist(
         values,
         sort_by_index=True,
-        range=range(1, 6),
+        xrange=range(1, 6),
         xlabel="\n".join(wrap(f"{column.value} ({avg:.3} avg)", 22)),
-        ymargin=0.2,
-        xmargin=0.05,
     )
     plt.show()
 ```
@@ -440,15 +504,13 @@ for column in columns:
     values = df[column]
     df_out[column] = values
 
-    plt.figure(figsize=(3, 2.5))
+    plt.figure(figsize=figsize_rel(0.3, 0.6))
     avg = values.mean()
     plot_hist(
         values,
         sort_by_index=True,
-        range=range(1, 6),
+        xrange=range(1, 6),
         xlabel="\n".join(wrap(f"{column.value} ({avg:.3} avg)", 22)),
-        ymargin=0.2,
-        xmargin=0.05,
     )
     plt.show()
 ```
@@ -476,7 +538,8 @@ values = preprocess(
 )
 df_out[column] = values
 
-plot_pie(values.explode())
+plt.figure(figsize=figsize_rel(w=0.2))
+plot_hist(values.explode())
 plt.show()
 ```
 
@@ -525,22 +588,23 @@ values = preprocess(
 values = preprocess(
     values,
     replace={
-        "Difficulty of integrating into existing codebase": "Trudność integracji z istniejącym kodem",
+        "Difficulty of integrating into existing codebase": "Trudna integracja z istniejącym kodem",
         "Team unfamiliarity": "Brak ekspertyzy zespołu",
-        "Lack of mature toolchain": "Brak dojrzałości",
+        "Lack of mature toolchain": "Brak dojrzałości języka",
         "Insufficient performance": "Gorsza wydajność",
         "Insufficient libraries/driver support": "Brak bibliotek, sterowników",
         "Insufficient producivity": "Gorsza produktywność",
         "Insufficient portability": "Gorsza przenośność",
-        "No need": "Brak potrzeby",
+        "No need": "Brak potrzeby zmian",
         "Not worth trying": "Nie opłaca się próbować",
         "Certification concerns": "Obawy przed certyfikacją",
     },
 )
 df_out[column] = values
 
-to_plot = wrap_series(values.explode(), count=24, sep="\n...")
-plot_hist(to_plot, rotation=True, xtick_fontsize=14)
+plt.figure(figsize=figsize_rel(w=0.7))
+to_plot = values.explode()
+plot_hist_horizontal(to_plot, xlabel_side="right")
 plt.show()
 ```
 
@@ -558,7 +622,8 @@ print(f"*{column.value}*")
 values = df[column]
 df_out[column] = values
 
-plot_hist(values, sort_by_index=True, range=range(1, 6))
+plt.figure(figsize=figsize_rel(0.3, 0.6))
+plot_hist(values, sort_by_index=True, xrange=range(1, 6))
 plt.show()
 ```
 
@@ -578,7 +643,7 @@ print(f"*{column.value}*")
 values = df[column]
 df_out[column] = values
 
-plot_hist(values, sort_by_index=True, range=range(1, 6))
+plot_hist(values, sort_by_index=True, xrange=range(1, 6))
 plt.show()
 ```
 
@@ -596,7 +661,7 @@ print(f"*{column.value}*")
 values = df[column]
 df_out[column] = values
 
-plot_hist(values, sort_by_index=True, range=range(1, 6))
+plot_hist(values, sort_by_index=True, xrange=range(1, 6))
 plt.show()
 ```
 
@@ -615,7 +680,7 @@ values = df[column]
 df_out[column] = values
 
 to_plot = values[~values.isna()].astype(np.int8)
-plot_hist(to_plot, sort_by_index=True, range=range(1, 6))
+plot_hist(to_plot, sort_by_index=True, xrange=range(1, 6))
 plt.show()
 ```
 

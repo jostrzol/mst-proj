@@ -1,14 +1,19 @@
 import colorsys
 from collections.abc import Iterable
-from colorsys import rgb_to_hls, rgb_to_hsv
+from datetime import datetime
 from itertools import cycle
 from pathlib import Path
 
 import matplotlib.colors as mc
+from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
 from matplotlib.typing import ColorType
+
+# To make the pdfs identical if nothing changes
+PDF_DATE = datetime(2025, 8, 23)
 
 
 def add_bar_texts(
@@ -91,5 +96,20 @@ def lighten_color(color: ColorType | str, amount: float) -> ColorType:
 
 
 def savefig(fig: Figure, path: Path):
-    for format in ["pdf", "svg"]:
-        fig.savefig(path.with_suffix("." + format))
+    fig.savefig(path.with_suffix(".svg"))
+    with PdfPages(path.with_suffix(".pdf")) as pdf:
+        d = pdf.infodict()
+        d["CreationDate"] = PDF_DATE
+        d["ModDate"] = PDF_DATE
+        pdf.savefig()
+
+
+def use_plot_style():
+    plt.style.use(["science", "ieee", "notebook", "./analyze/style.mplstyle"])
+
+
+def figsize_rel(w: float = 1, h: float = 1) -> tuple[float, float]:
+    size_abs = plt.rcParams.get("figure.figsize")
+    assert size_abs
+    w_abs, h_abs = size_abs
+    return w_abs * w, h_abs * h
