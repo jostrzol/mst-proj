@@ -1,19 +1,174 @@
 import colorsys
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from itertools import cycle
 from pathlib import Path
+from typing import Any, Literal
 
 import matplotlib.colors as mc
+import numpy as np
+import pandas as pd
+import scienceplots as _  # pyright: ignore[reportMissingTypeStubs]
 from matplotlib import pyplot as plt
+from matplotlib import rcParams
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
+from matplotlib.ticker import PercentFormatter
 from matplotlib.typing import ColorType
 
 # To make the pdfs identical if nothing changes
 PDF_DATE = datetime(2025, 8, 23)
+
+
+def plot_bar(
+    xs: Sequence[Any],
+    ys: Sequence[Any],
+    *,
+    colors: Sequence[ColorType] | None = None,
+    hatch: Sequence[str] | None = None,
+    barlabels: Sequence[Any] | bool | None = None,
+    barlabel_decimals: int = 0,
+    barlabel_fontscale: float = 1,
+    linewidth: float = 0,
+    ax: Axes | None = None,
+    rotation: bool | float = False,
+    fontsize: int | None = None,
+) -> Axes:
+    ax = ax or plt.axes()
+    bar = ax.bar(
+        xs,
+        ys,
+        width=0.5,
+        color=colors,
+        hatch=hatch,
+        edgecolor="black",
+        linewidth=linewidth,
+    )
+
+    fontsize_val = fontsize or rcParams["font.size"] or 12
+    if barlabels == True or barlabels == None:
+        barlabels = [f"{y:.{barlabel_decimals}f}" for y in ys]
+    if barlabels == False:
+        barlabels = [""] * len(ys)
+    _ = ax.bar_label(
+        bar,
+        barlabels,
+        fontsize=fontsize_val * barlabel_fontscale,
+        padding=2,
+    )
+    ymargin = 0.2 if any(barlabels) else 0.05
+    _ = ax.margins(y=ymargin, x=0.5 / len(ys))
+
+    if rotation == True:
+        rotation = 45
+    elif rotation == False:
+        rotation = 0
+    _ = ax.set_xticks(
+        xs,
+        xs,
+        fontsize=fontsize,
+        ha="right" if rotation != 0 else "center",
+        multialignment="right",
+        rotation=rotation,
+    )
+    ax.tick_params(axis="x", length=0)
+    ax.tick_params(axis="x", which="minor", length=0)
+
+    return ax
+
+
+def plot_hist(
+    labels: Sequence[Any],
+    *,
+    ax: Axes | None = None,
+    total: float | None = None,
+    xrange: Iterable[Any] | None = None,
+    rotation: bool | float = False,
+    sort_by_index: bool = False,
+    fontsize: int | None = None,
+) -> Axes:
+    series = pd.Series(labels)
+    total = total if total else len(series)
+
+    values = series.explode().value_counts()
+    for label in xrange or []:
+        if label not in values:
+            values[label] = 0
+    if sort_by_index:
+        values = values.sort_index()
+
+    ys = values / total * 100
+
+    ax = ax or plt.axes()
+    _ = plot_bar(
+        xs=values.index.to_list(),
+        ys=ys.to_list(),
+        barlabels=values.to_list(),
+        ax=ax,
+        rotation=rotation,
+        fontsize=fontsize,
+    )
+    ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
+
+    return ax
+
+
+def plot_hist_horiz(
+    labels: Sequence[Any],
+    *,
+    ax: Axes | None = None,
+    total: float | None = None,
+    yrange: Iterable[Any] | None = None,
+    sort_by_index: bool = False,
+    fontsize: int | None = None,
+    xticks_side: Literal["left"] | Literal["right"] = "left",
+) -> Axes:
+    series = pd.Series(labels)
+    total = total if total else len(series)
+
+    values = series.explode().value_counts()
+    for label in yrange or []:
+        if label not in values:
+            values[label] = 0
+    if sort_by_index:
+        values = values.sort_index()
+    values = values[::-1]
+
+    xs = values / total * 100
+    ys = range(len(xs))
+
+    ax = ax or plt.axes()
+    bar = ax.barh(ys, xs, height=0.5)
+
+    _ = ax.set_yticks(ys, values.index, fontsize=fontsize)
+    ax.tick_params(axis="y", length=0)
+    ax.tick_params(axis="y", which="minor", length=0)
+
+    ax.xaxis.set_major_formatter(PercentFormatter(decimals=0))
+    if xticks_side == "right":
+        ax.tick_params(labelleft=False, labelright=True)
+        ax.invert_xaxis()
+
+    _ = ax.bar_label(bar, values, padding=3)
+    _ = ax.margins(x=0.2, y=0.8 / len(ys))
+
+    return ax
+
+
+def savefig(fig: Figure, path: Path):
+    fig.savefig(path.with_suffix(".svg"))
+    with PdfPages(path.with_suffix(".pdf")) as pdf:
+        d = pdf.infodict()
+        d["CreationDate"] = PDF_DATE
+        d["ModDate"] = PDF_DATE
+        pdf.savefig()
+
+
+def gray_shades(n: int, shades: Literal["light"] | Literal["dark"] = "dark"):
+    start, end = (1.0, 0.6) if shades == "light" else (1.0, 0.0)
+    return [f"{shade:.2f}" for shade in np.linspace(start, end, n)]
 
 
 def add_bar_texts(
@@ -93,15 +248,6 @@ def lighten_color(color: ColorType | str, amount: float) -> ColorType:
         c = color
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], 1 - (1 - amount) * (1 - c[1]), c[2])
-
-
-def savefig(fig: Figure, path: Path):
-    fig.savefig(path.with_suffix(".svg"))
-    with PdfPages(path.with_suffix(".pdf")) as pdf:
-        d = pdf.infodict()
-        d["CreationDate"] = PDF_DATE
-        d["ModDate"] = PDF_DATE
-        pdf.savefig()
 
 
 def use_plot_style():

@@ -10,7 +10,7 @@ from matplotlib.typing import ColorType
 
 from analyze.lib.constants import DATA_DIR, PLOT_DIR
 from analyze.lib.language import LANGUAGES
-from analyze.lib.plot import lighten_color, savefig
+from analyze.lib.plot import gray_shades, lighten_color, plot_bar, savefig
 
 OUT_DIR = PLOT_DIR / "top-tags"
 
@@ -19,6 +19,8 @@ class DataRow(TypedDict):
     TagName: str
     Count: str
 
+
+WHITE, GRAY, BLACK = gray_shades(3)
 
 TAG_SUBSTITUTIONS = {
     "segmentation-fault": "seg-fault",
@@ -29,7 +31,7 @@ TAG_SUBSTITUTIONS = {
 
 HIGHLIGHTED_TAGS = {
     "c": {
-        "cornflowerblue": {
+        BLACK: {
             "arrays",
             "pointers",
             "malloc",
@@ -39,7 +41,7 @@ HIGHLIGHTED_TAGS = {
         }
     },
     "zig": {
-        "cornflowerblue": {
+        BLACK: {
             "compiler-errors",
             "compilation",
             "metaprog.",
@@ -48,7 +50,7 @@ HIGHLIGHTED_TAGS = {
         "green": {"arrays", "pointers", "malloc", "seg-fault", "memory", "mem-manag."},
     },
     "rust": {
-        "cornflowerblue": {"lifetime", "borrow-checker", "reference", "ownership"},
+        BLACK: {"lifetime", "borrow-checker", "reference", "ownership"},
     },
 }
 
@@ -66,18 +68,15 @@ def main():
 
         fig = plt.figure(figsize=(8, 4))
 
-        ax = fig.subplots()
-        ax.bar(
+        plot_bar(
             tags,
             counts,
-            facecolor=colors(language["slug"], tags),
+            colors=colors(language["slug"], tags),
+            barlabels=[""] * len(tags),
+            rotation=True,
+            linewidth=1,
         )
-        ax.set_xticks(
-            ax.get_xticks(),
-            ax.get_xticklabels(),  # pyright: ignore[reportArgumentType]
-            rotation=45,
-            ha="right",
-        )
+        #
         # ax.set_title(f"Najpopularniejsze tagi dla języka {language['name']}")
 
         fig.tight_layout()
@@ -94,7 +93,7 @@ def colors(language: str, tags: list[str]) -> list[ColorType]:
     result: list[ColorType] = []
     highlights = HIGHLIGHTED_TAGS[language]
     for tag in tags:
-        color = lighten_color("cornflowerblue", 0.5)
+        color = GRAY
         for hcolor, htags in highlights.items():
             if tag in htags:
                 color = hcolor
