@@ -786,7 +786,6 @@ build_system = r"better build system"
 testing = r"better testing environment"
 own_tools = r"self-made tooling"
 stability = r"stability"
-performance = r"performance"
 memory_safety = r"memory safety"
 static_anaylsis = r"static analysis"
 certification = r"certification"
@@ -828,7 +827,29 @@ tags = tag_comments(
 )
 
 print_comments(values, tags=tags)
-print_tags(tags)
+# print_tags(tags)
+
+tags.name = Column.S7_WANTED_FEATURES
+tags = preprocess(
+    tags,
+    replace={
+        debugging: r"lepsze debugowanie",
+        documentation: r"lepsza dokumentacja",
+        simulation: r"symulacja sprzętu",
+        portability: r"przenośność",
+        compile_time: r"obliczenia w czasie kompilacji",
+        microcontroller_diagnostics: r"diagnostyka sprzętu",
+        build_system: r"lepszy system budowania",
+        testing: r"lepsze możliwości testowania",
+        # own_tools: r"tworzenie własnych narzędzi",
+        stability: r"stabilność środowiska",
+        memory_safety: r"zabezpieczenia przed błędami pamięci",
+        static_anaylsis: r"statyczna analiza",
+        # certification: r"certyfikacja",
+    },
+    drop=[own_tools, certification],
+)
+plot_hist_horizontal(tags.explode())
 ```
 
 ### Comments
