@@ -20,15 +20,15 @@ jupyter: python3
 
 from collections.abc import Iterable
 import os
+from matplotlib.container import BarContainer
 import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter
 import pandas as pd
 import numpy as np
 import scienceplots as _  # pyright: ignore[reportMissingTypeStubs]
 
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Literal, override
+from typing import Any, Literal, override
 from matplotlib.axes import Axes
 from IPython.display import display
 from textwrap import wrap
@@ -168,13 +168,15 @@ def wrap_series(series: "pd.Series[str]", count: int = 22, sep: str = "\n"):
 
 def pd_plot_hist(
     series: pd.Series,
+    ax: Axes | None = None,
     xrange: Iterable[Any] | None = None,
     rotation: bool | float = False,
     sort_by_index: bool = False,
     fontsize: int | None = None,
-) -> Axes:
+) -> BarContainer:
     return plot_hist(
         labels=series.to_list(),
+        ax=ax,
         xrange=xrange,
         rotation=rotation,
         sort_by_index=sort_by_index,
@@ -184,14 +186,16 @@ def pd_plot_hist(
 
 def pd_plot_hist_horiz(
     series: pd.Series,
+    ax: Axes | None = None,
     yrange: Iterable[Any] | None = None,
     sort_by_index: bool = False,
     fontsize: int | None = None,
     xticks_side: Literal["left"] | Literal["right"] = "left",
-) -> Axes:
+) -> BarContainer:
 
     return plot_hist_horiz(
         labels=series.to_list(),
+        ax=ax,
         yrange=yrange,
         sort_by_index=sort_by_index,
         fontsize=fontsize,
@@ -391,8 +395,10 @@ df_out[column] = values
 
 to_plot = values
 plt.figure(figsize=figsize_rel(h=0.8))
-ax = pd_plot_hist(
+ax = plt.axes()
+pd_plot_hist(
     to_plot,
+    ax=ax,
     rotation=True,
     sort_by_index=True,
     xrange=[*range(11)],

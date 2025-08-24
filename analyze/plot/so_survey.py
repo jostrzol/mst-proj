@@ -35,9 +35,11 @@ def main():
     colors, hatch = zip(*styles)
 
     fig = plt.figure(figsize=(9, 4))
-    ax = plot_bar(
+    ax = plt.axes()
+    plot_bar(
         labels,
         popularities,
+        ax=ax,
         colors=colors,
         hatch=hatch,
         barlabel_decimals=1,

@@ -14,6 +14,7 @@ from matplotlib import rcParams
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.colors import to_rgb
+from matplotlib.container import BarContainer
 from matplotlib.figure import Figure
 from matplotlib.ticker import PercentFormatter
 from matplotlib.typing import ColorType
@@ -23,11 +24,13 @@ PDF_DATE = datetime(2025, 8, 23)
 
 
 def plot_bar(
-    xs: Sequence[Any],
-    ys: Sequence[Any],
+    xs: Sequence[Any] | np.ndarray,
+    ys: Sequence[Any] | np.ndarray,
     *,
+    widths: Sequence[Any] | float | None = None,
     colors: Sequence[ColorType] | None = None,
     hatch: Sequence[str] | None = None,
+    bottom: Sequence[Any] | np.ndarray | float | None = None,
     barlabels: Sequence[Any] | bool | None = None,
     barlabel_decimals: int = 0,
     barlabel_fontscale: float = 1,
@@ -35,14 +38,15 @@ def plot_bar(
     ax: Axes | None = None,
     rotation: bool | float = False,
     fontsize: int | None = None,
-) -> Axes:
+) -> BarContainer:
     ax = ax or plt.axes()
     bar = ax.bar(
         xs,
         ys,
-        width=0.5,
+        width=widths or 0.5,
         color=colors,
         hatch=hatch,
+        bottom=bottom,
         edgecolor="black",
         linewidth=linewidth,
     )
@@ -76,7 +80,7 @@ def plot_bar(
     ax.tick_params(axis="x", length=0)
     ax.tick_params(axis="x", which="minor", length=0)
 
-    return ax
+    return bar
 
 
 def plot_hist(
@@ -88,7 +92,7 @@ def plot_hist(
     rotation: bool | float = False,
     sort_by_index: bool = False,
     fontsize: int | None = None,
-) -> Axes:
+) -> BarContainer:
     series = pd.Series(labels)
     total = total if total else len(series)
 
@@ -102,7 +106,7 @@ def plot_hist(
     ys = values / total * 100
 
     ax = ax or plt.axes()
-    _ = plot_bar(
+    bar = plot_bar(
         xs=values.index.to_list(),
         ys=ys.to_list(),
         barlabels=values.to_list(),
@@ -112,7 +116,7 @@ def plot_hist(
     )
     ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
 
-    return ax
+    return bar
 
 
 def plot_hist_horiz(
@@ -124,7 +128,7 @@ def plot_hist_horiz(
     sort_by_index: bool = False,
     fontsize: int | None = None,
     xticks_side: Literal["left"] | Literal["right"] = "left",
-) -> Axes:
+) -> BarContainer:
     series = pd.Series(labels)
     total = total if total else len(series)
 
@@ -154,7 +158,7 @@ def plot_hist_horiz(
     _ = ax.bar_label(bar, values, padding=3)
     _ = ax.margins(x=0.2, y=0.8 / len(ys))
 
-    return ax
+    return bar
 
 
 def savefig(fig: Figure, path: Path):

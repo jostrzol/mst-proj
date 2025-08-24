@@ -13,7 +13,7 @@ import pandas as pd
 import pandera.pandas as pa
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
-from matplotlib.container import Container
+from matplotlib.container import BarContainer, Container
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
@@ -24,7 +24,11 @@ from pandera.typing import DataFrame, Series
 from analyze.lib.constants import PERF_DIR, PLOT_DIR
 from analyze.lib.experiments import EXPERIMENTS
 from analyze.lib.language import LANGUAGES
-from analyze.lib.plot import figsize_rel, savefig, use_plot_style
+from analyze.lib.plot import figsize_rel
+from analyze.lib.plot import plot_bar as plot_bar_
+from analyze.lib.plot import savefig, use_plot_style
+
+type PlotType = Literal["box"] | Literal["bar"] | Literal["stack"]
 
 OUT_DIR = PLOT_DIR / "metrics-dyn"
 
@@ -61,7 +65,7 @@ def main():
     for is_bm in [True, False]:
         platform = "bm" if is_bm else "os"
 
-        fig = plt.figure(figsize=figsize_rel(w=1.5, h=1.5))
+        fig = plt.figure(figsize=figsize_rel(w=1.2, h=1.2))
         ax, *_ = plot_perf(fig, perf, is_bm=is_bm)
         ax.set_ylabel(r"Czas wykonania $[\mu s]$")
         savefig(fig, OUT_DIR / f"perf-{platform}")
@@ -128,7 +132,7 @@ def plot_perf(fig: Figure, df: DataFrame[Schema], is_bm: bool) -> list[Axes]:
         if experiment["is_bm"] == is_bm
     ]
 
-    axs = fig.subplots(1, len(experiments))
+    axs: list[Axes] = fig.subplots(1, len(experiments), width_ratios=[1, 1, 2])
     for experiment, ax in zip(experiments, axs):
         values = df[df["experiment"] == experiment["slug"]]
 
@@ -150,8 +154,9 @@ def plot_perf(fig: Figure, df: DataFrame[Schema], is_bm: bool) -> list[Axes]:
             series_names=series_names,
             series_stats=series_stats,
             patterns=patterns,
-            plottype="box",
+            plottype="bar" if is_bm else "box",
         )
+        ax.set_title(f"Scenariusz {experiment["number"]}")
     return axs
 
 
@@ -162,7 +167,7 @@ def plot_mem(fig: Figure, df: DataFrame[Schema], is_bm: bool) -> list[Axes]:
         if experiment["is_bm"] == is_bm
     ]
 
-    axs = fig.subplots(1, len(experiments))
+    axs: list[Axes] = fig.subplots(1, len(experiments))
     for experiment, ax in zip(experiments, axs):
         values = df[df["experiment"] == experiment["slug"]]
 
@@ -193,6 +198,7 @@ def plot_mem(fig: Figure, df: DataFrame[Schema], is_bm: bool) -> list[Axes]:
             patterns=patterns,
             plottype="stack",
         )
+        ax.set_title(f"Scenariusz {experiment["number"]}")
     return axs
 
 
@@ -205,7 +211,8 @@ def plot(
     series_stats: list[Sequence[Stats]],
     patterns: list[str] | None = None,
     width: float | None = None,
-    plottype: Literal["box"] | Literal["bar"] | Literal["stack"] = "bar",
+    plottype: PlotType = "bar",
+    errors: bool = False,
 ):
     n_series = len(series_stats)
     if isinstance(axs, Axes):
@@ -239,6 +246,7 @@ def plot(
                 positions_init=positions_init,
                 colors=colors,
                 width=width,
+                errors=errors,
             )
         case "stack":
             plot_stack(
@@ -269,8 +277,8 @@ def plot(
         legend = ax.legend(
             legend_stubs,
             names,
-            loc="lower center",
-            bbox_to_anchor=(0.5, 1.01),
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.05),
             ncol=len(names),
         )
         leg_handles: Sequence[Rectangle] = (
@@ -304,7 +312,6 @@ def plot_boxplot(
             patch_artist=True,
             showfliers=False,
         )
-        ax.margins(0.1)
 
         patches: Sequence[Patch] = boxplot["boxes"]
         for patch, color in zip(patches, colors):
@@ -316,6 +323,7 @@ def plot_boxplot(
             median.set_color("black")
             # median.remove()
 
+        ax.margins(0.05)
         containers.append(Container(patches))
     return containers
 
@@ -327,6 +335,7 @@ def plot_bar(
     positions_init: Stats,
     colors: Sequence[ColorType],
     width: float,
+    errors: bool = False,
 ):
     containers: list[Container] = []
     for multiplier, (stats, pattern, ax) in enumerate(zip(series_stats, patterns, axs)):
@@ -336,37 +345,41 @@ def plot_bar(
         offset = width * multiplier
         xs = positions_init + offset
         ys = np.array([stat.mean() for stat in stats])
-        yerr = [sem(stat) for stat in stats]
 
-        bar = ax.bar(
+        bar = plot_bar_(
             xs,
             ys,
-            width,
-            edgecolor="black",
-            facecolor=colors,
+            ax=ax,
+            widths=width,
+            colors=colors,
+            linewidth=1.2,
             hatch=pattern * 2,
+            barlabel_decimals=2,
+            barlabel_fontscale=0.8,
         )
 
-        ax.hlines(
-            ys - yerr,
-            xs - width / 4,
-            xs + width / 4,
-            color="black",
-        )
-        ax.hlines(
-            ys + yerr,
-            xs - width / 4,
-            xs + width / 4,
-            color="black",
-        )
-        ax.vlines(
-            xs,
-            ys - yerr,
-            ys + yerr,
-            color="black",
-        )
+        if errors:
+            yerr = [sem(stat) for stat in stats]
+            ax.hlines(
+                ys - yerr,
+                xs - width / 4,
+                xs + width / 4,
+                color="black",
+            )
+            ax.hlines(
+                ys + yerr,
+                xs - width / 4,
+                xs + width / 4,
+                color="black",
+            )
+            ax.vlines(
+                xs,
+                ys - yerr,
+                ys + yerr,
+                color="black",
+            )
 
-        ax.margins(0.1)
+        ax.margins(x=0.1 / len(series_stats), y=0.1)
         containers.append(bar)
     return containers
 
@@ -379,28 +392,39 @@ def plot_stack(
     colors: Sequence[ColorType],
     width: float,
 ):
-    containers: list[Container] = []
+    containers: list[BarContainer] = []
     bottom = np.zeros_like(positions_init, dtype=np.float64)
-    for stats, pattern, ax in zip(series_stats, patterns, axs):
+    are_last = [False] * (len(series_stats) - 1) + [True]
+
+    for stats, pattern, ax, is_last in zip(series_stats, patterns, axs, are_last):
         if len(stats) == 0:
             continue
 
         xs = positions_init + width / 2
         ys = np.array([stat.mean() for stat in stats])
 
-        bar = ax.bar(
+        if is_last:
+            barlabels = [f"{y:.1f}" for y in bottom + ys]
+        else:
+            barlabels = [""] * len(xs)
+
+        bar = plot_bar_(
             xs,
             ys,
-            width,
-            edgecolor="black",
-            facecolor=colors,
+            ax=ax,
+            linewidth=1.2,
+            colors=colors,
+            widths=width,
             hatch=pattern * 2,
             bottom=bottom,
+            barlabels=barlabels,
+            barlabel_fontscale=0.8,
         )
-        ax.margins(0.1)
 
+        ax.margins(x=0.2 / len(series_stats), y=0.1)
         bottom += ys
-        containers.append(Container(bar))
+        containers.append(bar)
+
     return containers
 
 

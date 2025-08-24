@@ -10,7 +10,7 @@ from matplotlib.typing import ColorType
 
 from analyze.lib.constants import DATA_DIR, PLOT_DIR
 from analyze.lib.language import LANGUAGES
-from analyze.lib.plot import gray_shades, lighten_color, plot_bar, savefig
+from analyze.lib.plot import gray_shades, plot_bar, savefig
 
 OUT_DIR = PLOT_DIR / "top-tags"
 
