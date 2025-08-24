@@ -3,8 +3,8 @@ figure.figsize: 8, 3
 figure.dpi: 100
 # Layout
 figure.constrained_layout.use: true
-figure.constrained_layout.w_pad: 0.15
-figure.constrained_layout.h_pad: 0.15
+figure.constrained_layout.w_pad: 0.1
+figure.constrained_layout.h_pad: 0.1
 # Fontsizes
 font.size: 12
 xtick.labelsize: 12

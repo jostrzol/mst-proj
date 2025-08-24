@@ -37,8 +37,8 @@ const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
 };
 
 const STACK_SIZE: usize = 5120;
-const CONTROLLER_TASK_NAME: &[u8] = "SERVER_LOOP\0".as_bytes();
-const SERVER_TASK_NAME: &[u8] = "CONTROLLER_LOOP\0".as_bytes();
+const CONTROLLER_TASK_NAME: &[u8] = "CONTROLLER_LOOP\0".as_bytes();
+const SERVER_TASK_NAME: &[u8] = "SERVER_LOOP\0".as_bytes();
 
 static mut REGISTERS: Option<Registers> = None;
 

@@ -8,7 +8,7 @@ class Experiment(TypedDict):
     is_bm: bool
 
 
-EXPERIMENTS = {
+EXPERIMENTS: dict[str, Experiment] = {
     "1-blinky": {
         "slug": "1-blinky",
         "number": 1,

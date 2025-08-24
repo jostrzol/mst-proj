@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
+# pyright: reportUninitializedInstanceVariable=false
 # pyright: reportUnusedCallResult=false
 
 from __future__ import annotations
 
-import csv
-from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
-from itertools import groupby
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from collections.abc import Sequence
+from typing import Any, Literal
 
 import numpy as np
+import pandas as pd
+import pandera.pandas as pa
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.container import Container
@@ -19,167 +19,181 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.typing import ColorType
 from numpy.typing import NDArray
+from pandera.typing import DataFrame, Series
 
 from analyze.lib.constants import PERF_DIR, PLOT_DIR
-from analyze.lib.language import LANGUAGES, Language
-from analyze.lib.plot import savefig
-from analyze.lib.types import Benchmark
-
-if TYPE_CHECKING:
-    from _typeshed import SupportsRichComparison
+from analyze.lib.experiments import EXPERIMENTS
+from analyze.lib.language import LANGUAGES
+from analyze.lib.plot import figsize_rel, savefig, use_plot_style
 
 OUT_DIR = PLOT_DIR / "metrics-dyn"
 
-EXPERIMENTS = [
-    "1-blinky",
-    "1-blinky-bm",
-    "2-motor",
-    "2-motor-bm",
-    "3-pid",
-    "3-pid-bm",
-]
-
 WARMUP_REPORTS = 10
 
-type Key = tuple[Literal["perf"] | Literal["mem"], str, str]
-
-type Stats = NDArray[Any]
-
-
-@dataclass
-class LangResult:
-    lang: Language
-    time_us_per_loop: dict[str, Stats]
-    mem_usage_per_task: dict[str, Stats]
-
+MEM_NAME_TRANSLATIONS = {
+    "Heap": "sterta",
+    "CONTROLLER_LOOP": "stos",
+    "MAIN": "stos",
+    "main": "stos",
+}
 
 BEST_MEM_PROFILE = {
-    "c": {e: "fast" for e in EXPERIMENTS},
-    "zig": {e: "fast" for e in EXPERIMENTS}
+    "c": {e: "fast" for e in EXPERIMENTS.keys()},
+    "zig": {e: "fast" for e in EXPERIMENTS.keys()}
     | {
         "1-blinky": "debug",
         "3-pid": "debug",
     },
-    "rust": {e: "fast" for e in EXPERIMENTS},
+    "rust": {e: "fast" for e in EXPERIMENTS.keys()},
 }
 
 
-def get_experiment_data(experiment: str) -> list[LangResult]:
-    data: list[LangResult] = []
-    for lang in LANGUAGES.values():
-        slug = f"{experiment}-{lang['slug']}"
-        perf = read_reports(f"{slug}-perf-*.csv")
-        mem_profile = BEST_MEM_PROFILE[lang["slug"]][experiment]
-        mem = read_reports(f"{slug}-mem-*.csv", profile=mem_profile)
-        result = LangResult(
-            lang=lang,
-            time_us_per_loop=group_reports(perf),
-            mem_usage_per_task=group_reports(mem, divider=1000),
-        )
-        data.append(result)
-    return data
+type Stats = NDArray[Any]
 
 
-def plot_experiment(
-    figure: Figure, experiment: str, data: list[LangResult], suffix: str = ""
-):
-    axes = figure.subplots(ncols=2)
-    axes: Iterable[Axes]
-    ax_perf, ax_mem = axes
+def main():
+    use_plot_style()
+    OUT_DIR.mkdir(exist_ok=True, parents=True)
 
-    plot_perf(ax_perf, data)
-    plot_mem(ax_mem, data)
+    perf, mem = load_data()
+    mem["value"] = mem["value"] / 1000  # to kB
 
-    figure.tight_layout()
-    figure.subplots_adjust(top=0.88, wspace=0.4)
+    for is_bm in [True, False]:
+        platform = "bm" if is_bm else "os"
 
-    out_path = OUT_DIR / f"{experiment}{suffix}"
-    savefig(figure, out_path)
-    plt.close(figure)
+        fig = plt.figure(figsize=figsize_rel(w=1.5, h=1.5))
+        ax, *_ = plot_perf(fig, perf, is_bm=is_bm)
+        ax.set_ylabel(r"Czas wykonania $[\mu s]$")
+        savefig(fig, OUT_DIR / f"perf-{platform}")
+        plt.close(fig)
+
+        fig = plt.figure()
+        ax, *_ = plot_mem(fig, mem, is_bm=is_bm)
+        ax.set_ylabel(r"Zajętość pamięci $[kB]$")
+        savefig(fig, OUT_DIR / f"mem-{platform}")
+        plt.close(fig)
+
+    return
+
+
+class Schema(pa.DataFrameModel):
+    report_number: Series[int]
+    name: Series[str]
+    value: Series[float]
+    lang: Series[str]
+    experiment: Series[str]
+
+
+def load_data() -> tuple[DataFrame[Schema], DataFrame[Schema]]:
+    perf = pd.DataFrame()
+    mem = pd.DataFrame()
+    for experiment in EXPERIMENTS.values():
+        for lang in LANGUAGES.values():
+            slug = f"{experiment['slug']}-{lang['slug']}"
+
+            perf_part = read_reports(f"{slug}-perf-*.csv")
+
+            mem_profile = BEST_MEM_PROFILE[lang["slug"]][experiment["slug"]]
+            mem_part = read_reports(f"{slug}-mem-*.csv", profile=mem_profile)
+
+            for part in perf_part, mem_part:
+                part["lang"] = lang["slug"]
+                part["experiment"] = experiment["slug"]
+
+            perf = pd.concat([perf, perf_part])
+            mem = pd.concat([mem, mem_part])
+
+    return Schema.validate(perf), Schema.validate(mem)
 
 
 def read_reports(
     pattern: str,
     profile: str = "fast",
     warmup_reports: int = WARMUP_REPORTS,
-) -> Iterable[Benchmark]:
+) -> pd.DataFrame:
+    result = pd.DataFrame()
     paths = (PERF_DIR / profile).glob(pattern)
     for path in paths:
         with path.open() as file:
-            reader = csv.DictReader(file)
-            benchmarks = (Benchmark.from_dict(row) for row in reader)
-            yield from (b for b in benchmarks if b.report_number >= warmup_reports)
+            part_df = pd.read_csv(file)
+            part_df = part_df[part_df["report_number"] >= warmup_reports]
+            result = pd.concat([result, part_df])
+    return result
 
 
-def group_reports(
-    benchmarks: Iterable[Benchmark],
-    divider: float = 1,
-) -> dict[str, Stats]:
-    return {
-        name: np.array([row.value / divider for row in rows]).astype(np.float64)
-        for name, rows in groupby2(benchmarks, lambda row: row.name)
-    }
-
-
-def groupby2[T, TK: SupportsRichComparison](lst: Iterable[T], key: Callable[[T], TK]):
-    lst_sorted = sorted(lst, key=key)
-    return groupby(lst_sorted, key=key)
-
-
-def plot_perf(ax: Axes, results: list[LangResult]):
-    if any(not result.time_us_per_loop for result in results):
-        print("No perf series")
-        return
-
-    series_names = [f"faza {name}" for name in results[0].time_us_per_loop.keys()]
-    series_stats: list[Sequence[Stats]] = list(
-        zip(*(result.time_us_per_loop.values() for result in results))
-    )
-    patterns = PATTERNS
-
-    if len(series_stats) <= 1:
-        series_names = None
-        patterns = [""]
-
-    plot(
-        axs=ax,
-        series_names=series_names,
-        series_stats=series_stats,
-        patterns=patterns,
-        plottype="box",
-    )
-    ax.set_ylabel(r"Czas wykonania $[\mu s]$")
-
-
-def plot_mem(ax: Axes, results: list[LangResult]):
-    if any(not result.mem_usage_per_task for result in results):
-        print("No mem series")
-        return
-
-    stacks = [
-        {k: v for k, v in result.mem_usage_per_task.items() if k != "Heap"}
-        for result in results
+def plot_perf(fig: Figure, df: DataFrame[Schema], is_bm: bool) -> list[Axes]:
+    experiments = [
+        experiment
+        for experiment in EXPERIMENTS.values()
+        if experiment["is_bm"] == is_bm
     ]
 
-    stacks_stats: list[Sequence[Stats]] = [*zip(*(stack.values() for stack in stacks))]
-    heap_stats = [result.mem_usage_per_task["Heap"] for result in results]
-    n_stacks = len(stacks_stats)
+    axs = fig.subplots(1, len(experiments))
+    for experiment, ax in zip(experiments, axs):
+        values = df[df["experiment"] == experiment["slug"]]
 
-    series_stats: list[Sequence[Stats]] = [heap_stats, *stacks_stats]
-    series_names = ["sterta", *("stos" for _ in stacks[0].keys())]
+        series_names = []
+        series_stats = []
+        for name, stats in values.groupby("name"):
+            res = stats.groupby("lang")["value"].apply(np.array)
+            res = res.reindex([*LANGUAGES.keys()])
+            series_names.append(name)
+            series_stats.append(res.to_list())
 
-    patterns = [".", *PATTERNS[:n_stacks]]
+        patterns = PATTERNS
+        if len(series_stats) <= 1:
+            series_names = None
+            patterns = [""]
 
-    axs = [ax] * (n_stacks + 1)
+        plot(
+            axs=ax,
+            series_names=series_names,
+            series_stats=series_stats,
+            patterns=patterns,
+            plottype="box",
+        )
+    return axs
 
-    plot(
-        axs=axs,
-        series_names=series_names,
-        series_stats=series_stats,
-        patterns=patterns,
-        plottype="stack",
-    )
-    ax.set_ylabel(r"Zajętość pamięci $[kB]$")
+
+def plot_mem(fig: Figure, df: DataFrame[Schema], is_bm: bool) -> list[Axes]:
+    experiments = [
+        experiment
+        for experiment in EXPERIMENTS.values()
+        if experiment["is_bm"] == is_bm
+    ]
+
+    axs = fig.subplots(1, len(experiments))
+    for experiment, ax in zip(experiments, axs):
+        values = df[df["experiment"] == experiment["slug"]]
+
+        series_names = []
+        series_stats = []
+        for name, stats in values.groupby("name"):
+            name = str(name)
+            res = stats.groupby("lang")["value"].apply(np.array)
+            res = res.reindex([*LANGUAGES.keys()])
+            series_names.append(MEM_NAME_TRANSLATIONS.get(name, name))
+            series_stats.append(res.to_list())
+
+        idx = np.argsort(series_names)
+        series_names = [series_names[i] for i in idx]
+        series_stats = [series_stats[i] for i in idx]
+
+        patterns = ["."] + PATTERNS
+        if len(series_stats) <= 1:
+            series_names = None
+            patterns = [""]
+        if experiment["number"] != 3:
+            series_names = None
+
+        plot(
+            axs=ax,
+            series_names=series_names,
+            series_stats=series_stats,
+            patterns=patterns,
+            plottype="stack",
+        )
+    return axs
 
 
 PATTERNS = ["/", "x", "-", "|", "\\", "+", "o", "O", ".", "*"]
@@ -206,8 +220,6 @@ def plot(
     positions_init = np.arange(len(names))
 
     ax = axs[0]
-    box = ax.get_position()
-    ax.set_position((box.x0, box.y0, box.width, box.height * 0.9))
 
     match plottype:
         case "box":
@@ -247,7 +259,7 @@ def plot(
             1,
             facecolor="none",
             edgecolor="black",
-            hatch=pattern * 3,
+            hatch=pattern * 2,
         )
         for pattern in patterns
     ]
@@ -292,6 +304,8 @@ def plot_boxplot(
             patch_artist=True,
             showfliers=False,
         )
+        ax.margins(0.1)
+
         patches: Sequence[Patch] = boxplot["boxes"]
         for patch, color in zip(patches, colors):
             patch.set_facecolor(color)
@@ -299,7 +313,8 @@ def plot_boxplot(
             patch.set_hatch(pattern * 3)
         medians: Sequence[Line2D] = boxplot["medians"]
         for median in medians:
-            median.remove()
+            median.set_color("black")
+            # median.remove()
 
         containers.append(Container(patches))
     return containers
@@ -351,6 +366,7 @@ def plot_bar(
             color="black",
         )
 
+        ax.margins(0.1)
         containers.append(bar)
     return containers
 
@@ -381,6 +397,7 @@ def plot_stack(
             hatch=pattern * 2,
             bottom=bottom,
         )
+        ax.margins(0.1)
 
         bottom += ys
         containers.append(Container(bar))
@@ -389,18 +406,6 @@ def plot_stack(
 
 def sem(values: NDArray[Any]) -> float:
     return values.std() / np.sqrt(len(values))
-
-
-def main():
-    OUT_DIR.mkdir(exist_ok=True, parents=True)
-    for experiment in EXPERIMENTS:
-        data = get_experiment_data(experiment=experiment)
-
-        figure = plt.figure(figsize=(8, 4))
-        plot_experiment(figure=figure, experiment=experiment, data=data)
-
-        figure = plt.figure(figsize=(6, 4))
-        plot_experiment(figure=figure, experiment=experiment, data=data, suffix="-doc")
 
 
 if __name__ == "__main__":
