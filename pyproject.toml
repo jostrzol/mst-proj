@@ -18,6 +18,7 @@ dependencies = [
     "matplotlib",
     "numpy>=1.24.4",
     "pandas>=2.0.3",
+    "pandera>=0.22.1",
     "quarto>=0.1.0",
     "quarto-cli>=1.7.33",
     "rich",
