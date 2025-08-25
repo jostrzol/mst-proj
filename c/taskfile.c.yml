@@ -3,6 +3,7 @@ vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
   PROJECTS_BM: &projects_bm [1-blinky-bm, 2-motor-bm, 3-pid-bm]
+  PROJECTS: &projects [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
   C_BUILD_TYPE_MAP:
     map:
       debug: Debug
@@ -33,6 +34,18 @@ tasks:
         vars: {PROFILE: '{{.PROFILE}}'}
       - task: build-bm-all
         vars: {PROFILE: '{{.PROFILE}}'}
+  build:
+    requires:
+      vars:
+        - {name: PROJECT, enum: *projects}
+        - {name: PROFILE, enum: *profiles}
+    vars:
+      IS_BM: {ref: '.PROJECT | hasSuffix "-bm"'}
+    deps:
+      - task: '{{if .IS_BM}}build-bm{{else}}build-os{{end}}'
+        vars:
+          PROJECT: '{{.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
   # os
   build-os-every-profile:
     cmds:
