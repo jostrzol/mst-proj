@@ -1,5 +1,5 @@
 version: '3'
-dotenv: [.env]
+dotenv: [.default.env, .env]
 vars:
   LANGS: [c, rust, zig]
   PROJECTS: [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
