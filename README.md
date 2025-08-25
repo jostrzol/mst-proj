@@ -16,46 +16,6 @@ install ldpoxy --locked`)
   - rest specified [on the espressif
     website](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html#step-1-install-prerequisites).
 
-## Configuration
-
-Configuration is done through a `.env` file in the root of the repository. It
-can be created using the defaults: `cp .default.env .env`.
-
-ESP:
-
-- `WIFI_SSID` -- SSID of WiFi network that ESP programs can connect to.
-  Required to run 3-pid-bm projects.
-- `WIFI_PASS` -- password of WiFi network that ESP programs can connect to.
-  Required to run 3-pid-bm projects.
-- `ESPFLASH_PORT=/dev/ttyUSB0` -- usb device used to flash ESP programs
-- `ESPFLASH_BAUD=115200` -- baudrate for flashing ESP programs
-
-Raspberry Pi is configured directly in its operating system. Ensure the
-Raspberry Pi peripherals and modules are correctly configured:
-
-- GPIO,
-- I2C,
-- Harwdware PWM,
-- mDNS server with address: 'raspberrypi.local',
-- WiFi.
-
-For help, refer to [Raspberry Pi documentation](https://www.raspberrypi.com/documentation/).
-
-Benchmarking:
-
-- `USB_VENDOR` -- ESP usb port vendor identifier, on how
-  to get this. Required for benchmarking on ESP.
-- `USB_PRODUCT` -- ESP usb port product identifier. Required for benchmarking
-  on ESP.
-
-See [esp-rs
-documentention](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
-information on how to set these values.
-
-Miscellaneous:
-
-- `LOG_LEVEL=INFO` -- log level (only for zig programs)
-
 ## Building
 
 ```sh
@@ -121,3 +81,47 @@ Regardless of platform, before running the code you must:
    ```
 
 The results are then written to the `./analyze/out/perf/` directory.
+
+## Configuration
+
+Configuration is done through a `.env` file in the root of the repository. It
+can be created using the defaults: `cp .default.env .env`.
+
+### ESP configuration
+
+- `WIFI_SSID` -- SSID of WiFi network that ESP programs can connect to.
+  Required to run the `3-pid-bm` project.
+- `WIFI_PASS` -- password of WiFi network that ESP programs can connect to.
+  Required to run the `3-pid-bm` project.
+- `ESPFLASH_PORT` -- usb device used to flash ESP programs. If left empty,
+  `espflash` will find it automatically (slower).
+- `ESPFLASH_BAUD=115200` -- baudrate for flashing ESP programs. If left empty,
+  `espflash` will pick the safest (slowest) possible option.
+
+### Raspberry Pi configuration
+
+Raspberry Pi must configured directly in its operating system. Ensure the
+Raspberry Pi peripherals and modules are correctly configured:
+
+- GPIO,
+- I2C,
+- Harwdware PWM,
+- mDNS server with address: 'raspberrypi.local',
+- WiFi.
+
+For help, refer to [Raspberry Pi documentation](https://www.raspberrypi.com/documentation/).
+
+### Benchmarking configuration
+
+- `USB_VENDOR` -- ESP usb port vendor identifier, on how
+  to get this. Required for benchmarking on ESP.
+- `USB_PRODUCT` -- ESP usb port product identifier. Required for benchmarking
+  on ESP.
+
+See [esp-rs
+documentention](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
+information on how to set these values.
+
+### Miscellaneous configuration
+
+- `LOG_LEVEL=INFO` -- log level (only for zig programs)
