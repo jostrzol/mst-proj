@@ -155,7 +155,7 @@ tasks:
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
     label: 'zig:build-bm:{{.PROFILE}}:{{.PROJECT}}'
-  flash-bm:
+  run-bm:
     requires:
       vars:
         - {name: PROJECT, enum: *projects_bm}
