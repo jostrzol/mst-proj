@@ -64,7 +64,7 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
-    sources: ['{{joinPath "rust" .PROJECT "src/**/*.rs"}}']
+    sources: ['{{joinPath "rust" .PROJECT "**/*"}}']
     generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
@@ -114,9 +114,9 @@ tasks:
     sources:
       - '{{joinPath .PROJECT_DIR "src/**/*.rs"}}'
       - '{{joinPath .PROJECT_DIR "*"}}'
-      - exclude: '{{joinPath .PROJECT_DIR ".cargo/**/*"}}'
-      - exclude: '{{joinPath .PROJECT_DIR ".embuild/**/*"}}'
-      - exclude: '{{joinPath .PROJECT_DIR "target/**/*"}}'
+      - exclude: '{{joinPath .PROJECT_DIR ".cargo"}}'
+      - exclude: '{{joinPath .PROJECT_DIR ".embuild"}}'
+      - exclude: '{{joinPath .PROJECT_DIR "target"}}'
     generates:
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust'
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust.elf'
