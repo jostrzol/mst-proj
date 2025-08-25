@@ -15,7 +15,7 @@ from pandera.typing import DataFrame, Series
 from analyze.lib.constants import ARTIFACTS_DIR, LIZARD_DIR, PLOT_DIR
 from analyze.lib.experiments import EXPERIMENTS
 from analyze.lib.language import LANGUAGES, Language
-from analyze.lib.plot import plot_bar, savefig, use_plot_style
+from analyze.lib.plot import figsize_rel, plot_bar, savefig, use_plot_style
 
 OUT_DIR = PLOT_DIR / "metrics"
 
@@ -128,7 +128,7 @@ def main():
         to_plot = aggregate(groupped)
 
         for is_bm in [True, False]:
-            fig = plt.figure()
+            fig = plt.figure(figsize=figsize_rel(h=0.7))
             axs = plot_param(fig, to_plot, is_bm=is_bm)
 
             if name == "bin_size":

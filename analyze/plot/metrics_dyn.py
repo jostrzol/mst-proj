@@ -144,7 +144,7 @@ def plot_perf(fig: Figure, df: DataFrame[Schema], is_bm: bool) -> list[Axes]:
             series_names.append(name)
             series_stats.append(res.to_list())
 
-        patterns = PATTERNS
+        patterns = [""] + PATTERNS
         if len(series_stats) <= 1:
             series_names = None
             patterns = [""]
@@ -379,7 +379,7 @@ def plot_bar(
                 color="black",
             )
 
-        ax.margins(x=0.1 / len(series_stats), y=0.1)
+        ax.margins(x=0.1 / len(series_stats), y=0.15)
         containers.append(bar)
     return containers
 
@@ -421,7 +421,7 @@ def plot_stack(
             barlabel_fontscale=0.8,
         )
 
-        ax.margins(x=0.2 / len(series_stats), y=0.1)
+        ax.margins(x=0.2 / len(series_stats), y=0.15)
         bottom += ys
         containers.append(bar)
 
