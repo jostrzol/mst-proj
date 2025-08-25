@@ -3,14 +3,14 @@ vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
   PROJECTS_BM: &projects_bm [1-blinky-bm, 2-motor-bm, 3-pid-bm]
-  BUILD_TYPE_MAP:
+  RUST_PROFILE_MAP:
     map:
       debug: dev
       fast: fast
       small: small
-  ESP_EXPORT: ". esp-export/rust.sh"
+  RUST_ESP_EXPORT: ". esp-export/rust.sh"
   RUST_TRIPLET_OS: "arm-unknown-linux-gnueabihf"
-  TRIPLET_BM: "xtensa-esp32-espidf"
+  RUST_TRIPLET_BM: "xtensa-esp32-espidf"
 tasks:
   # os and bm
   build-every-profile:
@@ -50,7 +50,7 @@ tasks:
     generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
-      RUST_PROFILE: '{{.PROFILE | get .BUILD_TYPE_MAP}}'
+      RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
     cmds:
       - cd rust && cross build --package {{.NAME}} --profile={{.RUST_PROFILE}} --target={{.RUST_TRIPLET_OS}}
       - task: copy-artifact
@@ -125,7 +125,7 @@ tasks:
       SDKCONFIG: '{{.PROFILE | get .SDKCONFIG_MAP | default "sdkconfig"}}'
     cmd: |
       sh -c '
-        {{if not .IDF_PATH}}{{.ESP_EXPORT}}{{end}}
+        {{if not .IDF_PATH}}{{.RUST_ESP_EXPORT}}{{end}}
         cd {{.PROJECT_DIR}} && idf.py -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
       '
   # utils

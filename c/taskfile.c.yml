@@ -3,18 +3,23 @@ vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
   PROJECTS_BM: &projects_bm [1-blinky-bm, 2-motor-bm, 3-pid-bm]
-  BUILD_TYPE_MAP:
+  C_BUILD_TYPE_MAP:
     map:
       debug: Debug
       fast: Release
       small: MinSizeRel
-  SDKCONFIG_MAP:
+  C_SDKCONFIG_MAP:
     map:
       debug: sdkconfig
       fast: sdkconfig.fast
       small: sdkconfig.small
-  BUILD_DIR: "./c/build/"
-  ESP_EXPORT: ". esp-export/c.sh"
+  C_SDKCONFIG_DEFAULTS_MAP:
+    map:
+      debug: sdkconfig.defaults
+      fast: sdkconfig.defaults;sdkconfig.defaults-fast
+      small: sdkconfig.defaults;sdkconfig.defaults-small
+  C_BUILD_DIR: "./c/build/"
+  C_ESP_EXPORT: ". esp-export/c.sh"
 tasks:
   # os and bm
   build-every-profile:
@@ -55,22 +60,22 @@ tasks:
     cmds:
       - task: configure-os
         vars: {PROFILE: '{{.PROFILE}}'}
-      - cd {{.BUILD_DIR}} && make {{.PROJECT}}
+      - cd {{.C_BUILD_DIR}} && make {{.PROJECT}}
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath .BUILD_DIR "bin" .PROJECT}}'
+          FILE: '{{joinPath .C_BUILD_DIR "bin" .PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           PROJECT: '{{.PROJECT}}'
     label: 'c:build-os:{{.PROFILE}}:{{.PROJECT}}'
   configure-os:
-    dir: '{{.BUILD_DIR}}'
+    dir: '{{.C_BUILD_DIR}}'
     internal: true
     requires:
       vars:
         - name: PROFILE
           enum: *profiles
     vars:
-      BUILD_TYPE: '{{.PROFILE | get .BUILD_TYPE_MAP}}'
+      BUILD_TYPE: '{{.PROFILE | get .C_BUILD_TYPE_MAP}}'
     cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ..
   # bm
   build-bm-every-profile:
@@ -135,12 +140,14 @@ tasks:
     # optional: PROFILE
     vars:
       PROJECT_DIR: '{{joinPath "./c" .PROJECT}}'
-      SDKCONFIG: '{{.PROFILE | get .SDKCONFIG_MAP | default "sdkconfig"}}'
+      SDKCONFIG: '{{.PROFILE | get .C_SDKCONFIG_MAP | default "sdkconfig"}}'
     cmd: |
       sh -c '
-        {{if not .IDF_PATH}}{{.ESP_EXPORT}}{{end}}
+        {{if not .IDF_PATH}}{{.C_ESP_EXPORT}}{{end}}
         cd {{.PROJECT_DIR}} && idf.py -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
       '
+    env:
+      SDKCONFIG_DEFAULTS: '{{.PROFILE | get .C_SDKCONFIG_DEFAULTS_MAP | default "sdkconfig.defaults"}}'
   # utils
   copy-artifact:
     internal: true
