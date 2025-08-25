@@ -83,7 +83,7 @@ Regardless of platform, before running the code you must:
 
 ### ESP
 
-1. Attach the ESP using a cable to the computer
+1. Attach the ESP using a cable to the computer.
 2. Run
 
    ```sh
@@ -103,7 +103,10 @@ Regardless of platform, before running the code you must:
 1. Build a circuit using one of the provided schematics from
    [](./docs/circuits).
 2. Ensure that the hardware is correctly configured (see #Configuration).
-3. Run:
+3. Make sure the connection to the devie works:
+   - (Raspberry Pi) Ensure that Raspberry Pi is reachable at `raspberrypi.local`.
+   - (ESP) Ensure that ESP is plugged into an USB port of the computer.
+4. Run:
 
    ```sh
    task bench:<project>
