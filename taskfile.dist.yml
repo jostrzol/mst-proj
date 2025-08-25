@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://taskfile.dev/schema.json
 version: '3'
 dotenv: [.env]
 vars:
@@ -7,8 +6,11 @@ vars:
   LANG_EXT: {map: {c: c, rust: rs, zig: zig}}
   ARTIFACTS_DIR: "./artifacts"
   ANALYZE_OUT_DIR: ./analyze/out
+  TRIPLET_OS: "arm-unknown-linux-gnueabihf"
+  TRIPLET_BM: "xtensa-esp32-espidf"
 includes:
+  c: ./c/taskfile.c.yml
+  rust: ./rust/taskfile.rust.yml
   lizard: ./analyze/taskfile.lizard.yml
   plot: ./analyze/taskfile.plot.yml
   bench: ./analyze/taskfile.benchmark.yml
-  c: ./c/taskfile.c.yml

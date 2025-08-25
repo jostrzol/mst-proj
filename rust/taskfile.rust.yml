@@ -5,16 +5,10 @@ vars:
   PROJECTS_BM: &projects_bm [1-blinky-bm, 2-motor-bm, 3-pid-bm]
   BUILD_TYPE_MAP:
     map:
-      debug: Debug
-      fast: Release
-      small: MinSizeRel
-  SDKCONFIG_MAP:
-    map:
-      debug: sdkconfig
-      fast: sdkconfig.fast
-      small: sdkconfig.small
-  BUILD_DIR: "./c/build/"
-  ESP_EXPORT: ". esp-export/c.sh"
+      debug: dev
+      fast: fast
+      small: small
+  ESP_EXPORT: ". esp-export/rust.sh"
 tasks:
   # os and bm
   build-every-profile:
@@ -50,28 +44,19 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
-    sources: ['{{joinPath "./c" .PROJECT "**/*.c"}}']
-    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
+    sources: ['{{joinPath "rust" .PROJECT "src/**/*.rs"}}']
+    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
+    vars:
+      NAME: '{{index (splitList "-" .PROJECT) 1}}'
+      RUST_PROFILE: '{{.PROFILE | get .BUILD_TYPE_MAP}}'
     cmds:
-      - task: configure-os
-        vars: {PROFILE: '{{.PROFILE}}'}
-      - cd {{.BUILD_DIR}} && make {{.PROJECT}}
+      - cd rust && cross build --package {{.NAME}} --profile={{.RUST_PROFILE}} --target={{.TRIPLET_OS}}
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath .BUILD_DIR "bin" .PROJECT}}'
+          FILE: '{{joinPath "rust/target" .TRIPLET_OS .PROFILE .NAME }}'
           PROFILE: '{{.PROFILE}}'
           PROJECT: '{{.PROJECT}}'
-    label: 'c:build-os:{{.PROFILE}}:{{.PROJECT}}'
-  configure-os:
-    dir: '{{.BUILD_DIR}}'
-    internal: true
-    requires:
-      vars:
-        - name: PROFILE
-          enum: *profiles
-    vars:
-      BUILD_TYPE: '{{.PROFILE | get .BUILD_TYPE_MAP}}'
-    cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ..
+    label: 'rust:build-os:{{.PROFILE}}:{{.PROJECT}}'
   # bm
   build-bm-every-profile:
     cmds:
@@ -117,7 +102,7 @@ tasks:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
-    label: 'c:build-bm:{{.PROFILE}}:{{.PROJECT}}'
+    label: 'rust:build-bm:{{.PROFILE}}:{{.PROJECT}}'
   flash-bm:
     requires:
       vars:
@@ -151,14 +136,14 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       SUFFIX: '{{.SUFFIX | default ""}}'
-      OUTPUT_FILE: '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
+      OUTPUT_FILE: '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust{{.SUFFIX}}'
     sources: ['{{.FILE}}']
     generates: ['{{.OUTPUT_FILE}}']
     deps:
       - task: artifact-dir-exists
         vars: {PROFILE: '{{.PROFILE}}'}
     cmd: 'cp {{.FILE}} {{.OUTPUT_FILE}}'
-    label: 'c:copy-artifact:{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
+    label: 'rust:copy-artifact:{{.PROFILE}}/{{.PROJECT}}-rust{{.SUFFIX}}'
   artifact-dir-exists:
     requires:
       vars:
