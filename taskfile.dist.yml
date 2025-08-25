@@ -13,3 +13,11 @@ includes:
   lizard: ./analyze/taskfile.lizard.yml
   plot: ./analyze/taskfile.plot.yml
   bench: ./analyze/taskfile.benchmark.yml
+tasks:
+  build:
+    deps:
+      - c:build-every-profile
+      - rust:build-every-profile
+      - zig:build-every-profile
+  plot:
+    deps: ['plot:all']
