@@ -10,9 +10,11 @@
 - [`cmake`](https://github.com/Kitware/CMake)
 - [`yarn`](https://github.com/yarnpkg/yarn)
 - esp-idf requirements:
-  - `python3`
-  - `ldproxy` (`cargo install ldpoxy --locked`)
-  - rest specified [on the espressif website](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html#step-1-install-prerequisites).
+  - [`python3`](https://www.python.org/)
+  - [`ldproxy`](https://github.com/esp-rs/embuild/tree/master/ldproxy) (`cargo
+install ldpoxy --locked`)
+  - rest specified [on the espressif
+    website](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html#step-1-install-prerequisites).
 
 ## Configuration
 
