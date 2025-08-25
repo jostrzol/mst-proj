@@ -102,6 +102,22 @@ tasks:
         vars:
           PROJECT: '{{.ITEM}}'
           PROFILE: '{{.PROFILE}}'
+  run-bm:
+    requires:
+      vars:
+        - {name: PROJECT, enum: *projects_bm}
+        - {name: PROFILE, enum: *profiles}
+    vars:
+      PROJECT_DIR: '{{joinPath "./rust" .PROJECT}}'
+      RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
+    cmds:
+      - |
+        sh -c '
+          {{if not .IDF_PATH}}{{.RUST_ESP_EXPORT}}{{end}}
+          cd {{.PROJECT_DIR}} && cargo run --profile={{.RUST_PROFILE}}
+        '
+    env:
+      RUSTFLAGS: '{{.PROFILE | get .RUST_OPT_FLAGS_MAP}}'
   build-bm:
     requires:
       vars:
