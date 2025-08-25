@@ -1,4 +1,9 @@
 version: '3'
+includes:
+  idf:
+    taskfile: "../taskfile.idf.yml"
+    internal: true
+    dir: '{{.ROOT_DIR}}'
 vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
@@ -20,7 +25,6 @@ vars:
       fast: sdkconfig.defaults;sdkconfig.defaults-fast
       small: sdkconfig.defaults;sdkconfig.defaults-small
   C_BUILD_DIR: "./c/build/"
-  C_ESP_EXPORT: ". esp-export/c.sh"
 tasks:
   # os and bm
   build-every-profile:
@@ -154,9 +158,10 @@ tasks:
     vars:
       PROJECT_DIR: '{{joinPath "./c" .PROJECT}}'
       SDKCONFIG: '{{.PROFILE | get .C_SDKCONFIG_MAP | default "sdkconfig"}}'
+    deps: ['idf:ensure-available']
     cmd: |
       sh -c '
-        {{if not .IDF_PATH}}{{.C_ESP_EXPORT}}{{end}}
+        {{.EXPORT_IDF_CMD}}
         cd {{.PROJECT_DIR}} && idf.py -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
       '
     env:

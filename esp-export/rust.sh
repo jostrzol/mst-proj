@@ -1,1 +1,0 @@
-. "$HOME/export-esp.sh"

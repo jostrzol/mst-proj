@@ -1,4 +1,8 @@
 version: '3'
+includes:
+  idf:
+    taskfile: "../taskfile.idf.yml"
+    internal: true
 vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
@@ -14,7 +18,6 @@ vars:
       debug: ""
       fast: ""
       small: -Zfmt-debug=none -Zlocation-detail=none
-  RUST_ESP_EXPORT: ". esp-export/rust.sh"
   RUST_TRIPLET_OS: "arm-unknown-linux-gnueabihf"
   RUST_TRIPLET_BM: "xtensa-esp32-espidf"
 tasks:
@@ -103,6 +106,7 @@ tasks:
           PROJECT: '{{.ITEM}}'
           PROFILE: '{{.PROFILE}}'
   run-bm:
+    deps: ['idf:ensure-available']
     requires:
       vars:
         - {name: PROJECT, enum: *projects_bm}
@@ -111,14 +115,13 @@ tasks:
       PROJECT_DIR: '{{joinPath "./rust" .PROJECT}}'
       RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
     cmds:
-      - |
-        sh -c '
-          {{if not .IDF_PATH}}{{.RUST_ESP_EXPORT}}{{end}}
-          cd {{.PROJECT_DIR}} && cargo run --profile={{.RUST_PROFILE}}
-        '
+      - >
+        {{.IDF_PATH_CMD}} sh -c 'cd {{.PROJECT_DIR}} && cargo run --profile={{.RUST_PROFILE}}'
+
     env:
       RUSTFLAGS: '{{.PROFILE | get .RUST_OPT_FLAGS_MAP}}'
   build-bm:
+    deps: ['idf:ensure-available']
     requires:
       vars:
         - {name: PROJECT, enum: *projects_bm}
@@ -137,11 +140,9 @@ tasks:
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust'
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust.elf'
     cmds:
-      - |
-        sh -c '
-          {{if not .IDF_PATH}}{{.RUST_ESP_EXPORT}}{{end}}
-          cd {{.PROJECT_DIR}} && cargo build --profile={{.RUST_PROFILE}}
-        '
+      - >
+        {{.IDF_PATH_CMD}} sh -c 'cd {{.PROJECT_DIR}} && cargo build --profile={{.RUST_PROFILE}}'
+
       - |
         espflash save-image --chip esp32 \
           {{joinPath .OUT_DIR .PROJECT}} \

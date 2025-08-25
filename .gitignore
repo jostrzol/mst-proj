@@ -4,6 +4,7 @@
 /.venv/
 /.cache/
 /.task/
+/.esp-idf/
 
 # C
 /c/build/

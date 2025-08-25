@@ -10,6 +10,7 @@ includes:
   c: ./c/taskfile.c.yml
   rust: ./rust/taskfile.rust.yml
   zig: ./zig/taskfile.zig.yml
+  idf: ./taskfile.idf.yml
   lizard: ./analyze/taskfile.lizard.yml
   plot: ./analyze/taskfile.plot.yml
   bench: ./analyze/taskfile.benchmark.yml
