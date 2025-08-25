@@ -24,15 +24,15 @@ vars:
 tasks:
   # os and bm
   build-every-profile:
-    deps: [build-os-every-profile, build-bm-every-profile]
+    deps: [build-every-profile-os, build-every-profile-bm]
   build-all:
     requires:
       vars:
         - {name: PROFILE, enum: *profiles}
     deps:
-      - task: build-os-all
+      - task: build-all-os
         vars: {PROFILE: '{{.PROFILE}}'}
-      - task: build-bm-all
+      - task: build-all-bm
         vars: {PROFILE: '{{.PROFILE}}'}
   build:
     requires:
@@ -47,13 +47,13 @@ tasks:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
   # os
-  build-os-every-profile:
+  build-every-profile-os:
     cmds:
       - for: {matrix: {PROFILE: [fast, small]}}
-        task: build-os-all
+        task: build-all-os
         vars:
           PROFILE: '{{.ITEM.PROFILE}}'
-  build-os-all:
+  build-all-os:
     requires:
       vars:
         - {name: PROFILE, enum: *profiles}
@@ -91,13 +91,13 @@ tasks:
       BUILD_TYPE: '{{.PROFILE | get .C_BUILD_TYPE_MAP}}'
     cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ..
   # bm
-  build-bm-every-profile:
+  build-every-profile-bm:
     cmds:
       - for: {matrix: {PROFILE: [fast, small]}}
-        task: build-bm-all
+        task: build-all-bm
         vars:
           PROFILE: '{{.ITEM.PROFILE}}'
-  build-bm-all:
+  build-all-bm:
     requires:
       vars:
         - {name: PROFILE, enum: *profiles}
