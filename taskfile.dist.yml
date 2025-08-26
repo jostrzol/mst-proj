@@ -7,13 +7,30 @@ vars:
   ARTIFACTS_DIR: "./artifacts"
   ANALYZE_OUT_DIR: ./analyze/out
 includes:
-  c: ./c/taskfile.c.yml
-  rust: ./rust/taskfile.rust.yml
-  zig: ./zig/taskfile.zig.yml
-  idf: ./taskfile.idf.yml
-  lizard: ./analyze/taskfile.lizard.yml
-  plot: ./analyze/taskfile.plot.yml
-  bench: ./analyze/taskfile.benchmark.yml
+  c:
+    taskfile: ./c/taskfile.c.yml
+    dir: ./c
+    optional: true
+  rust:
+    taskfile: ./rust/taskfile.rust.yml
+    dir: ./rust
+    optional: true
+  zig:
+    taskfile: ./zig/taskfile.zig.yml
+    dir: ./zig
+    optional: true
+  idf:
+    taskfile: ./taskfile.idf.yml
+    optional: true
+  lizard:
+    taskfile: ./analyze/taskfile.lizard.yml
+    optional: true
+  plot:
+    taskfile: ./analyze/taskfile.plot.yml
+    optional: true
+  bench:
+    taskfile: ./analyze/taskfile.benchmark.yml
+    optional: true
 tasks:
   build:
     deps:

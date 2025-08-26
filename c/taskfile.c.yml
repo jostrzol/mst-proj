@@ -24,7 +24,8 @@ vars:
       debug: sdkconfig.defaults
       fast: sdkconfig.defaults;sdkconfig.defaults-fast
       small: sdkconfig.defaults;sdkconfig.defaults-small
-  C_BUILD_DIR: "./c/build/"
+  C_BUILD_DIR: "./build/"
+  ARTIFACTS_DIR: "../artifacts"
 tasks:
   # os and bm
   build-every-profile:
@@ -72,7 +73,7 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
-    sources: ['{{joinPath "./c" .PROJECT "**/*.c"}}']
+    sources: ['{{joinPath .PROJECT "**/*.c"}}']
     generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
     cmds:
       - task: configure-os
@@ -118,7 +119,7 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
-    sources: ['{{joinPath "./c" .PROJECT "main" "**/*.c"}}']
+    sources: ['{{joinPath .PROJECT "main" "**/*.c"}}']
     generates:
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c.elf'
@@ -130,12 +131,12 @@ tasks:
           CMD: 'build'
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath "./c" .PROJECT "build" (printf "%s.bin" .NAME)}}'
+          FILE: '{{joinPath .PROJECT "build" (printf "%s.bin" .NAME)}}'
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath "./c" .PROJECT "build" (printf "%s.elf" .NAME)}}'
+          FILE: '{{joinPath .PROJECT "build" (printf "%s.elf" .NAME)}}'
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
@@ -156,7 +157,7 @@ tasks:
         - {name: PROJECT, enum: *projects_bm}
     # optional: PROFILE
     vars:
-      PROJECT_DIR: '{{joinPath "./c" .PROJECT}}'
+      PROJECT_DIR: '{{joinPath .PROJECT}}'
       SDKCONFIG: '{{.PROFILE | get .C_SDKCONFIG_MAP | default "sdkconfig"}}'
     deps: ['idf:ensure-available']
     cmd: |

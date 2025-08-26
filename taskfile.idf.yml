@@ -1,12 +1,12 @@
 version: 3
 vars:
-  EXPORT_IDF_CMD: '. ./esp-export.sh'
-  IDF_PATH_CMD: 'IDF_PATH="$(sh ./esp-idf-path.sh)"'
+  EXPORT_IDF_CMD: '. ../esp-export.sh'
+  IDF_PATH_CMD: 'IDF_PATH="$(sh ../esp-idf-path.sh)"'
 tasks:
   ensure-available:
     silent: true
     cmd: |
-      cd {{.ROOT_TASKFILE}}
+      cd {{.TASKFILE_DIR}}
       if ! sh ./esp-export.sh --quiet --find-only; then
         echo >&2 "esp-idf not found in all of: $IDF_PATH ~/esp/esp-idf or ./.esp-idf"
 
@@ -16,5 +16,6 @@ tasks:
           ./.esp-idf \
           -b v5.4 --recursive
 
+        cd ./.esp-idf
         ./install.sh esp32
       fi

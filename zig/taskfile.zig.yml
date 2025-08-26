@@ -31,6 +31,7 @@ vars:
   ZIG_VERSION: "0.13.0"
   ZIG_TRIPLET_OS: "arm-linux-gnueabihf"
   ZIG_CPU_OS: "arm1176jzf_s"
+  ARTIFACTS_DIR: "../artifacts"
 tasks:
   # os and bm
   build-every-profile:
@@ -84,17 +85,16 @@ tasks:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
     sources:
-      - '{{joinPath "./zig" .PROJECT "**/*.zig"}}'
-      - exclude: '{{joinPath "./zig" .PROJECT "zig-out/**/*.zig"}}'
-      - exclude: '{{joinPath "./zig" .PROJECT ".zig-cache/**/*.zig"}}'
+      - '{{joinPath .PROJECT "**/*.zig"}}'
+      - exclude: '{{joinPath .PROJECT "zig-out/**/*.zig"}}'
+      - exclude: '{{joinPath .PROJECT ".zig-cache/**/*.zig"}}'
     generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig']
     vars:
-      PROJECT_DIR: '{{joinPath "zig" .PROJECT}}'
       PROFILE_FLAG: '{{.PROFILE | get .ZIG_PROFILE_FLAG_MAP}}'
       LOG_LEVEL_FLAG: '{{if .LOG_LEVEL}}-Dlog-level={{.LOG_LEVEL | lower}}{{end}}'
     cmds:
       - |
-        cd {{.PROJECT_DIR}} && zvm run {{.ZIG_VERSION}} build \
+        cd {{.PROJECT}} && zvm run {{.ZIG_VERSION}} build \
           -Dtarget={{.ZIG_TRIPLET_OS}} \
           -Dcpu={{.ZIG_CPU_OS}} \
           {{.PROFILE_FLAG}} \
@@ -102,7 +102,7 @@ tasks:
           -freference-trace
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath .PROJECT_DIR "zig-out" "bin" .PROJECT}}-zig'
+          FILE: '{{joinPath .PROJECT "zig-out" "bin" .PROJECT}}-zig'
           PROFILE: '{{.PROFILE}}'
           PROJECT: '{{.PROJECT}}'
     label: 'zig:build-os:{{.PROFILE}}:{{.PROJECT}}'
@@ -132,11 +132,11 @@ tasks:
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
     sources:
-      - '{{joinPath "./zig" .PROJECT "**/*.zig"}}'
-      - '{{joinPath "./zig" .PROJECT "*"}}'
-      - exclude: '{{joinPath "./zig" .PROJECT "build/**/*"}}'
-      - exclude: '{{joinPath "./zig" .PROJECT ".zig-cache/**/*"}}'
-      - exclude: '{{joinPath "./zig" .PROJECT "zig-out/**/*"}}'
+      - '{{joinPath .PROJECT "**/*.zig"}}'
+      - '{{joinPath .PROJECT "*"}}'
+      - exclude: '{{joinPath .PROJECT "build/**/*"}}'
+      - exclude: '{{joinPath .PROJECT ".zig-cache/**/*"}}'
+      - exclude: '{{joinPath .PROJECT "zig-out/**/*"}}'
     generates:
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig'
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig.elf'
@@ -148,12 +148,12 @@ tasks:
           CMD: 'build'
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath "./zig" .PROJECT "build" (printf "%s.bin" .NAME)}}'
+          FILE: '{{joinPath .PROJECT "build" (printf "%s.bin" .NAME)}}'
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath "./zig" .PROJECT "build" (printf "%s.elf" .NAME)}}'
+          FILE: '{{joinPath .PROJECT "build" (printf "%s.elf" .NAME)}}'
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
@@ -174,14 +174,13 @@ tasks:
         - {name: PROJECT, enum: *projects_bm}
     # optional: PROFILE
     vars:
-      PROJECT_DIR: '{{joinPath "./zig" .PROJECT}}'
       CMAKE_BUILD_TYPE: '{{.PROFILE | get .ZIG_CMAKE_BUILD_TYPE_MAP}}'
       SDKCONFIG: '{{.PROFILE | get .ZIG_SDKCONFIG_MAP | default "sdkconfig"}}'
     deps: ['idf:ensure-available']
     cmd: |
       sh -c '
         {{.EXPORT_IDF_CMD}}
-        cd {{.PROJECT_DIR}} && idf.py -DCMAKE_BUILD_TYPE={{.CMAKE_BUILD_TYPE}} -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
+        cd {{.PROJECT}} && idf.py -DCMAKE_BUILD_TYPE={{.CMAKE_BUILD_TYPE}} -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
       '
     env:
       SDKCONFIG_DEFAULTS: '{{.PROFILE | get .ZIG_SDKCONFIG_DEFAULTS_MAP | default "sdkconfig.defaults"}}'

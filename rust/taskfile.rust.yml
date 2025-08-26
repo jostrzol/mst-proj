@@ -20,6 +20,7 @@ vars:
       small: -Zfmt-debug=none -Zlocation-detail=none
   RUST_TRIPLET_OS: "arm-unknown-linux-gnueabihf"
   RUST_TRIPLET_BM: "xtensa-esp32-espidf"
+  ARTIFACTS_DIR: "../artifacts"
 tasks:
   # os and bm
   build-every-profile:
@@ -67,16 +68,16 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
-    sources: ['{{joinPath "rust" .PROJECT "**/*"}}']
+    sources: ['{{joinPath .PROJECT "**/*"}}']
     generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
       RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
       RUST_OPT_FLAGS: '{{.PROFILE | get .RUST_OPT_FLAGS_MAP}}'
-      OUT_DIR: '{{joinPath "rust/target" .RUST_TRIPLET_OS .PROFILE}}'
+      OUT_DIR: '{{joinPath "target" .RUST_TRIPLET_OS .PROFILE}}'
     cmds:
       - |
-        cd rust && cross build \
+        cross build \
           --package {{.NAME}} \
           --profile={{.RUST_PROFILE}} \
           --target={{.RUST_TRIPLET_OS}} \
@@ -112,11 +113,10 @@ tasks:
         - {name: PROJECT, enum: *projects_bm}
         - {name: PROFILE, enum: *profiles}
     vars:
-      PROJECT_DIR: '{{joinPath "./rust" .PROJECT}}'
       RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
     cmds:
       - >
-        {{.IDF_PATH_CMD}} sh -c 'cd {{.PROJECT_DIR}} && cargo run --profile={{.RUST_PROFILE}}'
+        {{.IDF_PATH_CMD}} sh -c 'cd {{.PROJECT}} && cargo run --profile={{.RUST_PROFILE}}'
 
     env:
       RUSTFLAGS: '{{.PROFILE | get .RUST_OPT_FLAGS_MAP}}'
@@ -127,21 +127,20 @@ tasks:
         - {name: PROJECT, enum: *projects_bm}
         - {name: PROFILE, enum: *profiles}
     vars:
-      PROJECT_DIR: '{{joinPath "./rust" .PROJECT}}'
       RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
-      OUT_DIR: '{{joinPath .PROJECT_DIR "target" .RUST_TRIPLET_BM .PROFILE}}'
+      OUT_DIR: '{{joinPath .PROJECT "target" .RUST_TRIPLET_BM .PROFILE}}'
     sources:
-      - '{{joinPath .PROJECT_DIR "src/**/*.rs"}}'
-      - '{{joinPath .PROJECT_DIR "*"}}'
-      - exclude: '{{joinPath .PROJECT_DIR ".cargo"}}'
-      - exclude: '{{joinPath .PROJECT_DIR ".embuild"}}'
-      - exclude: '{{joinPath .PROJECT_DIR "target"}}'
+      - '{{joinPath .PROJECT "src/**/*.rs"}}'
+      - '{{joinPath .PROJECT "*"}}'
+      - exclude: '{{joinPath .PROJECT ".cargo"}}'
+      - exclude: '{{joinPath .PROJECT ".embuild"}}'
+      - exclude: '{{joinPath .PROJECT "target"}}'
     generates:
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust'
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust.elf'
     cmds:
       - >
-        {{.IDF_PATH_CMD}} sh -c 'cd {{.PROJECT_DIR}} && cargo build --profile={{.RUST_PROFILE}}'
+        {{.IDF_PATH_CMD}} sh -c 'cd {{.PROJECT}} && cargo build --profile={{.RUST_PROFILE}}'
 
       - |
         espflash save-image --chip esp32 \

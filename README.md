@@ -7,7 +7,7 @@
 - [`uv`](https://github.com/astral-sh/uv)
 - [`rustup`](https://github.com/rust-lang/rustup)
 - [`zvm`](https://github.com/tristanisham/zvm)
-- [`cmake`](https://github.com/Kitware/CMake)
+- [`cmake>=4.0.0`](https://github.com/Kitware/CMake)
 - [`npm`](https://www.npmjs.com/)
 - esp-idf requirements:
   - [`python3`](https://www.python.org/)
