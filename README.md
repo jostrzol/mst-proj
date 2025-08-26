@@ -65,7 +65,7 @@ Regardless of platform, before running the code you must:
 1. Build a circuit using one of the provided schematics from
    [](./docs/circuits).
 2. Ensure that the hardware is correctly configured (see #Configuration).
-3. Make sure the connection to the devie works:
+3. Make sure the connection to the device works:
    - (Raspberry Pi) Ensure that Raspberry Pi is reachable at `raspberrypi.local`.
    - (ESP) Ensure that ESP is plugged into an USB port of the computer.
 4. Run:
@@ -93,9 +93,9 @@ can be created using the defaults: `cp .default.env .env`.
   Required to run the `3-pid-bm` project.
 - `WIFI_PASS` -- password of WiFi network that ESP programs can connect to.
   Required to run the `3-pid-bm` project.
-- `ESPFLASH_PORT` -- usb device used to flash ESP programs. If left empty,
+- `ESPFLASH_PORT` -- USB device used to flash ESP programs. If left empty,
   `espflash` will find it automatically (slower).
-- `ESPFLASH_BAUD=115200` -- baudrate for flashing ESP programs. If left empty,
+- `ESPFLASH_BAUD=115200` -- baud rate for flashing ESP programs. If left empty,
   `espflash` will pick the safest (slowest) possible option.
 
 ### Raspberry Pi configuration
@@ -105,7 +105,7 @@ Raspberry Pi peripherals and modules are correctly configured:
 
 - GPIO,
 - I2C,
-- Harwdware PWM,
+- Hardware PWM,
 - mDNS server with address: 'raspberrypi.local',
 - WiFi.
 
@@ -113,13 +113,13 @@ For help, refer to [Raspberry Pi documentation](https://www.raspberrypi.com/docu
 
 ### Benchmarking configuration
 
-- `USB_VENDOR` -- ESP usb port vendor identifier, on how
+- `USB_VENDOR` -- ESP USB port vendor identifier, on how
   to get this. Required for benchmarking on ESP.
-- `USB_PRODUCT` -- ESP usb port product identifier. Required for benchmarking
+- `USB_PRODUCT` -- ESP USB port product identifier. Required for benchmarking
   on ESP.
 
 See [esp-rs
-documentention](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
+documentation](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
 information on how to set these values.
 
 ### Miscellaneous configuration
