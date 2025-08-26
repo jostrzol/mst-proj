@@ -12,10 +12,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # ===== ADD DEPENDENCIES ======================================================
 include(./dependencies/toolchain.cmake)
-include(./dependencies/libgpio.cmake)
-include(./dependencies/pigpio.cmake)
-include(./dependencies/i2c-tools.cmake)
-include(./dependencies/modbus.cmake)
+include(dependencies.cmake OPTIONAL)
 
 # ===== COMPILE DEFINITIONS ===================================================
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -23,6 +20,4 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # ===== MAKE TARGETS ==========================================================
-add_subdirectory(1-blinky)
-add_subdirectory(2-motor)
-add_subdirectory(3-pid)
+include(targets.cmake OPTIONAL)

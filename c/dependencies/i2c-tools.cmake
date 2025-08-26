@@ -32,3 +32,4 @@ add_dependencies(i2c-tools i2c-tools_source)
 set_target_properties(
   i2c-tools PROPERTIES IMPORTED_LOCATION "${I2C_TOOLS_LIBRARY}"
                        INTERFACE_INCLUDE_DIRECTORIES "${I2C_TOOLS_INCLUDE_DIR}")
+add_dependencies(dependencies i2c-tools)

@@ -33,3 +33,4 @@ add_dependencies(libmodbus libmodbus_src)
 set_target_properties(
   libmodbus PROPERTIES IMPORTED_LOCATION "${LIBMODBUS_LIBRARY}"
                        INTERFACE_INCLUDE_DIRECTORIES "${LIBMODBUS_INCLUDE_DIR}")
+add_dependencies(dependencies libmodbus)

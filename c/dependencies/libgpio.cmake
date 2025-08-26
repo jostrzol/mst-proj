@@ -32,3 +32,4 @@ add_dependencies(libgpiod libgpiod_git)
 set_target_properties(
   libgpiod PROPERTIES IMPORTED_LOCATION "${LIBGPIOD_LIBRARY}"
                       INTERFACE_INCLUDE_DIRECTORIES "${LIBGPIOD_INCLUDE_DIR}")
+add_dependencies(dependencies libgpiod)

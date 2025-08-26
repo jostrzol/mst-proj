@@ -31,3 +31,4 @@ add_dependencies(pigpio pigpio_git)
 set_target_properties(
   pigpio PROPERTIES IMPORTED_LOCATION "${PIGPIO_LIBRARY}"
                     INTERFACE_INCLUDE_DIRECTORIES "${PIGPIO_INCLUDE_DIR}")
+add_dependencies(dependencies pigpio)
