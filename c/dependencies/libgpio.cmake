@@ -15,14 +15,13 @@ ExternalProject_Add(
   GIT_REPOSITORY "https://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git"
   GIT_TAG v1.6.5
   UPDATE_DISCONNECTED ON
-  CONFIGURE_COMMAND <SOURCE_DIR>/autogen.sh
-                    --host=${TARGET_TRIPLET}
-                    --prefix=<INSTALL_DIR>
-                    CC=${CMAKE_C_COMPILER}
-                    CXX=${CMAKE_CXX_COMPILER}
+  CONFIGURE_COMMAND
+    <SOURCE_DIR>/autogen.sh --host=${TARGET_TRIPLET} --prefix=<INSTALL_DIR>
+    CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER}
   BUILD_COMMAND make
   INSTALL_COMMAND make install INSTALL_BYPRODUCTS "${LIBGPIOD_LIBRARY}"
                   "${LIBGPIOD_HEADER}")
+add_dependencies(libgpiod_git toolchain)
 
 # ===== MAKE TARGET ===========================================================
 # hack needed to avoid errors about non-existing directory

@@ -20,6 +20,7 @@ ExternalProject_Add(
              --toolchain=${CMAKE_SOURCE_DIR}/toolchain.cmake
              -DCMAKE_POLICY_VERSION_MINIMUM=3.5
   BUILD_BYPRODUCTS "${PIGPIO_LIBRARY}")
+add_dependencies(pigpio_git toolchain)
 
 # ===== MAKE TARGET ===========================================================
 # hack needed to avoid errors about non-existing directory
