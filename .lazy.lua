@@ -35,16 +35,16 @@ return {
 		"coder/claudecode.nvim",
 		---@type ClaudeCodeConfig
 		---@diagnostic disable-next-line: missing-fields
-		opts = {
-			terminal = {
-				snacks_win_opts = {
-					position = "bottom",
-					height = 0.4,
-					width = 1.0,
-					border = "single",
-				},
-			},
-		},
+		-- opts = {
+		-- 	terminal = {
+		-- 		snacks_win_opts = {
+		-- 			position = "bottom",
+		-- 			height = 0.4,
+		-- 			width = 1.0,
+		-- 			border = "single",
+		-- 		},
+		-- 	},
+		-- },
 	},
 	{
 		"nvim-neo-tree/neo-tree.nvim",

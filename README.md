@@ -8,7 +8,7 @@
 - [`rustup`](https://github.com/rust-lang/rustup)
 - [`zvm`](https://github.com/tristanisham/zvm)
 - [`cmake`](https://github.com/Kitware/CMake)
-- [`yarn`](https://github.com/yarnpkg/yarn)
+- [`npm`](https://www.npmjs.com/)
 - esp-idf requirements:
   - [`python3`](https://www.python.org/)
   - [`ldproxy`](https://github.com/esp-rs/embuild/tree/master/ldproxy) (`cargo
