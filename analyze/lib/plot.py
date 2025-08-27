@@ -1,4 +1,5 @@
 import colorsys
+import locale
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 from itertools import cycle
@@ -38,6 +39,8 @@ def plot_bar(
     ax: Axes | None = None,
     rotation: bool | float = False,
     fontsize: int | None = None,
+    ymax: float | None = None,
+    ymargin: float | None = None,
 ) -> BarContainer:
     ax = ax or plt.axes()
     bar = ax.bar(
@@ -56,14 +59,21 @@ def plot_bar(
         barlabels = [f"{y:.{barlabel_decimals}f}" for y in ys]
     if barlabels == False:
         barlabels = [""] * len(ys)
+    fontsize_barlabel = fontsize_val * barlabel_fontscale
+    barlabel_padding = 2
     _ = ax.bar_label(
         bar,
         barlabels,
-        fontsize=fontsize_val * barlabel_fontscale,
-        padding=2,
+        fontsize=fontsize_barlabel,
+        padding=barlabel_padding,
     )
-    ymargin = 0.2 if any(barlabels) else 0.05
-    _ = ax.margins(y=ymargin, x=0.5 / len(ys))
+
+    _ = ax.margins(x=0.5 / len(ys))
+
+    if not ymax:
+        _, ymax = ax.get_ylim()
+    ymargin = ymargin or (0.2 if any(barlabels) else 0.05)
+    _ = ax.set_ylim(ymax=ymax * (1 + ymargin))
 
     if rotation == True:
         rotation = 45
@@ -92,6 +102,8 @@ def plot_hist(
     rotation: bool | float = False,
     sort_by_index: bool = False,
     fontsize: int | None = None,
+    ymax: float | None = None,
+    ymargin: float | None = None,
 ) -> BarContainer:
     series = pd.Series(labels)
     total = total if total else len(series)
@@ -113,6 +125,8 @@ def plot_hist(
         ax=ax,
         rotation=rotation,
         fontsize=fontsize,
+        ymax=ymax / total * 100 if ymax else None,
+        ymargin=ymargin,
     )
     ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
 
@@ -255,6 +269,16 @@ def lighten_color(color: ColorType | str, amount: float) -> ColorType:
 
 
 def use_plot_style():
+    try:
+        _ = locale.setlocale(locale.LC_NUMERIC, "pl_PL.UTF-8")
+    except Exception as e:
+        msg = """
+Could not set locale to pl_PL.UTF-8. Ensure that pl_PL.UTF-8 locale is installed
+and that LC_ALL environment variable is NOT an empty string.
+
+Falling back to the default locale.
+        """
+        print(msg, e)
     plt.style.use(["science", "ieee", "notebook", "./analyze/style.mplstyle"])
 
 

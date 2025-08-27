@@ -1,7 +1,8 @@
 ---
 title: "Survey analysis"
 format:
-  html: {}
+  html:
+    toc: true
   pdf:
     toc: true
     highlight-style: github
@@ -174,6 +175,7 @@ def pd_plot_hist(
     rotation: bool | float = False,
     sort_by_index: bool = False,
     fontsize: int | None = None,
+    ymax: float | None = None,
 ) -> BarContainer:
     return plot_hist(
         labels=series.to_list(),
@@ -182,6 +184,7 @@ def pd_plot_hist(
         rotation=rotation,
         sort_by_index=sort_by_index,
         fontsize=fontsize,
+        ymax=ymax,
     )
 
 
@@ -264,11 +267,11 @@ values = preprocess(
         "Telecoms": "Networks",
         "IMS": "Networks",
         "Wireless charging": "Consumer electronics",
-        "Stage lighting equipment": "Professional electronics",
-        "Professionnel Photography/Lighting": "Professional electronics",
-        "test and measurements": "Professional electronics",
-        "Metering": "Professional electronics",
-        "Datacenter": "Professional electronics",
+        "Stage lighting equipment": "Specialized electronics",
+        "Professionnel Photography/Lighting": "Specialized electronics",
+        "test and measurements": "Specialized electronics",
+        "Metering": "Specialized electronics",
+        "Datacenter": "Specialized electronics",
         "Hobby": "Consumer electronics",
         "Scientific Research Instrumentation": "Research",
     },
@@ -283,7 +286,7 @@ values = preprocess(
         "Automotive": "Motoryzacja",
         "Medical devices": "Medycyna",
         "Aerospace": "Lotnictwo",
-        "Professional electronics": "Elektronika profesjonalna",
+        "Specialized electronics": "Elektronika specjalizowana",
         "Networks": "Sieci komputerowe",
         "Silicon production": "Układy scalone",
         "Energy": "Energia",
@@ -409,7 +412,7 @@ ax.set_xticks(xticks, [f"{t*10}%" for t in xticks])
 pd_savefig(to_plot, OUT_DIR)
 
 avg = to_plot.mean() * 10
-ax.set_xlabel(f"{avg:.2f}% avg")
+# ax.set_xlabel(f"{avg:.2f}% avg")
 plt.show()
 ```
 
@@ -418,6 +421,7 @@ plt.show()
 ```{python}
 # | layout-ncol: 3
 
+# TODO: IOT -- problemy z pamięcią
 columns = [
     Column.S3_HARDWARE,
     Column.S3_PERFORMANCE,
@@ -430,21 +434,28 @@ columns = [
     Column.S3_CERTIFICATION,
 ]
 
+frequencies = df[columns].apply(pd.Series.value_counts)
+ymax = np.max(frequencies, axis=None)
+
 for column in columns:
     values = df[column]
     df_out[column] = values
 
     to_plot = values
     plt.figure(figsize=figsize_rel(0.3, 0.6))
+    ax = plt.axes()
     pd_plot_hist(
         to_plot,
+        ax=ax,
         sort_by_index=True,
         xrange=range(1, 6),
+        ymax=ymax,
     )
     pd_savefig(to_plot, OUT_DIR)
 
     avg = to_plot.mean()
-    xlabel = ("\n".join(wrap(f"{column.value} ({avg:.3} avg)", 22)),)
+    xlabel = "\n".join(wrap(f"{column.name} ({avg:.2f} avg)", 22))
+    # ax.set_xlabel(xlabel)
     plt.show()
 ```
 
@@ -464,22 +475,28 @@ columns = [
     Column.S4_COMMUNITY,
 ]
 
+frequencies = df[columns].apply(pd.Series.value_counts)
+ymax = np.max(frequencies, axis=None)
+
 for column in columns:
     values = df[column]
     df_out[column] = values
 
     to_plot = values
     plt.figure(figsize=figsize_rel(0.3, 0.6))
+    ax = plt.axes()
     pd_plot_hist(
         to_plot,
+        ax=ax,
         sort_by_index=True,
         xrange=range(1, 6),
+        ymax=ymax,
     )
     pd_savefig(to_plot, OUT_DIR)
 
     avg = to_plot.mean()
-    xlabel = "\n".join(wrap(f"{column.value} ({avg:.3} avg)", 22))
-    ax.set_xlabel(xlabel)
+    xlabel = "\n".join(wrap(f"{column.name} ({avg:.2f} avg)", 22))
+    # ax.set_xlabel(xlabel)
     plt.show()
 ```
 
@@ -865,4 +882,210 @@ tags = tag_comments(
 
 print_comments(values, tags=tags)
 print_tags(tags)
+```
+
+## Diffs
+
+### Industry: IoT
+
+#### IoT: Section 3: Pain points and challanges
+
+```{python}
+# | layout-ncol: 3
+
+df_filtered = df_out[
+    df_out[Column.S1_INDUSTRY].map(lambda row: "Internet rzeczy" in row)
+]
+
+columns = [
+    Column.S3_HARDWARE,
+    Column.S3_PERFORMANCE,
+    Column.S3_MEMORY,
+    Column.S3_DEBUGGING,
+    Column.S3_MEMORY_SAFETY,
+    Column.S3_TOOLING,
+    Column.S3_POWER,
+    Column.S3_LEGACY,
+    Column.S3_CERTIFICATION,
+]
+
+frequencies = df_filtered[columns].apply(pd.Series.value_counts)
+ymax = np.max(frequencies, axis=None)
+
+for column in columns:
+    values = df_filtered[column]
+
+    to_plot = values
+    plt.figure(figsize=figsize_rel(0.3, 0.6))
+    ax = plt.axes()
+    pd_plot_hist(
+        to_plot,
+        ax=ax,
+        sort_by_index=True,
+        xrange=range(1, 6),
+        ymax=ymax,
+    )
+    # pd_savefig(to_plot, OUT_DIR)
+
+    avg = to_plot.mean()
+    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
+    # ax.set_xlabel(xlabel)
+    plt.show()
+```
+
+#### IoT Section 4: Language selection criteria
+
+
+```{python}
+# | layout-ncol: 3
+
+columns = [
+    Column.S4_MATURITY,
+    Column.S4_PERFORMANCE,
+    Column.S4_C_INTEROPERABILITY,
+    Column.S4_TOOLING,
+    Column.S4_MEMORY_SAFETY,
+    Column.S4_TRAINING,
+    Column.S4_LIBRARIES,
+    Column.S4_COMMUNITY,
+]
+
+frequencies = df_filtered[columns].apply(pd.Series.value_counts)
+ymax = np.max(frequencies, axis=None)
+
+for column in columns:
+    values = df_filtered[column]
+
+    to_plot = values
+    plt.figure(figsize=figsize_rel(0.3, 0.6))
+    ax = plt.axes()
+    pd_plot_hist(
+        to_plot,
+        ax=ax,
+        sort_by_index=True,
+        xrange=range(1, 6),
+        ymax=ymax,
+    )
+    # pd_savefig(to_plot, OUT_DIR)
+
+    avg = to_plot.mean()
+    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
+    # ax.set_xlabel(xlabel)
+    plt.show()
+```
+* mamy wymieszaną grupę ludzi bardzo i średnio doświadcznia
+* podatności niewidoczne u doświadczonych
+* problemy z pamięcią wciąż są istotne na prog sys wbud
+* wykresy dla IOT, który charakteryzuje się produkcją małych, ograniczonych, szytych na miarę urządzeń
+* pamięć niewielka, możliwości ograniczone
+* zarządzanie pamięcią ważniejsze, reszta wykresów podobna
+* po wykresie mocy widać, że to IOT (więc ograniczona pamięć, itp)
+
+### Industry: Consumer electronics
+
+#### Consumer elec.: Section 3: Pain points and challenges
+
+```{python}
+# | layout-ncol: 3
+
+df_filtered = df_out[
+    df_out[Column.S1_INDUSTRY].map(
+        lambda row: "Elektronika dla masowego klienta" not in row
+    )
+]
+
+columns = [
+    Column.S3_HARDWARE,
+    Column.S3_PERFORMANCE,
+    Column.S3_MEMORY,
+    Column.S3_DEBUGGING,
+    Column.S3_MEMORY_SAFETY,
+    Column.S3_TOOLING,
+    Column.S3_POWER,
+    Column.S3_LEGACY,
+    Column.S3_CERTIFICATION,
+]
+
+frequencies = df_filtered[columns].apply(pd.Series.value_counts)
+ymax = np.max(frequencies, axis=None)
+
+for column in columns:
+    values = df_filtered[column]
+
+    to_plot = values
+    plt.figure(figsize=figsize_rel(0.3, 0.6))
+    ax = plt.axes()
+    pd_plot_hist(
+        to_plot,
+        ax=ax,
+        sort_by_index=True,
+        xrange=range(1, 6),
+        ymax=ymax,
+    )
+    # pd_savefig(to_plot, OUT_DIR)
+
+    avg = to_plot.mean()
+    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
+    # ax.set_xlabel(xlabel)
+    plt.show()
+```
+
+#### Consumer elec: Section 4: Language selection criteria
+
+
+```{python}
+# | layout-ncol: 3
+
+columns = [
+    Column.S4_MATURITY,
+    Column.S4_PERFORMANCE,
+    Column.S4_C_INTEROPERABILITY,
+    Column.S4_TOOLING,
+    Column.S4_MEMORY_SAFETY,
+    Column.S4_TRAINING,
+    Column.S4_LIBRARIES,
+    Column.S4_COMMUNITY,
+]
+
+frequencies = df_filtered[columns].apply(pd.Series.value_counts)
+ymax = np.max(frequencies, axis=None)
+
+for column in columns:
+    values = df_filtered[column]
+
+    to_plot = values
+    plt.figure(figsize=figsize_rel(0.3, 0.6))
+    ax = plt.axes()
+    pd_plot_hist(
+        to_plot,
+        ax=ax,
+        sort_by_index=True,
+        xrange=range(1, 6),
+        ymax=ymax,
+    )
+    # pd_savefig(to_plot, OUT_DIR)
+
+    avg = to_plot.mean()
+    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
+    # ax.set_xlabel(xlabel)
+    plt.show()
+```
+
+### No memory safety
+
+### No mem. safety: Industry segment
+
+```{python}
+
+df_filtered = df_out[df_out[Column.S3_MEMORY_SAFETY] != 1]
+
+column = Column.S1_INDUSTRY
+values = df_filtered[column]
+
+plt.figure(figsize=figsize_rel(w=0.6))
+
+to_plot = values
+pd_plot_hist_horiz(to_plot)
+pd_savefig(to_plot, OUT_DIR)
+plt.show()
 ```
