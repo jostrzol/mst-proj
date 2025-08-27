@@ -87,8 +87,10 @@ def plot_bar(
             xs,
             fontsize=fontsize,
             ha="right" if rotation != 0 else "center",
+            va="top",
             multialignment="right",
             rotation=rotation,
+            rotation_mode="anchor",
         )
         ax.tick_params(axis="x", length=0)
         ax.tick_params(axis="x", which="minor", length=0)

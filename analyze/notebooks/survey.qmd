@@ -365,7 +365,7 @@ values = preprocess(
 )
 df_out[column] = values
 
-plt.figure(figsize=figsize_rel(w=0.6))
+plt.figure(figsize=figsize_rel(w=0.60))
 
 to_plot = values
 pd_plot_hist_horiz(to_plot)
@@ -403,7 +403,7 @@ values = preprocess(
 df_out[column] = values
 
 to_plot = values.map(lambda row: ["\n".join(s.split()) for s in row])
-plt.figure(figsize=figsize_rel(w=0.3))
+plt.figure(figsize=figsize_rel(w=0.35))
 pd_plot_hist(to_plot, rotation=True)
 pd_savefig(to_plot, OUT_DIR)
 plt.show()
@@ -472,7 +472,6 @@ ax = plt.axes()
 pd_plot_hist(
     to_plot,
     ax=ax,
-    rotation=True,
     sort_by_index=True,
     xrange=[*range(11)],
 )
@@ -994,7 +993,7 @@ for column in columns:
         xrange=range(1, 6),
         ymax=ymax,
     )
-    # pd_savefig(to_plot, OUT_DIR)
+    pd_savefig(f"{column.name}-iot-vs-ce", OUT_DIR)
 
     plt.show()
 ```
@@ -1029,7 +1028,7 @@ for column in columns:
         xrange=range(1, 6),
         ymax=ymax,
     )
-    pd_savefig(to_plot, OUT_DIR)
+    pd_savefig(f"{column.name}-iot-vs-ce", OUT_DIR)
 
     plt.show()
 ```
