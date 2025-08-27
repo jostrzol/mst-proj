@@ -76,8 +76,8 @@ class Column(Enum):
     S1_ROLE = "Your primary role"
 
     # Section 2: Current language usage
-    S2_LANGUAGES_USED = """Which programming languages do you currently use or have used in the past
-    for microcontroller projects?"""
+    S2_LANGUAGES_USED = """Which programming languages do you currently use or
+        have used in the past for microcontroller projects?"""
     S2_C_CPP_RATIO = "What ratio of your embedded codebase is in C/C++?"
 
     # Section 3: Pain points and challenges
@@ -102,23 +102,24 @@ class Column(Enum):
     S4_TOOLING = "Tooling features and usability (e.g. build system)"
 
     # Section 5: Modern language adoption
-    S5_DID_USE_MODERN = "Have you ever used any “modern” language (e.g. Rust, Zig) for embedded development?"
+    S5_DID_USE_MODERN = """Have you ever used any “modern” language (e.g. Rust, Zig)
+        for embedded development?"""
     S5_BARRIERS = "If not, what barriers prevent you?"
     S5_MODERN_ADOPTION = (
         "How likely are you to adopt any “modern” language in the next 12 months?"
     )
 
     # Section 6: Tooling and ecosystem
-    S6_BUILD_SYSTEM_SATISFACTION = """Rate your satisfaction with the build system for C/C++ that you use for
-    embedded projects."""
-    S6_STATIC_ANALYSIS_RELIANCE = """How much do you rely on C/C++ static analysis tools for microcontroller
-    code? (e.g. clang-tidy, MISRA checkers)"""
-    S6_STATIC_ANALYSIS_SATISFACTION = """Rate your satisfaction with C/C++ static analysis tools for
-    microcontroller code."""
+    S6_BUILD_SYSTEM_SATISFACTION = """Rate your satisfaction with the build
+        system for C/C++ that you use for embedded projects."""
+    S6_STATIC_ANALYSIS_RELIANCE = """How much do you rely on C/C++ static
+        analysis tools for microcontroller code? (e.g. clang-tidy, MISRA checkers)"""
+    S6_STATIC_ANALYSIS_SATISFACTION = """Rate your satisfaction with C/C++
+        static analysis tools for microcontroller code."""
 
     # Section 7: Open section
-    S7_WANTED_FEATURES = """Can you think of any language or tooling features would most help your
-    embedded development?"""
+    S7_WANTED_FEATURES = """Can you think of any language or tooling features
+        would most help your embedded development?"""
     S7_COMMENTS = "Any additional comments?"
 
     @override

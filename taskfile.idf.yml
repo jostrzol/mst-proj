@@ -7,7 +7,7 @@ tasks:
     silent: true
     cmd: |
       cd {{.TASKFILE_DIR}}
-      if ! sh ./esp-export.sh --quiet --find-only; then
+      if ! . ./esp-export.sh --quiet --find-only; then
         echo >&2 "esp-idf not found in all of: $IDF_PATH ~/esp/esp-idf or ./.esp-idf"
 
         echo >&2 "downloading esp-idf to ./.esp-idf"

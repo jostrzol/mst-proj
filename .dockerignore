@@ -1,0 +1,55 @@
+# Docker ignore file for the entire repository
+# Excludes unnecessary files to reduce build context size
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Not language specific 
+/artifacts/
+/.nlsp-settings/
+/.venv/
+/.cache/
+/.task/
+/.esp-idf/
+/.vscode
+/rpi
+/.env
+/docs
+
+# C
+/c/build/
+/c/.cache/
+/c/*/build/
+/c/*/.cache/
+/c/toolchain/
+
+# Rust
+/rust/**/target/
+/rust/**/target_analyzer/
+
+# Zig
+/zig/**/.zig-cache
+/zig/**/zig-out
+/zig/*/build
+/zig/*/.cache
+
+# Analysis
+**/__pycache__
+/analysis/
+/analyze/out/
+/analyze/notebooks/*_files/
+/analyze/notebooks/*.html
+/analyze/notebooks/.gitignore
+
+# Server
+/server/node_modules
+
+# esp-idf
+**/managed_components
+**/sdkconfig
+**/sdkconfig.fast
+**/sdkconfig.small
+**/sdkconfig.defaults-local
+**/sdkconfig.old
