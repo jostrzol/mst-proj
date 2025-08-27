@@ -39,8 +39,9 @@ def plot_bar(
     ax: Axes | None = None,
     rotation: bool | float = False,
     fontsize: int | None = None,
-    ymax: float | None = None,
+    ymax: float | None | Literal[False] = None,
     ymargin: float | None = None,
+    xticks: bool = True,
 ) -> BarContainer:
     ax = ax or plt.axes()
     bar = ax.bar(
@@ -70,25 +71,27 @@ def plot_bar(
 
     _ = ax.margins(x=0.5 / len(ys))
 
-    if not ymax:
-        _, ymax = ax.get_ylim()
-    ymargin = ymargin or (0.2 if any(barlabels) else 0.05)
-    _ = ax.set_ylim(ymax=ymax * (1 + ymargin))
+    if ymax != False:
+        if ymax is None:
+            _, ymax = ax.get_ylim()
+        ymargin = ymargin or (0.2 if any(barlabels) else 0.05)
+        _ = ax.set_ylim(ymax=ymax * (1 + ymargin))
 
-    if rotation == True:
-        rotation = 45
-    elif rotation == False:
-        rotation = 0
-    _ = ax.set_xticks(
-        xs,
-        xs,
-        fontsize=fontsize,
-        ha="right" if rotation != 0 else "center",
-        multialignment="right",
-        rotation=rotation,
-    )
-    ax.tick_params(axis="x", length=0)
-    ax.tick_params(axis="x", which="minor", length=0)
+    if xticks:
+        if rotation == True:
+            rotation = 45
+        elif rotation == False:
+            rotation = 0
+        _ = ax.set_xticks(
+            xs,
+            xs,
+            fontsize=fontsize,
+            ha="right" if rotation != 0 else "center",
+            multialignment="right",
+            rotation=rotation,
+        )
+        ax.tick_params(axis="x", length=0)
+        ax.tick_params(axis="x", which="minor", length=0)
 
     return bar
 
@@ -104,6 +107,10 @@ def plot_hist(
     fontsize: int | None = None,
     ymax: float | None = None,
     ymargin: float | None = None,
+    bottom: Sequence[Any] | np.ndarray | float | None = None,
+    barlabels: Sequence[Any] | bool | None = None,
+    colors: Sequence[ColorType] | None = None,
+    widths: Sequence[Any] | float | None = None,
 ) -> BarContainer:
     series = pd.Series(labels)
     total = total if total else len(series)
@@ -121,12 +128,15 @@ def plot_hist(
     bar = plot_bar(
         xs=values.index.to_list(),
         ys=ys.to_list(),
-        barlabels=values.to_list(),
+        barlabels=barlabels or values.to_list(),
         ax=ax,
         rotation=rotation,
         fontsize=fontsize,
         ymax=ymax / total * 100 if ymax else None,
         ymargin=ymargin,
+        bottom=bottom,
+        colors=colors,
+        widths=widths,
     )
     ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
 

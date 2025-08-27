@@ -23,6 +23,7 @@ from collections.abc import Iterable
 import os
 from matplotlib.container import BarContainer
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 import pandas as pd
 import numpy as np
 import scienceplots as _  # pyright: ignore[reportMissingTypeStubs]
@@ -37,6 +38,7 @@ from textwrap import wrap
 from analyze.lib.plot import (
     figsize_rel,
     gray_shades,
+    plot_bar,
     plot_hist,
     plot_hist_horiz,
     savefig,
@@ -188,6 +190,68 @@ def pd_plot_hist(
     )
 
 
+def pd_plot_hist_diff(
+    series_total: pd.Series,
+    series_overlay: list[pd.Series],
+    ax: Axes | None = None,
+    xrange: Iterable[Any] | None = None,
+    rotation: bool | float = False,
+    ymax: float | None = None,
+    width: float = 0.8,
+    padding: float = 0.2,
+):
+    total = len(series_total)
+
+    def prepare_values(series: pd.Series) -> pd.Series:
+        series = series.value_counts()
+        for label in xrange or []:
+            if label not in series:
+                series[label] = 0
+        series = series.sort_index()
+        return series
+
+    values_total = prepare_values(series_total)
+
+    ys_total = values_total / total * 100
+
+    [*colors_overlay, black] = gray_shades(len(series_overlay) + 1)
+
+    ax = ax or plt.axes()
+    bar = plot_bar(
+        xs=values_total.index.to_list(),
+        ys=ys_total.to_list(),
+        barlabels=False,
+        ax=ax,
+        rotation=rotation,
+        ymax=ymax / total * 100 if ymax else None,
+        colors=black,
+        widths=width,
+    )
+    ax.yaxis.set_major_formatter(PercentFormatter(decimals=0))
+
+    width_overlay = (width - padding) / len(series_overlay)
+    single_padding = padding / (len(series_overlay) + 1)
+    offset_init = -width / 2 + single_padding + width_overlay / 2
+    for i, (series, color) in enumerate(zip(series_overlay, colors_overlay)):
+        values_overlay = prepare_values(series)
+        ys_overlay = values_overlay / total * 100
+        offset = offset_init + i * (width_overlay + single_padding)
+        bar = plot_bar(
+            xs=np.arange(len(values_total.index)) + 1 + offset,
+            ys=ys_overlay.to_list(),
+            barlabels=False,
+            ax=ax,
+            rotation=rotation,
+            ymax=False,
+            # bottom=ys1,
+            colors=color,
+            widths=width_overlay,
+            xticks=False,
+        )
+
+    return bar
+
+
 def pd_plot_hist_horiz(
     series: pd.Series,
     ax: Axes | None = None,
@@ -238,9 +302,14 @@ def pd_plot_pie(
     return ax
 
 
-def pd_savefig(series: pd.Series, dir: Path | str):
-    assert series.name is not None
-    savefig(plt.gcf(), Path(dir) / str(series.name))
+def pd_savefig(series: pd.Series | str, dir: Path | str):
+    if isinstance(series, str):
+        name = series
+    else:
+        name = str(series.name)
+    assert name is not None
+
+    savefig(plt.gcf(), Path(dir) / name)
 
 
 ax: Axes
@@ -884,17 +953,20 @@ print_comments(values, tags=tags)
 print_tags(tags)
 ```
 
-## Diffs
+## Slices
 
-### Industry: IoT
+### Industry:IoT vs Industry:Customer Electronics
 
-#### IoT: Section 3: Pain points and challanges
+#### IoT vs CE: Section 3: Pain points and challanges
 
 ```{python}
 # | layout-ncol: 3
 
-df_filtered = df_out[
-    df_out[Column.S1_INDUSTRY].map(lambda row: "Internet rzeczy" in row)
+df_iot = df_out[df_out[Column.S1_INDUSTRY].map(lambda row: "Internet rzeczy" in row)]
+df_ce = df_out[
+    df_out[Column.S1_INDUSTRY].map(
+        lambda row: "Elektronika dla masowego klienta" in row
+    )
 ]
 
 columns = [
@@ -909,31 +981,25 @@ columns = [
     Column.S3_CERTIFICATION,
 ]
 
-frequencies = df_filtered[columns].apply(pd.Series.value_counts)
+frequencies = df_out[columns].apply(pd.Series.value_counts)
 ymax = np.max(frequencies, axis=None)
 
 for column in columns:
-    values = df_filtered[column]
-
-    to_plot = values
     plt.figure(figsize=figsize_rel(0.3, 0.6))
     ax = plt.axes()
-    pd_plot_hist(
-        to_plot,
+    pd_plot_hist_diff(
+        df_out[column],
+        [df_iot[column], df_ce[column]],
         ax=ax,
-        sort_by_index=True,
         xrange=range(1, 6),
         ymax=ymax,
     )
     # pd_savefig(to_plot, OUT_DIR)
 
-    avg = to_plot.mean()
-    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
-    # ax.set_xlabel(xlabel)
     plt.show()
 ```
 
-#### IoT Section 4: Language selection criteria
+#### IoT vs CE: Section 4: Language selection criteria
 
 
 ```{python}
@@ -950,27 +1016,21 @@ columns = [
     Column.S4_COMMUNITY,
 ]
 
-frequencies = df_filtered[columns].apply(pd.Series.value_counts)
+frequencies = df_out[columns].apply(pd.Series.value_counts)
 ymax = np.max(frequencies, axis=None)
 
 for column in columns:
-    values = df_filtered[column]
-
-    to_plot = values
     plt.figure(figsize=figsize_rel(0.3, 0.6))
     ax = plt.axes()
-    pd_plot_hist(
-        to_plot,
+    pd_plot_hist_diff(
+        df_out[column],
+        [df_iot[column], df_ce[column]],
         ax=ax,
-        sort_by_index=True,
         xrange=range(1, 6),
         ymax=ymax,
     )
-    # pd_savefig(to_plot, OUT_DIR)
+    pd_savefig(to_plot, OUT_DIR)
 
-    avg = to_plot.mean()
-    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
-    # ax.set_xlabel(xlabel)
     plt.show()
 ```
 * mamy wymieszaną grupę ludzi bardzo i średnio doświadcznia
@@ -981,106 +1041,16 @@ for column in columns:
 * zarządzanie pamięcią ważniejsze, reszta wykresów podobna
 * po wykresie mocy widać, że to IOT (więc ograniczona pamięć, itp)
 
-### Industry: Consumer electronics
-
-#### Consumer elec.: Section 3: Pain points and challenges
-
-```{python}
-# | layout-ncol: 3
-
-df_filtered = df_out[
-    df_out[Column.S1_INDUSTRY].map(
-        lambda row: "Elektronika dla masowego klienta" not in row
-    )
-]
-
-columns = [
-    Column.S3_HARDWARE,
-    Column.S3_PERFORMANCE,
-    Column.S3_MEMORY,
-    Column.S3_DEBUGGING,
-    Column.S3_MEMORY_SAFETY,
-    Column.S3_TOOLING,
-    Column.S3_POWER,
-    Column.S3_LEGACY,
-    Column.S3_CERTIFICATION,
-]
-
-frequencies = df_filtered[columns].apply(pd.Series.value_counts)
-ymax = np.max(frequencies, axis=None)
-
-for column in columns:
-    values = df_filtered[column]
-
-    to_plot = values
-    plt.figure(figsize=figsize_rel(0.3, 0.6))
-    ax = plt.axes()
-    pd_plot_hist(
-        to_plot,
-        ax=ax,
-        sort_by_index=True,
-        xrange=range(1, 6),
-        ymax=ymax,
-    )
-    # pd_savefig(to_plot, OUT_DIR)
-
-    avg = to_plot.mean()
-    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
-    # ax.set_xlabel(xlabel)
-    plt.show()
-```
-
-#### Consumer elec: Section 4: Language selection criteria
-
-
-```{python}
-# | layout-ncol: 3
-
-columns = [
-    Column.S4_MATURITY,
-    Column.S4_PERFORMANCE,
-    Column.S4_C_INTEROPERABILITY,
-    Column.S4_TOOLING,
-    Column.S4_MEMORY_SAFETY,
-    Column.S4_TRAINING,
-    Column.S4_LIBRARIES,
-    Column.S4_COMMUNITY,
-]
-
-frequencies = df_filtered[columns].apply(pd.Series.value_counts)
-ymax = np.max(frequencies, axis=None)
-
-for column in columns:
-    values = df_filtered[column]
-
-    to_plot = values
-    plt.figure(figsize=figsize_rel(0.3, 0.6))
-    ax = plt.axes()
-    pd_plot_hist(
-        to_plot,
-        ax=ax,
-        sort_by_index=True,
-        xrange=range(1, 6),
-        ymax=ymax,
-    )
-    # pd_savefig(to_plot, OUT_DIR)
-
-    avg = to_plot.mean()
-    xlabel = "\n".join(wrap(f"{column.name} ({avg:.3} avg)", 22))
-    # ax.set_xlabel(xlabel)
-    plt.show()
-```
-
 ### No memory safety
 
-### No mem. safety: Industry segment
+#### No mem. safety: Industry segment
 
 ```{python}
 
-df_filtered = df_out[df_out[Column.S3_MEMORY_SAFETY] != 1]
+df_iot = df_out[df_out[Column.S3_MEMORY_SAFETY] != 1]
 
 column = Column.S1_INDUSTRY
-values = df_filtered[column]
+values = df_iot[column]
 
 plt.figure(figsize=figsize_rel(w=0.6))
 
