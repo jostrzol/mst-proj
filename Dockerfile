@@ -3,8 +3,6 @@
 # ==============================================================================
 FROM ubuntu:22.04 AS build-env
 
-
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     make \
@@ -50,7 +48,6 @@ RUN apt-get update && apt-get install -y cmake
 # Install go-task
 RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
-# Set working directory
 WORKDIR /workspace
 
 # ==============================================================================
@@ -60,7 +57,6 @@ FROM build-env AS esp-idf
 
 COPY taskfile.idf.yml esp-export.sh esp-idf-path.sh ./
 
-# Setup ESP-IDF for bare-metal builds
 ENV IDF_PATH=/workspace/.esp-idf
 RUN task --taskfile ./taskfile.idf.yml ensure-available
 
@@ -71,7 +67,6 @@ FROM esp-idf AS c-dependencies
 
 WORKDIR /workspace/c
 
-# Setup ARM cross-compilation toolchain using CMake target
 COPY ./c/CMakeLists.txt ./c/toolchain.cmake ./
 COPY ./c/dependencies/toolchain.cmake ./dependencies/
 
@@ -79,10 +74,6 @@ RUN mkdir -p build && \
     cd build && \
     cmake .. && \
     make toolchain
-
-# Verify toolchain was downloaded and extracted
-RUN ls -la build/cross-pi-gcc-*-0/bin/arm-linux-gnueabihf-gcc || \
-    (echo "ARM toolchain not properly setup" && exit 1)
 
 COPY ./c/dependencies/* ./dependencies
 COPY ./c/dependencies.cmake .
@@ -101,7 +92,6 @@ COPY ./c/3-pid ./3-pid/
 COPY ./c/targets.cmake ./c/taskfile.c.yml ./
 
 ENV TASK_TEMP_DIR=../.task
-
 RUN task --taskfile ./taskfile.c.yml --dir . build-every-profile-os
 
 # ==============================================================================
@@ -115,23 +105,18 @@ COPY ./c/3-pid-bm ./3-pid-bm/
 COPY ./c/taskfile.c.yml ./
 
 ENV TASK_TEMP_DIR=../.task
-# Build BM binaries using taskfile for fast and small profiles
-RUN cd .. && task --taskfile ./taskfile.idf.yml ensure-available
-RUN ls -la ..; task --taskfile ./taskfile.c.yml --dir . build-every-profile-bm
+RUN task --taskfile ./taskfile.c.yml --dir . build-every-profile-bm
 
 # ==============================================================================
-# Stage 5: Combine and Create Final Runtime Image
+# Copy to binded directory
 # ==============================================================================
 FROM ubuntu:22.04 AS runtime
 
-# Copy OS binaries from build-os stage
-COPY --from=build-os /workspace/artifacts/ /artifacts/
+RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
 
-# Copy BM binaries from build-bm stage (merge with OS artifacts)
+COPY --from=build-os /workspace/artifacts/ /artifacts/
 COPY --from=build-bm /workspace/artifacts/ /artifacts/
 
-# Set working directory
-WORKDIR /artifacts
+WORKDIR /
 
-# Default command shows available binaries
-CMD ["sh", "-c", "echo 'Available C binaries:' && echo 'OS binaries:' && find . -name '*-c' -not -name '*-bm-*' -type f | sort && echo 'BM binaries (.bin):' && find . -name '*-bm-c' -type f | sort && echo 'BM binaries (.elf):' && find . -name '*-bm-c.elf' -type f | sort"]
+CMD cp -r /artifacts/* /artifacts-bind

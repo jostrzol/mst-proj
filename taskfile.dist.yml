@@ -37,5 +37,17 @@ tasks:
       - c:build-every-profile
       - rust:build-every-profile
       - zig:build-every-profile
+  build-docker:
+    cmd:
+      task: docker-compose
+      vars: {CLI_ARGS: 'up build --build'}
   plot:
     deps: ['plot:all']
+  docker-compose:
+    internal: true
+    deps: [artifacts-docker-exists]
+    cmd: docker-compose {{.CLI_ARGS}}
+    env: {UID: '{{.UID}}', GID: '{{.GID}}'}
+  artifacts-docker-exists:
+    internal: true
+    dir: "./artifacts/docker"
