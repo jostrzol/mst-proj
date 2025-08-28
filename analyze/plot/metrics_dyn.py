@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import locale
 from collections.abc import Sequence
 from typing import Any, Literal
 
@@ -340,10 +339,8 @@ def plot_bar(
     errors: bool = False,
 ):
     containers: list[Container] = []
-    print(series_stats)
     series_means = [np.array([*map(np.mean, stats)]) for stats in series_stats]
     series_yerrs = [np.array([*map(sem, stats)]) for stats in series_stats]
-    print(series_means)
 
     max_mean = np.max(np.concatenate(series_means))
     max_yerr = np.max(np.concatenate(series_yerrs))
@@ -372,24 +369,9 @@ def plot_bar(
         )
 
         if errors:
-            ax.hlines(
-                ys - yerr,
-                xs - width / 4,
-                xs + width / 4,
-                color="black",
-            )
-            ax.hlines(
-                ys + yerr,
-                xs - width / 4,
-                xs + width / 4,
-                color="black",
-            )
-            ax.vlines(
-                xs,
-                ys - yerr,
-                ys + yerr,
-                color="black",
-            )
+            ax.hlines(ys - yerr, xs - width / 4, xs + width / 4, color="black")
+            ax.hlines(ys + yerr, xs - width / 4, xs + width / 4, color="black")
+            ax.vlines(xs, ys - yerr, ys + yerr, color="black")
 
         ax.margins(x=0.1 / len(series_stats), y=0.15)
         containers.append(bar)
