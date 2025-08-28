@@ -57,7 +57,7 @@ def plot_bar(
 
     fontsize_val = fontsize or rcParams["font.size"] or 12
     if barlabels == True or barlabels == None:
-        barlabels = [f"{y:.{barlabel_decimals}f}" for y in ys]
+        barlabels = [fmt(f"%.{barlabel_decimals}f", y) for y in ys]
     if barlabels == False:
         barlabels = [""] * len(ys)
     fontsize_barlabel = fontsize_val * barlabel_fontscale
@@ -281,6 +281,10 @@ def lighten_color(color: ColorType | str, amount: float) -> ColorType:
 
 
 def use_plot_style():
+    set_locale()
+    plt.style.use(["science", "ieee", "notebook", "./analyze/style.mplstyle"])
+
+def set_locale():
     try:
         _ = locale.setlocale(locale.LC_NUMERIC, "pl_PL.UTF-8")
     except Exception as e:
@@ -291,7 +295,10 @@ and that LC_ALL environment variable is NOT an empty string.
 Falling back to the default locale.
         """
         print(msg, e)
-    plt.style.use(["science", "ieee", "notebook", "./analyze/style.mplstyle"])
+
+
+def fmt(fmt: str, val: Any) -> str:
+    return locale.format_string(fmt, val)
 
 
 def figsize_rel(w: float = 1, h: float = 1) -> tuple[float, float]:

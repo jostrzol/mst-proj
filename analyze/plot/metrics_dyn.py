@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import locale
 from collections.abc import Sequence
 from typing import Any, Literal
 
@@ -24,9 +25,9 @@ from pandera.typing import DataFrame, Series
 from analyze.lib.constants import PERF_DIR, PLOT_DIR
 from analyze.lib.experiments import EXPERIMENTS
 from analyze.lib.language import LANGUAGES
-from analyze.lib.plot import figsize_rel
+from analyze.lib.plot import figsize_rel, fmt
 from analyze.lib.plot import plot_bar as plot_bar_
-from analyze.lib.plot import savefig, use_plot_style
+from analyze.lib.plot import savefig, set_locale, use_plot_style
 
 type PlotType = Literal["box"] | Literal["bar"] | Literal["stack"]
 
@@ -66,6 +67,7 @@ def main():
         platform = "bm" if is_bm else "os"
 
         fig = plt.figure(figsize=figsize_rel(w=1.2, h=1.2))
+        set_locale()  # for some reason have to call it here
         ax, *_ = plot_perf(fig, perf, is_bm=is_bm)
         ax.set_ylabel(r"Czas wykonania $[\mu s]$")
         savefig(fig, OUT_DIR / f"perf-{platform}")
@@ -404,7 +406,7 @@ def plot_stack(
         ys = np.array([stat.mean() for stat in stats])
 
         if is_last:
-            barlabels = [f"{y:.1f}" for y in bottom + ys]
+            barlabels = [fmt("%.1f", y) for y in bottom + ys]
         else:
             barlabels = [""] * len(xs)
 

@@ -13,3 +13,5 @@ legend.fontsize: 12
 legend.title_fontsize: 12
 axes.titlesize: 12
 axes.labelsize: 12
+# Misc
+axes.formatter.use_locale: True
