@@ -243,7 +243,6 @@ def pd_plot_hist_diff(
             ax=ax,
             rotation=rotation,
             ymax=False,
-            # bottom=ys1,
             colors=color,
             widths=width_overlay,
             xticks=False,
@@ -341,7 +340,7 @@ values = preprocess(
         "test and measurements": "Specialized electronics",
         "Metering": "Specialized electronics",
         "Datacenter": "Specialized electronics",
-        "Hobby": "Consumer electronics",
+        "Hobby": "IoT / Edge Computing",
         "Scientific Research Instrumentation": "Research",
     },
     drop=["Software Development", "Open Source"],
@@ -489,7 +488,6 @@ plt.show()
 ```{python}
 # | layout-ncol: 3
 
-# TODO: IOT -- problemy z pamięcią
 columns = [
     Column.S3_HARDWARE,
     Column.S3_PERFORMANCE,

@@ -67,7 +67,7 @@ def main():
         platform = "bm" if is_bm else "os"
 
         fig = plt.figure(figsize=figsize_rel(w=1.2, h=1.2))
-        set_locale()  # for some reason have to call it here
+        set_locale()  # for some reason have to call it here to make mpl respect the decimal separator
         ax, *_ = plot_perf(fig, perf, is_bm=is_bm)
         ax.set_ylabel(r"Czas wykonania $[\mu s]$")
         savefig(fig, OUT_DIR / f"perf-{platform}")
@@ -340,13 +340,23 @@ def plot_bar(
     errors: bool = False,
 ):
     containers: list[Container] = []
-    for multiplier, (stats, pattern, ax) in enumerate(zip(series_stats, patterns, axs)):
-        if len(stats) == 0:
+    print(series_stats)
+    series_means = [np.array([*map(np.mean, stats)]) for stats in series_stats]
+    series_yerrs = [np.array([*map(sem, stats)]) for stats in series_stats]
+    print(series_means)
+
+    max_mean = np.max(np.concatenate(series_means))
+    max_yerr = np.max(np.concatenate(series_yerrs))
+    ymax = +max_mean + max_yerr
+
+    for multiplier, (ys, yerr, pattern, ax) in enumerate(
+        zip(series_means, series_yerrs, patterns, axs)
+    ):
+        if len(ys) == 0:
             continue
 
         offset = width * multiplier
         xs = positions_init + offset
-        ys = np.array([stat.mean() for stat in stats])
 
         bar = plot_bar_(
             xs,
@@ -358,10 +368,10 @@ def plot_bar(
             hatch=pattern * 2,
             barlabel_decimals=2,
             barlabel_fontscale=0.8,
+            ymax=ymax,
         )
 
         if errors:
-            yerr = [sem(stat) for stat in stats]
             ax.hlines(
                 ys - yerr,
                 xs - width / 4,
