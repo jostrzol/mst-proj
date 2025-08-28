@@ -1,6 +1,4 @@
-# ==============================================================================
 # Build environment
-# ==============================================================================
 FROM ubuntu:22.04 AS build-env
 
 RUN apt-get update && apt-get install -y \
@@ -28,7 +26,7 @@ RUN apt-get update && apt-get install -y \
     libtool \
     && rm -rf /var/lib/apt/lists/*
 
-# Add kitware repository
+## Add kitware repository (needed for CMake v4)
 RUN ( \
     test -f /usr/share/doc/kitware-archive-keyring/copyright || \
     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null \
@@ -41,18 +39,16 @@ RUN ( \
     ) && \
     apt-get install kitware-archive-keyring
 
-# Install CMake v4
+## Install CMake v4
 RUN apt-get update && apt-get install -y cmake
 
 
-# Install go-task
+## Install go-task
 RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
 
 WORKDIR /workspace
 
-# ==============================================================================
 # ESP-IDF
-# ==============================================================================
 FROM build-env AS esp-idf
 
 COPY taskfile.idf.yml esp-export.sh esp-idf-path.sh ./
@@ -60,9 +56,7 @@ COPY taskfile.idf.yml esp-export.sh esp-idf-path.sh ./
 ENV IDF_PATH=/workspace/.esp-idf
 RUN task --taskfile ./taskfile.idf.yml ensure-available
 
-# ==============================================================================
 # C toolchain and dependencies
-# ==============================================================================
 FROM esp-idf AS c-dependencies
 
 WORKDIR /workspace/c
@@ -81,10 +75,7 @@ RUN cd build && \
     cmake .. && \
     make dependencies
 
-# ==============================================================================
-# OS binaries  
-# ==============================================================================
-FROM c-dependencies AS build-os
+FROM c-dependencies AS c-build-os
 
 COPY ./c/1-blinky ./1-blinky/
 COPY ./c/2-motor ./2-motor/
@@ -94,10 +85,7 @@ COPY ./c/targets.cmake ./c/taskfile.c.yml ./
 ENV TASK_TEMP_DIR=../.task
 RUN task --taskfile ./taskfile.c.yml --dir . build-every-profile-os
 
-# ==============================================================================
-# BM binaries
-# ==============================================================================  
-FROM c-dependencies AS build-bm
+FROM c-dependencies AS c-build-bm
 
 COPY ./c/1-blinky-bm ./1-blinky-bm/
 COPY ./c/2-motor-bm ./2-motor-bm/
@@ -107,15 +95,13 @@ COPY ./c/taskfile.c.yml ./
 ENV TASK_TEMP_DIR=../.task
 RUN task --taskfile ./taskfile.c.yml --dir . build-every-profile-bm
 
-# ==============================================================================
-# Copy to binded directory
-# ==============================================================================
+# Copy to bound directory (see docker-compose)
 FROM ubuntu:22.04 AS runtime
 
 RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build-os /workspace/artifacts/ /artifacts/
-COPY --from=build-bm /workspace/artifacts/ /artifacts/
+COPY --from=c-build-os /workspace/artifacts/ /artifacts/
+COPY --from=c-build-bm /workspace/artifacts/ /artifacts/
 
 WORKDIR /
 
