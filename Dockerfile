@@ -145,6 +145,8 @@ RUN task --taskfile ./taskfile.zig.yml --dir . build-every-profile-os
 # Zig build bm
 FROM zig-dependencies AS zig-build-bm
 
+COPY ./zig/idf-repeat.sh .
+
 COPY ./zig/1-blinky-bm ./1-blinky-bm/
 COPY ./zig/2-motor-bm ./2-motor-bm/
 COPY ./zig/3-pid-bm ./3-pid-bm/
@@ -155,8 +157,6 @@ RUN task --taskfile ./taskfile.zig.yml --dir . build-every-profile-bm
 
 # Copy to bound directory (see docker-compose)
 FROM ubuntu:22.04 AS runtime
-
-RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
 
 COPY --from=c-build-os /workspace/artifacts/ /artifacts/
 COPY --from=c-build-bm /workspace/artifacts/ /artifacts/

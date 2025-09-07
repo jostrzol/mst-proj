@@ -5,6 +5,7 @@
 /.cache/
 /.task/
 /.esp-idf/
+/.claude/
 
 # C
 /c/build/

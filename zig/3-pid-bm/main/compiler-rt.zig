@@ -8,6 +8,7 @@ comptime {
     @export(&__multi3, .{ .name = "__multi3", .linkage = .strong, .visibility = .default });
     @export(&__muloti4, .{ .name = "__muloti4", .linkage = .strong, .visibility = .default });
     @export(&__udivti3, .{ .name = "__udivti3", .linkage = .strong, .visibility = .default });
+    @export(&__divti3, .{ .name = "__divti3", .linkage = .strong, .visibility = .default });
 }
 
 pub fn __multi3(a: i128, b: i128) callconv(.c) i128 {
@@ -282,4 +283,26 @@ fn divwide_generic(comptime T: type, _u1: T, _u0: T, v_: T, r: *T) T {
 
     r.* = (un21 *% b +% un0 -% q0 *% v) >> s;
     return q1 *% b +% q0;
+}
+
+pub fn __divti3(a: i128, b: i128) callconv(.c) i128 {
+    return div(a, b);
+}
+
+const v128 = @Vector(2, u64);
+
+fn __divti3_windows_x86_64(a: v128, b: v128) callconv(.c) v128 {
+    return @bitCast(div(@bitCast(a), @bitCast(b)));
+}
+
+inline fn div(a: i128, b: i128) i128 {
+    const s_a = a >> (128 - 1);
+    const s_b = b >> (128 - 1);
+
+    const an = (a ^ s_a) -% s_a;
+    const bn = (b ^ s_b) -% s_b;
+
+    const r = udivmod(u128, @bitCast(an), @bitCast(bn), null);
+    const s = s_a ^ s_b;
+    return (@as(i128, @bitCast(r)) ^ s) -% s;
 }

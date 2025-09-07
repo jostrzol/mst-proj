@@ -145,6 +145,7 @@ tasks:
         vars:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
+          REPEAT: true
           CMD: 'build'
       - task: copy-artifact
         vars:
@@ -173,6 +174,7 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_bm}
     # optional: PROFILE
+    # optional: REPEAT
     vars:
       CMAKE_BUILD_TYPE: '{{.PROFILE | get .ZIG_CMAKE_BUILD_TYPE_MAP}}'
       SDKCONFIG: '{{.PROFILE | get .ZIG_SDKCONFIG_MAP | default "sdkconfig"}}'
@@ -180,7 +182,11 @@ tasks:
     cmd: |
       sh -c '
         {{.EXPORT_IDF_CMD}}
-        cd {{.PROJECT}} && idf.py -DCMAKE_BUILD_TYPE={{.CMAKE_BUILD_TYPE}} -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
+        cd {{.PROJECT}} && ../idf-repeat.sh \
+          -DCMAKE_BUILD_TYPE={{.CMAKE_BUILD_TYPE}} \
+          -DSDKCONFIG={{.SDKCONFIG}} \
+          {{if .REPEAT}}--repeat{{end}} \
+          {{.CMD}}
       '
     env:
       SDKCONFIG_DEFAULTS: '{{.PROFILE | get .ZIG_SDKCONFIG_DEFAULTS_MAP | default "sdkconfig.defaults"}}'
