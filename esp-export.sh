@@ -12,7 +12,7 @@ for arg in "$@"; do
 done
 
 if which idf.py >/dev/null 2>&1; then
-  test "$quiet" = false && >&2 "esp-idf already exported"
+  test "$quiet" = false && echo >&2 "esp-idf already exported"
   return 0
 fi
 
