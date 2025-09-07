@@ -70,31 +70,43 @@ fn makeModbus(b: *std.Build, options: MakeOptions) !struct {
     libname: []const u8,
     libdir: std.Build.LazyPath,
 } {
-    const src = b.dependency("modbus", .{}).path("libmodbus-3.1.11");
+    const src = b.dependency("modbus", .{}).path("");
 
     const write = b.addWriteFiles();
     _ = write.addCopyDirectory(src, "", .{});
+    const writeDir = write.getDirectory();
+
+    const autoreconf = b.addSystemCommand(&[_][]const u8{"./autogen.sh"});
+    autoreconf.stdio = .{ .check = .{} };
+    autoreconf.addFileInput(writeDir.path(b, "configure.ac"));
+    autoreconf.addFileInput(writeDir.path(b, "autogen.sh"));
+    autoreconf.setCwd(writeDir);
+    autoreconf.step.dependOn(&write.step);
 
     const configure = b.addSystemCommand(&[_][]const u8{"./configure"});
     configure.stdio = .{ .check = .{} };
-    configure.addFileInput(write.getDirectory().path(b, "configure"));
+    configure.addFileInput(writeDir.path(b, "configure"));
     const triple = try options.target.query.zigTriple(b.allocator);
     defer b.allocator.free(triple);
     const hostArg = try std.fmt.allocPrint(b.allocator, "--host={s}", .{triple});
     defer b.allocator.free(hostArg);
     configure.addArg(hostArg);
-    configure.addPrefixedDirectoryArg("--prefix=", write.getDirectory().path(b, "build"));
-    configure.setCwd(write.getDirectory());
-    configure.step.dependOn(&write.step);
+    configure.addPrefixedDirectoryArg("--prefix=", writeDir.path(b, "build"));
+    const cc = try std.fmt.allocPrint(b.allocator, "zig cc -target {s}", .{triple});
+    configure.setEnvironmentVariable("CC", cc);
+    const cpp = try std.fmt.allocPrint(b.allocator, "zig c++ -target {s}", .{triple});
+    configure.setEnvironmentVariable("CXX", cpp);
+    configure.setCwd(writeDir);
+    configure.step.dependOn(&autoreconf.step);
 
     const make = b.addSystemCommand(&[_][]const u8{ "make", "install" });
-    make.setCwd(write.getDirectory());
+    make.setCwd(writeDir);
     make.step.dependOn(&configure.step);
 
     return .{
         .step = &make.step,
-        .includedir = write.getDirectory().path(b, "build/include/modbus"),
+        .includedir = writeDir.path(b, "build/include/modbus"),
         .libname = "modbus",
-        .libdir = write.getDirectory().path(b, "build/lib"),
+        .libdir = writeDir.path(b, "build/lib"),
     };
 }
