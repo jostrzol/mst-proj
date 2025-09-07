@@ -80,7 +80,7 @@ tasks:
         cross build \
           --package {{.NAME}} \
           --profile={{.RUST_PROFILE}} \
-          --target={{.RUST_TRIPLET_OS}} \
+          --target={{.RUST_TRIPLET_OS}}
       - task: copy-artifact
         vars:
           FILE: '{{joinPath .OUT_DIR .NAME }}'
