@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["1-blinky", "2-motor", "3-pid", "4-dmc"]
+members = ["1-blinky", "2-motor", "3-pid"]
 
 [profile.dev]
 # debug = true    # Symbols are nice and they don't increase the size on Flash
