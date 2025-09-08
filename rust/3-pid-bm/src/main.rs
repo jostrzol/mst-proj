@@ -9,8 +9,8 @@ mod registers;
 mod server;
 mod services;
 
-use std::pin::Pin;
 use std::thread;
+use std::{ffi::c_char, pin::Pin};
 
 use esp_idf_hal::cpu::Core;
 use esp_idf_hal::delay::Delay;
@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
     let _server_thread = thread::Builder::new()
         .stack_size(STACK_SIZE)
         .spawn(move || server.run().expect("Server loop failed"))?;
-    let _server_task = unsafe { xTaskGetHandle(SERVER_TASK_NAME.as_ptr() as *const i8) };
+    let _server_task = unsafe { xTaskGetHandle(SERVER_TASK_NAME.as_ptr() as *const c_char) };
 
     ThreadSpawnConfiguration {
         name: Some(CONTROLLER_TASK_NAME),
@@ -91,7 +91,8 @@ fn main() -> anyhow::Result<()> {
             .expect("Controller setup failed");
             controller.run().expect("Controller loop failed")
         })?;
-    let _controller_task = unsafe { xTaskGetHandle(CONTROLLER_TASK_NAME.as_ptr() as *const i8) };
+    let _controller_task =
+        unsafe { xTaskGetHandle(CONTROLLER_TASK_NAME.as_ptr() as *const c_char) };
 
     info!("Controlling motor using PID from Rust");
 

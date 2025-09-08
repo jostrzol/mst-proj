@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1-labs
+
 # Build environment
 FROM ubuntu:22.04 AS build-env
 
@@ -59,6 +61,15 @@ RUN task --taskfile ./taskfile.idf.yml ensure-available
 # C toolchain and dependencies
 FROM esp-idf AS c-dependencies
 
+RUN apt-get update && apt-get install -y \
+    ninja-build \
+    ccache \
+    libffi-dev \
+    libssl-dev \
+    dfu-util \
+    libusb-1.0-0-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /workspace/c
 
 COPY ./c/CMakeLists.txt ./c/toolchain.cmake ./
@@ -95,7 +106,9 @@ COPY ./c/3-pid-bm ./3-pid-bm/
 COPY ./c/taskfile.c.yml ./
 
 ENV TASK_TEMP_DIR=../.task
-RUN task --taskfile ./taskfile.c.yml --dir . build-every-profile-bm
+RUN --mount=type=secret,id=WIFI_SSID,env=WIFI_SSID \
+    --mount=type=secret,id=WIFI_PASS,env=WIFI_PASS \
+    task --taskfile ./taskfile.c.yml --dir . build-every-profile-bm
 
 # Zig toolchain and dependencies
 FROM esp-idf AS zig-dependencies
@@ -153,7 +166,9 @@ COPY ./zig/3-pid-bm ./3-pid-bm/
 COPY ./zig/taskfile.zig.yml ./
 
 ENV TASK_TEMP_DIR=../.task
-RUN task --taskfile ./taskfile.zig.yml --dir . build-every-profile-bm
+RUN --mount=type=secret,id=WIFI_SSID,env=WIFI_SSID \
+    --mount=type=secret,id=WIFI_PASS,env=WIFI_PASS \
+    task --taskfile ./taskfile.zig.yml --dir . build-every-profile-bm
 
 # Rust toolchain and dependencies  
 FROM esp-idf AS rust-dependencies
@@ -164,9 +179,17 @@ RUN rustup toolchain install nightly-2025-08-25
 RUN rustup default nightly-2025-08-25
 RUN rustup target add arm-unknown-linux-gnueabihf
 
-RUN apt-get update && apt-get install -y gcc-arm-linux-gnueabihf && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update && apt-get install -y \
+    gcc-arm-linux-gnueabihf \
+    libclang-dev \
+    libudev-dev \
+    && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p ~/.cargo && echo '[target.arm-unknown-linux-gnueabihf]\nlinker = "arm-linux-gnueabihf-gcc"' > ~/.cargo/config.toml
+
+RUN cargo install espup --locked --version 0.14.1
+RUN espup install
+RUN cargo install ldproxy --locked --version 0.3.4
+RUN cargo install espflash --locked --version 3.3.0
 
 WORKDIR /workspace/rust
 
@@ -183,13 +206,19 @@ COPY ./rust/Cargo.toml ./rust/Cargo.lock ./
 COPY ./rust/1-blinky/Cargo.toml ./1-blinky/
 COPY ./rust/2-motor/Cargo.toml ./2-motor/
 COPY ./rust/3-pid/Cargo.toml ./3-pid/
-COPY ./rust/1-blinky-bm/Cargo.toml ./1-blinky-bm/
-COPY ./rust/2-motor-bm/Cargo.toml ./2-motor-bm/
-COPY ./rust/3-pid-bm/Cargo.toml ./3-pid-bm/
 
-RUN cargo build --package blinky --profile=fast --target=arm-unknown-linux-gnueabihf
-RUN cargo build --package motor --profile=fast --target=arm-unknown-linux-gnueabihf  
-RUN cargo build --package pid --profile=fast --target=arm-unknown-linux-gnueabihf
+RUN cargo build --package blinky --profile=fast \
+    --target=arm-unknown-linux-gnueabihf
+RUN cargo build --package motor --profile=fast \
+    --target=arm-unknown-linux-gnueabihf  
+RUN cargo build --package pid --profile=fast \
+    --target=arm-unknown-linux-gnueabihf
+
+COPY --exclude=src ./rust/1-blinky-bm ./1-blinky-bm/
+ENV IDF_PATH=/workspace/.esp-idf
+RUN cd 1-blinky-bm && cargo build --profile=fast
+RUN cd 2-motor-bm && cargo build --profile=fast
+RUN cd 3-pid-bm && cargo build --profile=fast
 
 # Rust build os
 FROM rust-dependencies AS rust-build-os
@@ -204,15 +233,17 @@ ENV RUST_BUILD_TOOL=cargo
 RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-os
 
 # Rust build bm
-# FROM rust-dependencies AS rust-build-bm
-#
-# COPY ./rust/1-blinky-bm ./1-blinky-bm/
-# COPY ./rust/2-motor-bm ./2-motor-bm/
-# COPY ./rust/3-pid-bm ./3-pid-bm/
-# COPY ./rust/taskfile.rust.yml ./
-#
-# ENV TASK_TEMP_DIR=../.task
-# RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-bm
+FROM rust-dependencies AS rust-build-bm
+
+COPY ./rust/1-blinky-bm ./1-blinky-bm/
+COPY ./rust/2-motor-bm ./2-motor-bm/
+COPY ./rust/3-pid-bm ./3-pid-bm/
+COPY ./rust/taskfile.rust.yml ./
+
+ENV TASK_TEMP_DIR=../.task
+RUN --mount=type=secret,id=WIFI_SSID,env=WIFI_SSID \
+    --mount=type=secret,id=WIFI_PASS,env=WIFI_PASS \
+    task --taskfile ./taskfile.rust.yml --dir . build-every-profile-bm
 
 # Copy to bound directory (see docker-compose)
 FROM ubuntu:22.04 AS runtime
@@ -224,8 +255,6 @@ COPY --from=zig-build-os /workspace/artifacts/ /artifacts/
 COPY --from=zig-build-bm /workspace/artifacts/ /artifacts/
 
 COPY --from=rust-build-os /workspace/artifacts/ /artifacts/
-# COPY --from=rust-build-bm /workspace/artifacts/ /artifacts/
-
-WORKDIR /
+COPY --from=rust-build-bm /workspace/artifacts/ /artifacts/
 
 CMD cp -r /artifacts/* /artifacts-bind

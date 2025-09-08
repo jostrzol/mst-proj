@@ -2,6 +2,9 @@ services:
   build:
       build:
         dockerfile: Dockerfile
+        secrets:
+          - WIFI_SSID
+          - WIFI_PASS
       user: "${UID:-1000}:${GID:-1000}"
       volumes:
         - type: bind 
@@ -9,3 +12,8 @@ services:
           target: /artifacts-bind
           read_only: false
       command: sh -c "mkdir -p /artifacts-bind && cp -r /artifacts/* /artifacts-bind"
+secrets:
+  WIFI_SSID:
+    environment: WIFI_SSID
+  WIFI_PASS:
+    environment: WIFI_PASS

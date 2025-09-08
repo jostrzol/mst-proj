@@ -15,8 +15,7 @@
 /c/toolchain/
 
 # Rust
-/rust/target/
-/rust/**/target_analyzer/
+/rust/**/target/
 
 # Zig
 /zig/**/.zig-cache
