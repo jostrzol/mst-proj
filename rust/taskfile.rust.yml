@@ -21,6 +21,8 @@ vars:
   RUST_TRIPLET_OS: "arm-unknown-linux-gnueabihf"
   RUST_TRIPLET_BM: "xtensa-esp32-espidf"
   ARTIFACTS_DIR: "../artifacts"
+  RUST_BUILD_TOOL:
+    sh: echo "${RUST_BUILD_TOOL:-cross}"
 tasks:
   # os and bm
   build-every-profile:
@@ -77,7 +79,7 @@ tasks:
       OUT_DIR: '{{joinPath "target" .RUST_TRIPLET_OS .PROFILE}}'
     cmds:
       - |
-        cross build \
+        {{.RUST_BUILD_TOOL}} build \
           --package {{.NAME}} \
           --profile={{.RUST_PROFILE}} \
           --target={{.RUST_TRIPLET_OS}}

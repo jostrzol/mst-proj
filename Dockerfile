@@ -155,6 +155,65 @@ COPY ./zig/taskfile.zig.yml ./
 ENV TASK_TEMP_DIR=../.task
 RUN task --taskfile ./taskfile.zig.yml --dir . build-every-profile-bm
 
+# Rust toolchain and dependencies  
+FROM esp-idf AS rust-dependencies
+
+RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:$PATH"
+RUN rustup toolchain install nightly-2025-08-25
+RUN rustup default nightly-2025-08-25
+RUN rustup target add arm-unknown-linux-gnueabihf
+
+RUN apt-get update && apt-get install -y gcc-arm-linux-gnueabihf && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p ~/.cargo && echo '[target.arm-unknown-linux-gnueabihf]\nlinker = "arm-linux-gnueabihf-gcc"' > ~/.cargo/config.toml
+
+WORKDIR /workspace/rust
+
+RUN mkdir -p 1-blinky/src 2-motor/src 3-pid/src 1-blinky-bm/src 2-motor-bm/src 3-pid-bm/src
+RUN echo "fn main() {}" | tee \
+    1-blinky/src/main.rs \
+    2-motor/src/main.rs \
+    3-pid/src/main.rs \
+    1-blinky-bm/src/main.rs \
+    2-motor-bm/src/main.rs \
+    3-pid-bm/src/main.rs
+
+COPY ./rust/Cargo.toml ./rust/Cargo.lock ./
+COPY ./rust/1-blinky/Cargo.toml ./1-blinky/
+COPY ./rust/2-motor/Cargo.toml ./2-motor/
+COPY ./rust/3-pid/Cargo.toml ./3-pid/
+COPY ./rust/1-blinky-bm/Cargo.toml ./1-blinky-bm/
+COPY ./rust/2-motor-bm/Cargo.toml ./2-motor-bm/
+COPY ./rust/3-pid-bm/Cargo.toml ./3-pid-bm/
+
+RUN cargo build --package blinky --profile=fast --target=arm-unknown-linux-gnueabihf
+RUN cargo build --package motor --profile=fast --target=arm-unknown-linux-gnueabihf  
+RUN cargo build --package pid --profile=fast --target=arm-unknown-linux-gnueabihf
+
+# Rust build os
+FROM rust-dependencies AS rust-build-os
+
+COPY ./rust/1-blinky ./1-blinky/
+COPY ./rust/2-motor ./2-motor/
+COPY ./rust/3-pid ./3-pid/
+COPY ./rust/taskfile.rust.yml ./
+
+ENV TASK_TEMP_DIR=../.task
+ENV RUST_BUILD_TOOL=cargo
+RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-os
+
+# Rust build bm
+# FROM rust-dependencies AS rust-build-bm
+#
+# COPY ./rust/1-blinky-bm ./1-blinky-bm/
+# COPY ./rust/2-motor-bm ./2-motor-bm/
+# COPY ./rust/3-pid-bm ./3-pid-bm/
+# COPY ./rust/taskfile.rust.yml ./
+#
+# ENV TASK_TEMP_DIR=../.task
+# RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-bm
+
 # Copy to bound directory (see docker-compose)
 FROM ubuntu:22.04 AS runtime
 
@@ -163,6 +222,9 @@ COPY --from=c-build-bm /workspace/artifacts/ /artifacts/
 
 COPY --from=zig-build-os /workspace/artifacts/ /artifacts/
 COPY --from=zig-build-bm /workspace/artifacts/ /artifacts/
+
+COPY --from=rust-build-os /workspace/artifacts/ /artifacts/
+# COPY --from=rust-build-bm /workspace/artifacts/ /artifacts/
 
 WORKDIR /
 
