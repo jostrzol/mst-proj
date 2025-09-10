@@ -209,16 +209,26 @@ COPY ./rust/3-pid/Cargo.toml ./3-pid/
 
 RUN cargo build --package blinky --profile=fast \
     --target=arm-unknown-linux-gnueabihf
+RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package blinky --profile=small \
+    --target=arm-unknown-linux-gnueabihf
 RUN cargo build --package motor --profile=fast \
+    --target=arm-unknown-linux-gnueabihf  
+RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package motor --profile=small \
     --target=arm-unknown-linux-gnueabihf  
 RUN cargo build --package pid --profile=fast \
     --target=arm-unknown-linux-gnueabihf
+RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package pid --profile=small \
+    --target=arm-unknown-linux-gnueabihf
 
 COPY --exclude=src ./rust/1-blinky-bm ./1-blinky-bm/
-ENV IDF_PATH=/workspace/.esp-idf
 RUN cd 1-blinky-bm && cargo build --profile=fast
+RUN cd 1-blinky-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
+COPY --exclude=src ./rust/2-motor-bm ./2-motor-bm/
 RUN cd 2-motor-bm && cargo build --profile=fast
+RUN cd 2-motor-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
+COPY --exclude=src ./rust/3-pid-bm ./3-pid-bm/
 RUN cd 3-pid-bm && cargo build --profile=fast
+RUN cd 3-pid-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
 
 # Rust build os
 FROM rust-dependencies AS rust-build-os
@@ -235,9 +245,9 @@ RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-os
 # Rust build bm
 FROM rust-dependencies AS rust-build-bm
 
-COPY ./rust/1-blinky-bm ./1-blinky-bm/
-COPY ./rust/2-motor-bm ./2-motor-bm/
-COPY ./rust/3-pid-bm ./3-pid-bm/
+COPY ./rust/1-blinky-bm/* ./1-blinky-bm/
+COPY ./rust/2-motor-bm/* ./2-motor-bm/
+COPY ./rust/3-pid-bm/* ./3-pid-bm/
 COPY ./rust/taskfile.rust.yml ./
 
 ENV TASK_TEMP_DIR=../.task
