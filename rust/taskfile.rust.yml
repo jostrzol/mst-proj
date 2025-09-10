@@ -25,6 +25,8 @@ vars:
     sh: echo "${RUST_BUILD_TOOL:-cross}"
 tasks:
   # os and bm
+  clean:
+    cmd: git clean -dffx .
   build-every-profile:
     deps: [build-every-profile-os, build-every-profile-bm]
   build-all:

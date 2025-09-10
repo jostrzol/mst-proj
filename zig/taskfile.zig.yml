@@ -34,6 +34,8 @@ vars:
   ARTIFACTS_DIR: "../artifacts"
 tasks:
   # os and bm
+  clean:
+    cmd: git clean -dffx .
   build-every-profile:
     deps: [build-every-profile-os, build-every-profile-bm]
   build-all:

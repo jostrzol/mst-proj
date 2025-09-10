@@ -41,6 +41,8 @@ tasks:
     cmd:
       task: docker-compose
       vars: {CLI_ARGS: 'up build --build'}
+  clean:
+    deps: [c:clean, rust:clean, zig:clean]
   plot:
     deps: ['plot:all']
   docker-compose:
