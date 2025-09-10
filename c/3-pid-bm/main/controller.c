@@ -230,12 +230,11 @@ esp_err_t controller_init(
               .rotate_once_s = interval_rotate_once_s,
               .rotate_all_s = interval_rotate_all_s,
           },
-      .state =
-          {
-              .revolutions = revolutions,
-              .is_close = false,
-              .feedback = {.delta = 0, .integration_component = 0},
-          },
+      .state = {
+          .revolutions = revolutions,
+          .is_close = false,
+          .feedback = {.delta = 0, .integration_component = 0},
+      },
   };
 
   return ESP_OK;
@@ -448,7 +447,7 @@ void controller_loop(void *params) {
       perf_counter_add_sample(perf_control, control_start);
     }
 
-    ESP_LOGI(TAG, "# REPORT %llu", report_number);
+    ESP_LOGI(TAG, "# REPORT %" PRIu64, report_number);
     memory_report();
     perf_counter_report(perf_read);
     perf_counter_report(perf_control);

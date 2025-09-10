@@ -80,15 +80,16 @@ tasks:
     cmds:
       - task: configure-os
         vars: {PROFILE: '{{.PROFILE}}'}
-      - cd {{.C_BUILD_DIR}} && make {{.PROJECT}}
+      - 'cd {{joinPath .C_BUILD_DIR .PROFILE}} && make {{.PROJECT}}'
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath .C_BUILD_DIR "bin" .PROJECT}}'
+          FILE: '{{joinPath .C_BUILD_DIR .PROFILE "bin" .PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           PROJECT: '{{.PROJECT}}'
     label: 'c:build-os:{{.PROFILE}}:{{.PROJECT}}'
+    deps: [toolchain-os]
   configure-os:
-    dir: '{{.C_BUILD_DIR}}'
+    dir: '{{.C_BUILD_DIR}}/{{.PROFILE}}'
     internal: true
     requires:
       vars:
@@ -96,7 +97,11 @@ tasks:
           enum: *profiles
     vars:
       BUILD_TYPE: '{{.PROFILE | get .C_BUILD_TYPE_MAP}}'
-    cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ..
+    cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ../..
+  toolchain-os:
+    dir: '{{.C_BUILD_DIR}}'
+    cmd: cmake .. && make toolchain
+    run: once
   # bm
   build-every-profile-bm:
     cmds:
@@ -125,6 +130,11 @@ tasks:
     generates:
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
       - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c.elf'
+    deps:
+      - task: deps-bm
+        vars:
+          PROJECT: '{{.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
     cmds:
       - task: cmd-bm
         vars:
@@ -133,12 +143,12 @@ tasks:
           CMD: 'build'
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath .PROJECT "build" (printf "%s.bin" .NAME)}}'
+          FILE: '{{joinPath .PROJECT "build" .PROFILE (printf "%s.bin" .NAME)}}'
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
       - task: copy-artifact
         vars:
-          FILE: '{{joinPath .PROJECT "build" (printf "%s.elf" .NAME)}}'
+          FILE: '{{joinPath .PROJECT "build" .PROFILE (printf "%s.elf" .NAME)}}'
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
@@ -147,17 +157,31 @@ tasks:
     requires:
       vars:
         - {name: PROJECT, enum: *projects_bm}
+        - {name: PROFILE, enum: *profiles}
     cmds:
       - task: cmd-bm
         vars:
           PROJECT: '{{.PROJECT}}'
           CMD: 'flash monitor'
+  deps-bm:
+    requires:
+      vars:
+        - {name: PROJECT, enum: *projects_bm}
+        - {name: PROFILE, enum: *profiles}
+    cmds:
+      - task: cmd-bm
+        vars:
+          PROJECT: '{{.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
+          CMD: 'update-dependencies'
+    run: once
+    label: 'c:deps-bm:{{.PROJECT}}'
   cmd-bm:
     internal: true
     requires:
       vars:
         - {name: PROJECT, enum: *projects_bm}
-    # optional: PROFILE
+        - {name: PROFILE, enum: *profiles}
     vars:
       PROJECT_DIR: '{{joinPath .PROJECT}}'
       SDKCONFIG: '{{.PROFILE | get .C_SDKCONFIG_MAP | default "sdkconfig"}}'
@@ -165,7 +189,10 @@ tasks:
     cmd: |
       sh -c '
         {{.EXPORT_IDF_CMD}}
-        cd {{.PROJECT_DIR}} && idf.py -DSDKCONFIG={{.SDKCONFIG}} {{.CMD}}
+        cd {{.PROJECT_DIR}} && idf.py \
+          --build-dir=build/{{.PROFILE}} \
+          -DSDKCONFIG={{.SDKCONFIG}} \
+          {{.CMD}}
       '
     env:
       SDKCONFIG_DEFAULTS: '{{.PROFILE | get .C_SDKCONFIG_DEFAULTS_MAP | default "sdkconfig.defaults"}}'

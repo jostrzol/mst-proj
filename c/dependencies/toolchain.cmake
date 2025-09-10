@@ -5,8 +5,9 @@ set(TOOLCHAIN_BASE_URL
 )
 set(TOOLCHAIN_URL "${TOOLCHAIN_BASE_URL}/${TOOLCHAIN_ARCHIVE_NAME}/download")
 
-set(TOOLCHAIN_ARCHIVE "${CMAKE_BINARY_DIR}/${TOOLCHAIN_ARCHIVE_NAME}")
-set(TOOLCHAIN_DIR "${CMAKE_BINARY_DIR}/cross-pi-gcc-${GCC_VERSION}-0")
+set(TOOLCHAIN_PARENT_DIR "${CMAKE_SOURCE_DIR}/build")
+set(TOOLCHAIN_ARCHIVE "${TOOLCHAIN_PARENT_DIR}/${TOOLCHAIN_ARCHIVE_NAME}")
+set(TOOLCHAIN_DIR "${TOOLCHAIN_PARENT_DIR}/cross-pi-gcc-${GCC_VERSION}-0")
 
 # Create a custom target for toolchain download and extraction
 add_custom_target(toolchain
@@ -17,7 +18,7 @@ add_custom_command(
   OUTPUT "${TOOLCHAIN_ARCHIVE}"
   COMMAND ${CMAKE_COMMAND} -E echo
           "Downloading ${TARGET_TRIPLET}-gcc-${GCC_VERSION} toolchain"
-  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${TOOLCHAIN_PARENT_DIR}"
   COMMAND wget -O "${TOOLCHAIN_ARCHIVE}" "${TOOLCHAIN_URL}" || curl -L -o
           "${TOOLCHAIN_ARCHIVE}" "${TOOLCHAIN_URL}"
   COMMENT "Downloading toolchain archive"
@@ -30,7 +31,7 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E echo
           "Extracting ${TARGET_TRIPLET}-gcc-${GCC_VERSION} toolchain"
   COMMAND ${CMAKE_COMMAND} -E tar xf "${TOOLCHAIN_ARCHIVE}"
-  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+  WORKING_DIRECTORY "${TOOLCHAIN_PARENT_DIR}"
   COMMENT "Extracting toolchain"
   VERBATIM)
 

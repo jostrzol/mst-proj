@@ -9,7 +9,6 @@
 #include "freertos/idf_additions.h"
 #include "hal/adc_types.h"
 #include "hal/ledc_types.h"
-#include "lwip/err.h"
 #include "sdkconfig.h" // IWYU pragma: keep
 
 #include "memory.h"
@@ -64,27 +63,27 @@ void app_main(void) {
   adc_oneshot_unit_handle_t adc;
   adc_oneshot_unit_init_cfg_t init_config1 = {.unit_id = ADC_UNIT};
   err = adc_oneshot_new_unit(&init_config1, &adc);
-  if (err != ERR_OK) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "adc_oneshot_new_unit fail (0x%x)", (int)err);
     abort();
   }
 
   err = adc_oneshot_config_channel(adc, ADC_CHANNEL, &ADC_CHANNEL_CONFIG);
-  if (err != ERR_OK) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "adc_oneshot_config_channel fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
 
   err = ledc_timer_config(&PWM_TIMER_CONFIG);
-  if (err != ERR_OK) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "ledc_timer_config fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
     abort();
   }
 
   err = ledc_channel_config(&PWM_CHANNEL_CONFIG);
-  if (err != ERR_OK) {
+  if (err != ESP_OK) {
     ESP_LOGE(TAG, "ledc_channel_config fail (0x%x)", (int)err);
     ESP_ERROR_CHECK_WITHOUT_ABORT(ledc_timer_config(&PWM_TIMER_DECONFIG));
     ESP_ERROR_CHECK_WITHOUT_ABORT(adc_oneshot_del_unit(adc));
@@ -137,7 +136,7 @@ void app_main(void) {
       perf_counter_add_sample(perf, start);
     }
 
-    ESP_LOGI(TAG, "# REPORT %llu", report_number);
+    ESP_LOGI(TAG, "# REPORT %" PRIu64, report_number);
     memory_report();
     perf_counter_report(perf);
     perf_counter_reset(perf);

@@ -9,8 +9,8 @@ return {
 			},
 			clangd = {
 				cmd = {
-					"/home/ogurczak/esp/llvm-project/build/bin/clangd",
-					"--query-driver=/home/ogurczak/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc*",
+					"/home/ogurczak/.espressif/tools/esp-clang/16.0.1-fe4f10a809/esp-clang/bin/clangd",
+					"--query-driver=/home/ogurczak/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc",
 				},
 			},
 			rust_analyzer = {

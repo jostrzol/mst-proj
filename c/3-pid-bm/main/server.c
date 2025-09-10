@@ -113,12 +113,13 @@ esp_err_t server_iteration() {
 
   ESP_LOGI(
       TAG,
-      "%s %s (%" PRIu32 " us), ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIx32
+      "%s %s (%" PRIu32 " us), ADDR:%u, TYPE:%u, INST_ADDR:0x%" PRIxPTR
       ", SIZE:%u",
       type_str, rw_str, reg_info.time_stamp, (unsigned)reg_info.mb_offset,
-      (unsigned)reg_info.type, (uint32_t)reg_info.address,
+      (unsigned)reg_info.type, (uintptr_t)reg_info.address,
       (unsigned)reg_info.size
   );
+
   return ESP_OK;
 }
 

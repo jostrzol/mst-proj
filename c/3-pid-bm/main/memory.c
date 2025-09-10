@@ -35,5 +35,5 @@ void memory_report() {
   size_t total_heap_size = heap_caps_get_total_size(0);
   size_t free_heap_size = heap_caps_get_free_size(0);
   size_t heap_usage = total_heap_size - free_heap_size;
-  ESP_LOGI(TAG, "Heap usage: %d B", heap_usage);
+  ESP_LOGI(TAG, "Heap usage: %zu B", heap_usage);
 }

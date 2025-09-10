@@ -60,7 +60,7 @@ void app_main(void) {
       perf_counter_add_sample(perf, start);
     }
 
-    ESP_LOGI(TAG, "# REPORT %llu", report_number);
+    ESP_LOGI(TAG, "# REPORT %" PRIu64, report_number);
     memory_report();
     perf_counter_report(perf);
     perf_counter_reset(perf);
