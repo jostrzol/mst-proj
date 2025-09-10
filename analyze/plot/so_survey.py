@@ -54,7 +54,7 @@ def main():
 
 
 def language_to_style(language: str) -> tuple[ColorType, str]:
-    white, gray, black = gray_shades(3, shades="dark")
+    white, gray, black = gray_shades(3)
     match language:
         case "c":
             return gray, ""

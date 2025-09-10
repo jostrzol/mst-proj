@@ -20,7 +20,7 @@ class DataRow(TypedDict):
     Count: str
 
 
-WHITE, GRAY, BLACK = gray_shades(3)
+GRAY, BLACK = gray_shades(2, start=0.6)
 
 TAG_SUBSTITUTIONS = {
     "segmentation-fault": "seg-fault",

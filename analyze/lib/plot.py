@@ -196,8 +196,7 @@ def savefig(fig: Figure, path: Path):
         pdf.savefig()
 
 
-def gray_shades(n: int, shades: Literal["light"] | Literal["dark"] = "dark"):
-    start, end = (1.0, 0.6) if shades == "light" else (1.0, 0.0)
+def gray_shades(n: int, start: float = 1.0, end: float = 0.0):
     return [f"{shade:.2f}" for shade in np.linspace(start, end, n)]
 
 
@@ -283,6 +282,7 @@ def lighten_color(color: ColorType | str, amount: float) -> ColorType:
 def use_plot_style():
     set_locale()
     plt.style.use(["science", "ieee", "notebook", "./analyze/style.mplstyle"])
+
 
 def set_locale():
     try:

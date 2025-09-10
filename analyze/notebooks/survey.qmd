@@ -214,7 +214,7 @@ def pd_plot_hist_diff(
 
     ys_total = values_total / total * 100
 
-    [*colors_overlay, black] = gray_shades(len(series_overlay) + 1)
+    [*colors_overlay, black] = gray_shades(len(series_overlay) + 1, start=0.8)
 
     ax = ax or plt.axes()
     bar = plot_bar(
@@ -284,7 +284,7 @@ def pd_plot_pie(
         count = (percent / 100 * total).astype(np.int64)
         return f"{count}\n({percent:.0f}%)"
 
-    colors = gray_shades(len(values), shades="light")
+    colors = gray_shades(len(values), end=0.6)
 
     ax = values.plot(
         kind="pie",
