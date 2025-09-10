@@ -1,6 +1,6 @@
 #!/bin/sh
 
-idf_py_path="$(which idf.py >/dev/null 2>&1)"
+idf_py_path="$(which idf.py 2>&1)"
 if test "$?" -eq 0; then
   echo "$(realpath "$(dirname "$idf_py_path")/..")"
   exit
