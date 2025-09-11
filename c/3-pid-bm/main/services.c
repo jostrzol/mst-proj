@@ -7,7 +7,7 @@
 #include "services.h"
 
 #define MB_MDNS_PORT (502)
-#define MB_MDNS_HOSTNAME "esp32"
+#define MB_MDNS_HOSTNAME "mst"
 
 static const char TAG[] = "services";
 

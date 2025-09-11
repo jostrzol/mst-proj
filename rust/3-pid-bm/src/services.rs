@@ -73,7 +73,7 @@ impl<'a> Services<'a> {
 
 fn mdns_init() -> anyhow::Result<EspMdns> {
     let mut mdns = EspMdns::take()?;
-    mdns.set_hostname("esp32")?;
-    mdns.add_service(Some("esp32"), "_modbus", "_tcp", 502, &[("board", "esp32")])?;
+    mdns.set_hostname("mst")?;
+    mdns.add_service(Some("mst"), "_modbus", "_tcp", 502, &[("board", "esp32")])?;
     Ok(mdns)
 }
