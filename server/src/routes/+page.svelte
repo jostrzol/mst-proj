@@ -56,7 +56,6 @@
 	$effect(() => {
 		localJsonStorage.set('pid-parameters', parameters);
 		const message = Message.serialize({ type: 'write', data: writeData });
-		console.log('POST:', message);
 		fetch('/sse', { method: 'POST', body: message });
 	});
 

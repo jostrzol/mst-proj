@@ -109,7 +109,6 @@ export class ModbusClient {
 			const floats = Float32Array.of(...values);
 			const data = Buffer.from(floats.buffer);
 			data.swap32(); // convert to Big Endian
-			console.log('writing:', values);
 			await client.writeMultipleRegisters(address, data);
 			this.clearWasError();
 		} catch (e) {

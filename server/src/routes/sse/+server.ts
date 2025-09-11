@@ -22,7 +22,6 @@ export const GET: RequestHandler = () => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-	console.log('POST:', request);
 	const body = await request.text();
 	const message = Message.parse(body);
 

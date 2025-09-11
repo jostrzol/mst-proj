@@ -1,0 +1,21 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .circle { fill: white; }
+    .wave { stroke: red; }
+
+    @media (prefers-color-scheme: dark) {
+    .circle { fill: #333; }
+    .wave { stroke: #4f4; }
+    }
+  </style>
+
+  <!-- Circle background -->
+  <circle cx="16" cy="16" r="15" class="circle" stroke="none" />
+
+  <!-- Red sine wave -->
+  <path d="M 8 16 Q 12 4 16 16 Q 20 28 24 16"
+    class="wave"
+    stroke-width="3"
+    fill="none"
+    stroke-linecap="round" />
+</svg>
