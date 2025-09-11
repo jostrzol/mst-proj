@@ -44,7 +44,14 @@ tasks:
   build-docker:
     cmd:
       task: docker-compose
-      vars: {CLI_ARGS: 'up build --build'}
+      vars: {CLI_ARGS: 'up binaries --build'}
+  serve-docker:
+    deps: [build-server-docker]
+    cmd: ORIGIN=http://localhost:3000 SHUTDOWN_TIMEOUT=1 node ./artifacts/docker/server/build
+  build-server-docker:
+    cmd:
+      task: docker-compose
+      vars: {CLI_ARGS: 'up server --build'}
   clean:
     deps: [c:clean, rust:clean, zig:clean]
   plot:

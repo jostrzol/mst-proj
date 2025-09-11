@@ -1,5 +1,5 @@
 services:
-  build:
+  binaries:
       build:
         dockerfile: Dockerfile
         secrets:
@@ -11,7 +11,15 @@ services:
           source: ./artifacts/docker
           target: /artifacts-bind
           read_only: false
-      command: sh -c "mkdir -p /artifacts-bind && cp -r /artifacts/* /artifacts-bind"
+  server:
+      build:
+        context: server
+      network_mode: host
+      volumes:
+        - type: bind 
+          source: ./artifacts/docker
+          target: /artifacts-bind
+          read_only: false
 secrets:
   WIFI_SSID:
     environment: WIFI_SSID

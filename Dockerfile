@@ -267,4 +267,4 @@ COPY --from=zig-build-bm /workspace/artifacts/ /artifacts/
 COPY --from=rust-build-os /workspace/artifacts/ /artifacts/
 COPY --from=rust-build-bm /workspace/artifacts/ /artifacts/
 
-CMD cp -r /artifacts/* /artifacts-bind
+CMD mkdir -p /artifacts-bind && cp -r /artifacts/* /artifacts-bind
