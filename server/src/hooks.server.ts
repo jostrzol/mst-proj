@@ -1,4 +1,4 @@
-import { ModbusClient } from '$lib/server';
+import { ModbusClient, type Options } from '$lib/server';
 import type { ServerInit } from '@sveltejs/kit';
 
 import {
@@ -12,7 +12,7 @@ import { _sendToAll } from './routes/ws/+server';
 export let client: ModbusClient;
 
 export const init: ServerInit = async () => {
-	client = new ModbusClient({
+	const options: Options = {
 		host: CONTROLLER_HOST,
 		port: parseInt(CONTROLLER_PORT),
 		unitId: parseInt(CONTROLLER_MODBUS_UNIT_ID),
@@ -22,7 +22,9 @@ export const init: ServerInit = async () => {
 		},
 		onConnected: () => _sendToAll({ type: 'connected' }),
 		onRecovered: () => _sendToAll({ type: 'recovered' }),
-	});
+	};
+	console.info('Modbus server options:', options);
+	client = new ModbusClient(options);
 	client.startReading();
 
 	process.on('sveltekit:shutdown', client.close);

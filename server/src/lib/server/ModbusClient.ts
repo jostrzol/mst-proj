@@ -1,4 +1,4 @@
-import modbus from 'jsmodbus';
+import modbus, { UserRequestError } from 'jsmodbus';
 import net from 'net';
 
 export type Options = net.SocketConnectOpts & {
@@ -38,7 +38,7 @@ export class ModbusClient {
 	private async client() {
 		if (this.#client) return this.#client;
 
-		console.info('Connecting to modbus server with options:', this.#options);
+		console.info('Connecting to modbus server...');
 		const socket = new net.Socket();
 		this.#client = new modbus.client.TCP(socket, this.#options.unitId);
 		const promise = new Promise((resolve, reject) => {
@@ -76,14 +76,24 @@ export class ModbusClient {
 				this.#options.onMessage?.call(null, reading);
 				this.clearWasError();
 			} catch (e) {
-				console.error('Error while reading modbus:', e);
+				if (isErrnoException(e) && e.code === 'EAI_AGAIN') {
+					console.info('Cannot resolve modbus server name');
+				} else if (e instanceof UserRequestError && e.err === 'Offline') {
+					console.info('Cannot reach modbus server');
+				} else if (e instanceof UserRequestError && e.err === 'Timeout') {
+					console.info('Connection to modbus server timed out');
+				} else if (e instanceof UserRequestError && e.err === 'OutOfSync') {
+					console.info('Lost connection to modbus server');
+				} else {
+					console.error('Error while reading modbus:', e);
+				}
 
 				if (this.#isError) return;
 				this.#isError = this.#wasError = true;
 				if (this.#retryNumber++ < this.retries) {
-					console.info(`Retrying in ${this.retry_ms} ms`);
+					// console.info(`Retrying in ${this.retry_ms} ms`);
 				} else {
-					console.info(`Restarting modbus client in ${this.retry_ms} ms`);
+					// console.info(`Restarting modbus client in ${this.retry_ms} ms`);
 					this.closeClient();
 				}
 				await new Promise((r) => setTimeout(r, this.retry_ms));
@@ -113,7 +123,7 @@ export class ModbusClient {
 	private clearWasError() {
 		if (this.#wasError) {
 			this.#wasError = false;
-			console.error('Successful modbus message exchange after error');
+			console.error('Reached modbus server!');
 		}
 	}
 
@@ -132,3 +142,7 @@ export class ModbusClient {
 		this.#client = undefined;
 	}
 }
+
+const isErrnoException = (value: unknown): value is NodeJS.ErrnoException => {
+	return typeof value === 'object' && value !== null && 'errno' in value;
+};
