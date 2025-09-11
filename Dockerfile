@@ -245,9 +245,9 @@ RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-os
 # Rust build bm
 FROM rust-dependencies AS rust-build-bm
 
-COPY ./rust/1-blinky-bm/* ./1-blinky-bm/
-COPY ./rust/2-motor-bm/* ./2-motor-bm/
-COPY ./rust/3-pid-bm/* ./3-pid-bm/
+COPY ./rust/1-blinky-bm ./1-blinky-bm/
+COPY ./rust/2-motor-bm ./2-motor-bm/
+COPY ./rust/3-pid-bm ./3-pid-bm/
 COPY ./rust/taskfile.rust.yml ./
 
 ENV TASK_TEMP_DIR=../.task
