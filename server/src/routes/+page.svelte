@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { env } from '$env/dynamic/public';
-
 	import { onMount } from 'svelte';
 	import { Button, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
@@ -10,7 +8,7 @@
 	import { localJsonStorage } from '$lib/localJsonStorage';
 	import { getSettings } from 'svelte-ux';
 	import * as d3c from 'd3-color';
-	import { WsMessage } from '$lib/ws/messages';
+	import { Message } from '$lib/data/messages';
 
 	const { currentTheme } = getSettings();
 
@@ -57,31 +55,30 @@
 
 	$effect(() => {
 		localJsonStorage.set('pid-parameters', parameters);
-		const message = WsMessage.serialize({ type: 'write', data: writeData });
-		socket?.send(message);
+		const message = Message.serialize({ type: 'write', data: writeData });
+		console.log('POST:', message);
+		fetch('/sse', { method: 'POST', body: message });
 	});
 
 	let dataTarget: Point[] = $state([]);
 	let dataCurrent: Point[] = $state([]);
 	let dataControl: Point[] = $state([]);
 
-	let socket: WebSocket | undefined;
+	let eventSource: EventSource | undefined;
 	onMount(() => {
-		const protocol = location.protocol == 'https' ? 'wss' : 'ws';
-		const port = env.PUBLIC_WS_PORT || 8080;
-		const wsAddress = `${protocol}://${location.hostname}:${port}`;
-		socket = new WebSocket(wsAddress);
-		socket.addEventListener('message', async (event: MessageEvent<string>) => {
-			const message = WsMessage.parse(event.data);
+		eventSource = new EventSource('/sse');
+		eventSource.addEventListener('message', async (event) => {
+			const message = Message.parse(event.data);
 			if (message.type === 'read') {
 				const reading = message.data;
 				dataCurrent.push({ x: reading.timestamp, y: reading.frequency });
 				dataControl.push({ x: reading.timestamp, y: reading.controlSignal });
 			} else if (message.type === 'connected' || message.type === 'recovered') {
-				socket!.send(WsMessage.serialize({ type: 'write', data: writeData }));
-			} else console.error('Undefined WS message:', message);
+				const data = Message.serialize({ type: 'write', data: writeData });
+				fetch('/sse', { method: 'POST', body: data });
+			} else console.error('Undefined SSE message:', message);
 		});
-		return socket.close;
+		return () => eventSource?.close();
 	});
 
 	$effect(() => {

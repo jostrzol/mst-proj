@@ -3384,11 +3384,6 @@ vite-node@3.0.5:
     pathe "^2.0.2"
     vite "^5.0.0 || ^6.0.0"
 
-vite-sveltekit-node-ws@^0.0.8:
-  version "0.0.8"
-  resolved "https://registry.yarnpkg.com/vite-sveltekit-node-ws/-/vite-sveltekit-node-ws-0.0.8.tgz#45098db6db3578a1b2b9ea7e23e8b93c6e27ec86"
-  integrity sha512-TZF+zuYIaRy/mE811lmJCuAZRDx5po8bOWAPAsTpK8p9BBBskElrQBs0Uws1cShVLyExpD4Jla7tydRcm8BbOg==
-
 "vite@^5.0.0 || ^6.0.0", vite@^6.0.0:
   version "6.1.0"
   resolved "https://registry.yarnpkg.com/vite/-/vite-6.1.0.tgz#00a4e99a23751af98a2e4701c65ba89ce23858a6"
@@ -3505,11 +3500,6 @@ ws@^8.18.0:
   version "8.18.0"
   resolved "https://registry.yarnpkg.com/ws/-/ws-8.18.0.tgz#0d7505a6eafe2b0e712d232b42279f53bc289bbc"
   integrity sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==
-
-ws@^8.18.3:
-  version "8.18.3"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-8.18.3.tgz#b56b88abffde62791c639170400c93dcb0c95472"
-  integrity sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==
 
 xml-name-validator@^5.0.0:
   version "5.0.0"

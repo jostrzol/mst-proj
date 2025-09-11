@@ -48,6 +48,7 @@ export class ModbusClient {
 		});
 		this.#retryNumber = 0;
 		await promise;
+		console.info('Connected to modbus server');
 		this.#options.onConnected?.call(null);
 		return this.#client;
 	}
@@ -90,12 +91,8 @@ export class ModbusClient {
 
 				if (this.#isError) return;
 				this.#isError = this.#wasError = true;
-				if (this.#retryNumber++ < this.retries) {
-					// console.info(`Retrying in ${this.retry_ms} ms`);
-				} else {
-					// console.info(`Restarting modbus client in ${this.retry_ms} ms`);
-					this.closeClient();
-				}
+				if (this.#retryNumber++ >= this.retries) this.closeClient();
+
 				await new Promise((r) => setTimeout(r, this.retry_ms));
 				this.#isError = false;
 			}
@@ -112,6 +109,7 @@ export class ModbusClient {
 			const floats = Float32Array.of(...values);
 			const data = Buffer.from(floats.buffer);
 			data.swap32(); // convert to Big Endian
+			console.log('writing:', values);
 			await client.writeMultipleRegisters(address, data);
 			this.clearWasError();
 		} catch (e) {
@@ -123,7 +121,7 @@ export class ModbusClient {
 	private clearWasError() {
 		if (this.#wasError) {
 			this.#wasError = false;
-			console.error('Reached modbus server!');
+			console.error('Restored modbus server connection!');
 		}
 	}
 

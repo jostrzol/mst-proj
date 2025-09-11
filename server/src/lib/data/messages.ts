@@ -1,6 +1,6 @@
-export type WsMessage =
-	| WsReadMessage
-	| WsWriteMessage
+export type Message =
+	| ReadMessage
+	| WriteMessage
 	| {
 			type: 'connected';
 			data?: never;
@@ -10,12 +10,12 @@ export type WsMessage =
 			data?: never;
 	  };
 
-export type WsReadMessage = {
+export type ReadMessage = {
 	type: 'read';
 	data: Reading;
 };
 
-export type WsWriteMessage = {
+export type WriteMessage = {
 	type: 'write';
 	data: {
 		targetFrequency: number;
@@ -32,11 +32,11 @@ export interface Reading {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace WsMessage {
-	export function parse(message: string): WsMessage {
+export namespace Message {
+	export function parse(message: string): Message {
 		return JSON.parse(message);
 	}
-	export function serialize(message: WsMessage): string {
+	export function serialize(message: Message): string {
 		return JSON.stringify(message);
 	}
 }

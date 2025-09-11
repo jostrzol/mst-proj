@@ -1,14 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, type PluginOption } from 'vite';
-import ws from 'vite-sveltekit-node-ws';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [sveltekit(), tailwindcss(), ws() as unknown as PluginOption],
-	server: {
-		hmr: { port: 8080 },
-	},
+	plugins: [sveltekit(), tailwindcss()],
 	test: {
 		workspace: [
 			{

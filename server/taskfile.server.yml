@@ -5,4 +5,4 @@ tasks:
   build:
     cmd: yarn run build
   run:
-    cmd: yarn run preview
+    cmd: ORIGIN=http://localhost:3000 SHUTDOWN_TIMEOUT=1 node ./build/

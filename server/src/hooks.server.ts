@@ -1,5 +1,5 @@
 import { ModbusClient, type Options } from '$lib/server';
-import { sendToAll, wsServer } from '$lib/server/ws/websocket';
+import { sendToAll } from '$lib/server/sse';
 import type { ServerInit } from '@sveltejs/kit';
 
 import {
@@ -9,11 +9,13 @@ import {
 	READ_RATE,
 } from '$env/static/private';
 
-wsServer();
+import { building } from '$app/environment';
 
 export let client: ModbusClient;
 
 export const init: ServerInit = async () => {
+	if (building) return;
+
 	const options: Options = {
 		host: CONTROLLER_HOST,
 		port: parseInt(CONTROLLER_PORT),
