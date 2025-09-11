@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { env } from '$env/dynamic/public';
+
 	import { onMount } from 'svelte';
 	import { Button, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
@@ -65,7 +67,10 @@
 
 	let socket: WebSocket | undefined;
 	onMount(() => {
-		socket = new WebSocket(`/ws`);
+		const protocol = location.protocol == 'https' ? 'wss' : 'ws';
+		const port = env.PUBLIC_WS_PORT || 8080;
+		const wsAddress = `${protocol}://${location.hostname}:${port}`;
+		socket = new WebSocket(wsAddress);
 		socket.addEventListener('message', async (event: MessageEvent<string>) => {
 			const message = WsMessage.parse(event.data);
 			if (message.type === 'read') {
