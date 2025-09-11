@@ -276,12 +276,13 @@
 </script>
 
 <div class="flex h-[275px] w-full rounded border p-4">
-	<div class="flex-grow">
+	<div class="relative flex-grow">
 		<canvas
 			bind:this={canvas}
 			onclick={crosshair.enabled ? onclick : null}
 			onmousemove={crosshair.enabled ? onmousemove : null}
 			onmouseleave={crosshair.enabled ? onmouseleave : null}
+			style="position: absolute; width: 100%; height: 100%;"
 		></canvas>
 	</div>
 	<aside class="align-center flex flex-col justify-center gap-2 p-4">
