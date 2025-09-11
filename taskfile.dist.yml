@@ -31,6 +31,10 @@ includes:
   bench:
     taskfile: ./analyze/taskfile.benchmark.yml
     optional: true
+  server:
+    taskfile: ./server/taskfile.server.yml
+    dir: ./server
+    optional: true
 tasks:
   build:
     deps:
