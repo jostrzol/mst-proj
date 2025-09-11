@@ -8,7 +8,7 @@ const c = @import("c.zig");
 const Self = @This();
 
 const mdns_port = 502;
-const mdns_hostname = "esp32";
+const mdns_hostname = "mst";
 
 mdns: MDns,
 wifi: Wifi,

@@ -1,4 +1,8 @@
 version: "3"
 tasks:
-  run:
+  dev:
     cmd: yarn run dev
+  build:
+    cmd: yarn run build
+  run:
+    cmd: yarn run preview

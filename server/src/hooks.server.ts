@@ -1,13 +1,15 @@
 import { ModbusClient, type Options } from '$lib/server';
+import { sendToAll, wsServer } from '$lib/server/ws/websocket';
 import type { ServerInit } from '@sveltejs/kit';
 
 import {
-	CONTROLLER_MODBUS_UNIT_ID,
 	CONTROLLER_HOST,
+	CONTROLLER_MODBUS_UNIT_ID,
 	CONTROLLER_PORT,
 	READ_RATE,
 } from '$env/static/private';
-import { _sendToAll } from './routes/ws/+server';
+
+wsServer();
 
 export let client: ModbusClient;
 
@@ -18,10 +20,10 @@ export const init: ServerInit = async () => {
 		unitId: parseInt(CONTROLLER_MODBUS_UNIT_ID),
 		intervalMs: 1000 / parseInt(READ_RATE),
 		onMessage: ({ timestamp, data: [frequency, controlSignal] }) => {
-			_sendToAll({ type: 'read', data: { timestamp, frequency, controlSignal } });
+			sendToAll({ type: 'read', data: { timestamp, frequency, controlSignal } });
 		},
-		onConnected: () => _sendToAll({ type: 'connected' }),
-		onRecovered: () => _sendToAll({ type: 'recovered' }),
+		onConnected: () => sendToAll({ type: 'connected' }),
+		onRecovered: () => sendToAll({ type: 'recovered' }),
 	};
 	console.info('Modbus server options:', options);
 	client = new ModbusClient(options);

@@ -3,12 +3,12 @@
 	import { Button, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from './LiveChart.svelte';
 	import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
-	import { WsMessage } from './ws/messages';
 	import type { PidParameters } from './PidParametersDial.svelte';
 	import PidParametersDial from './PidParametersDial.svelte';
 	import { localJsonStorage } from '$lib/localJsonStorage';
 	import { getSettings } from 'svelte-ux';
 	import * as d3c from 'd3-color';
+	import { WsMessage } from '$lib/ws/messages';
 
 	const { currentTheme } = getSettings();
 

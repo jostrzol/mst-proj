@@ -1,25 +1,29 @@
 export type WsMessage =
+	| WsReadMessage
+	| WsWriteMessage
 	| {
-		type: 'read';
-		data: Reading;
-	}
+			type: 'connected';
+			data?: never;
+	  }
 	| {
-		type: 'write';
-		data: {
-			targetFrequency: number;
-			proportionalFactor: number;
-			integrationTime: number;
-			differentiationTime: number;
-		};
-	}
-	| {
-		type: 'connected';
-		data?: never;
-	}
-	| {
-		type: 'recovered';
-		data?: never;
+			type: 'recovered';
+			data?: never;
+	  };
+
+export type WsReadMessage = {
+	type: 'read';
+	data: Reading;
+};
+
+export type WsWriteMessage = {
+	type: 'write';
+	data: {
+		targetFrequency: number;
+		proportionalFactor: number;
+		integrationTime: number;
+		differentiationTime: number;
 	};
+};
 
 export interface Reading {
 	frequency: number;
