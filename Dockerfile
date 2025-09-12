@@ -170,68 +170,53 @@ RUN --mount=type=secret,id=WIFI_SSID,env=WIFI_SSID \
     --mount=type=secret,id=WIFI_PASS,env=WIFI_PASS \
     task --taskfile ./taskfile.zig.yml --dir . build-every-profile-bm
 
-# Rust toolchain and dependencies  
-FROM esp-idf AS rust-dependencies
+# Rust toolchain
+FROM esp-idf AS rust-toolchain
 
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:$PATH"
 RUN rustup toolchain install nightly-2025-08-25
 RUN rustup default nightly-2025-08-25
+
+WORKDIR /workspace/rust
+
+# Rust build os
+FROM rust-toolchain AS rust-build-os
+
 RUN rustup target add arm-unknown-linux-gnueabihf
 
 RUN apt-get update && apt-get install -y \
     gcc-arm-linux-gnueabihf \
-    libclang-dev \
-    libudev-dev \
     && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p ~/.cargo && echo '[target.arm-unknown-linux-gnueabihf]\nlinker = "arm-linux-gnueabihf-gcc"' > ~/.cargo/config.toml
 
-RUN cargo install espup --locked --version 0.14.1
-RUN espup install
-RUN cargo install ldproxy --locked --version 0.3.4
-RUN cargo install espflash --locked --version 3.3.0
-
-WORKDIR /workspace/rust
-
-RUN mkdir -p 1-blinky/src 2-motor/src 3-pid/src 1-blinky-bm/src 2-motor-bm/src 3-pid-bm/src
+RUN mkdir -p 1-blinky/src 2-motor/src 3-pid/src
 RUN echo "fn main() {}" | tee \
     1-blinky/src/main.rs \
     2-motor/src/main.rs \
-    3-pid/src/main.rs \
-    1-blinky-bm/src/main.rs \
-    2-motor-bm/src/main.rs \
-    3-pid-bm/src/main.rs
+    3-pid/src/main.rs
 
 COPY ./rust/Cargo.toml ./rust/Cargo.lock ./
-COPY ./rust/1-blinky/Cargo.toml ./1-blinky/
-COPY ./rust/2-motor/Cargo.toml ./2-motor/
-COPY ./rust/3-pid/Cargo.toml ./3-pid/
 
-RUN cargo build --package blinky --profile=fast \
-    --target=arm-unknown-linux-gnueabihf
-RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package blinky --profile=small \
-    --target=arm-unknown-linux-gnueabihf
-RUN cargo build --package motor --profile=fast \
-    --target=arm-unknown-linux-gnueabihf  
-RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package motor --profile=small \
-    --target=arm-unknown-linux-gnueabihf  
-RUN cargo build --package pid --profile=fast \
-    --target=arm-unknown-linux-gnueabihf
-RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package pid --profile=small \
-    --target=arm-unknown-linux-gnueabihf
-
-COPY --exclude=src ./rust/1-blinky-bm ./1-blinky-bm/
-RUN cd 1-blinky-bm && cargo build --profile=fast
-RUN cd 1-blinky-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
-COPY --exclude=src ./rust/2-motor-bm ./2-motor-bm/
-RUN cd 2-motor-bm && cargo build --profile=fast
-RUN cd 2-motor-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
-COPY --exclude=src ./rust/3-pid-bm ./3-pid-bm/
-RUN cd 3-pid-bm && cargo build --profile=fast
-RUN cd 3-pid-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
-
-# Rust build os
-FROM rust-dependencies AS rust-build-os
+# TODO: Fix dependency build for rust. It works, but invoking cargo the second
+# time for the actual build doesn't produce a different binary.
+#
+# COPY ./rust/1-blinky/Cargo.toml ./1-blinky/
+# COPY ./rust/2-motor/Cargo.toml ./2-motor/
+# COPY ./rust/3-pid/Cargo.toml ./3-pid/
+#
+# RUN cargo build --package blinky --profile=fast \
+#     --target=arm-unknown-linux-gnueabihf
+# RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package blinky --profile=small \
+#     --target=arm-unknown-linux-gnueabihf
+# RUN cargo build --package motor --profile=fast \
+#     --target=arm-unknown-linux-gnueabihf  
+# RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package motor --profile=small \
+#     --target=arm-unknown-linux-gnueabihf  
+# RUN cargo build --package pid --profile=fast \
+#     --target=arm-unknown-linux-gnueabihf
+# RUN RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --package pid --profile=small \
+#     --target=arm-unknown-linux-gnueabihf
 
 COPY ./rust/1-blinky ./1-blinky/
 COPY ./rust/2-motor ./2-motor/
@@ -243,7 +228,33 @@ ENV RUST_BUILD_TOOL=cargo
 RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-os
 
 # Rust build bm
-FROM rust-dependencies AS rust-build-bm
+FROM rust-toolchain AS rust-build-bm
+
+RUN apt-get update && apt-get install -y \
+    libclang-dev \
+    libudev-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN cargo install espup --locked --version 0.14.1
+RUN espup install
+RUN cargo install ldproxy --locked --version 0.3.4
+RUN cargo install espflash --locked --version 3.3.0
+
+RUN mkdir -p 1-blinky-bm/src 2-motor-bm/src 3-pid-bm/src
+RUN echo "fn main() {}" | tee \
+    1-blinky-bm/src/main.rs \
+    2-motor-bm/src/main.rs \
+    3-pid-bm/src/main.rs
+
+COPY --exclude=src ./rust/1-blinky-bm ./1-blinky-bm/
+RUN cd 1-blinky-bm && cargo build --profile=fast
+RUN cd 1-blinky-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
+COPY --exclude=src ./rust/2-motor-bm ./2-motor-bm/
+RUN cd 2-motor-bm && cargo build --profile=fast
+RUN cd 2-motor-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
+COPY --exclude=src ./rust/3-pid-bm ./3-pid-bm/
+RUN cd 3-pid-bm && cargo build --profile=fast
+RUN cd 3-pid-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
 
 COPY ./rust/1-blinky-bm ./1-blinky-bm/
 COPY ./rust/2-motor-bm ./2-motor-bm/
