@@ -1,10 +1,12 @@
 version: '3'
 dotenv: [.env, .default.env]
 vars:
-  LANGS: [c, rust, zig]
-  PROJECTS: [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
+  LANGS: &langs [c, rust, zig]
+  PROJECTS: &projects [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
+  PROFILES: &profiles [fast, small, debug]
   LANG_EXT: {map: {c: c, rust: rs, zig: zig}}
   ARTIFACTS_DIR: "./artifacts"
+  ARTIFACTS_DOCKER_DIR: '{{joinPath .ARTIFACTS_DIR "docker"}}'
   ANALYZE_OUT_DIR: ./analyze/out
 includes:
   c:
@@ -36,26 +38,61 @@ includes:
     dir: ./server
     optional: true
 tasks:
+  # Combined build
+  docker-build:
+    deps: [docker-scenarios-build, docker-server-build]
   build:
+    deps: [scenarios-build, server-build]
+  clean:
+    cmd: git clean -dffx .
+  # Test scenarios
+  docker-scenarios-build:
+    cmd:
+      task: docker-compose
+      vars: {CLI_ARGS: 'up scenarios --build'}
+  scenarios-build:
     deps:
       - c:build-every-profile
       - rust:build-every-profile
       - zig:build-every-profile
-  build-docker:
-    cmd:
-      task: docker-compose
-      vars: {CLI_ARGS: 'up binaries --build'}
-  serve-docker:
-    deps: [build-server-docker]
-    cmd: ORIGIN=http://localhost:3000 SHUTDOWN_TIMEOUT=1 node ./artifacts/docker/server/build
-  build-server-docker:
+  scenarios-clean:
+    deps: [c:clean, rust:clean, zig:clean]
+  scenarios-run:
+    requires:
+      vars:
+        - {name: LANG, enum: *langs}
+        - {name: PROJECT, enum: *projects}
+        - {name: PROFILE, enum: *profiles}
+    vars:
+      IS_BM: {ref: .PROJECT | hasSuffix "-bm"}
+      BIN_NAME: '{{.PROJECT}}-{{.LANG}}{{if .IS_BM}}.elf{{end}}'
+      BIN_PATH: '{{joinPath .ARTIFACTS_DIR .PROFILE .BIN_NAME}}'
+    cmds:
+      - {task: bm-usb-reset}
+      - espflash flash --monitor {{.BIN_PATH}}
+  # PID controller panel
+  docker-server-build:
     cmd:
       task: docker-compose
       vars: {CLI_ARGS: 'up server --build'}
-  clean:
-    deps: [c:clean, rust:clean, zig:clean]
+  docker-server-run:
+    deps: [build-server-docker]
+    vars:
+      SERVER_BUILD_DIR: '{{joinPath .ARTIFACTS_DOCKER_DIR "server/build"}}'
+    cmd: ORIGIN=http://localhost:3000 SHUTDOWN_TIMEOUT=0 node {{.SERVER_BUILD_DIR}}
+  server-build:
+    deps: [server:build]
+  server-run:
+    deps: [server:run]
+  # Analysis
   plot:
     deps: ['plot:all']
+  # Utils
+  bm-monitor:
+    cmd: espflash monitor
+  bm-usb-reset:
+    ignore_error: true
+    cmd: sudo usb_modeswitch -v {{.USB_VENDOR}} -p {{.USB_PRODUCT}} --reset-usb
   docker-compose:
     internal: true
     deps: [artifacts-docker-exists]

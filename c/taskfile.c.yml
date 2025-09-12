@@ -25,7 +25,7 @@ vars:
       fast: sdkconfig.defaults;sdkconfig.defaults-fast
       small: sdkconfig.defaults;sdkconfig.defaults-small
   C_BUILD_DIR: "./build/"
-  ARTIFACTS_DIR: "../artifacts"
+  C_ARTIFACTS_DIR: "../artifacts"
 tasks:
   # os and bm
   clean:
@@ -76,7 +76,7 @@ tasks:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
     sources: ['{{joinPath .PROJECT "**/*.c"}}']
-    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
+    generates: ['{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
     cmds:
       - task: configure-os
         vars: {PROFILE: '{{.PROFILE}}'}
@@ -128,8 +128,8 @@ tasks:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
     sources: ['{{joinPath .PROJECT "main" "**/*.c"}}']
     generates:
-      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
-      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c.elf'
+      - '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
+      - '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c.elf'
     deps:
       - task: deps-bm
         vars:
@@ -206,7 +206,7 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       SUFFIX: '{{.SUFFIX | default ""}}'
-      OUTPUT_FILE: '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
+      OUTPUT_FILE: '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c{{.SUFFIX}}'
     sources: ['{{.FILE}}']
     generates: ['{{.OUTPUT_FILE}}']
     deps:
@@ -219,4 +219,4 @@ tasks:
       vars:
         - {name: PROFILE, enum: *profiles}
     internal: true
-    cmd: mkdir -p '{{.ARTIFACTS_DIR}}/{{.PROFILE}}'
+    cmd: mkdir -p '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}'

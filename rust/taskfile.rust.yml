@@ -20,7 +20,7 @@ vars:
       small: -Zfmt-debug=none -Zlocation-detail=none
   RUST_TRIPLET_OS: "arm-unknown-linux-gnueabihf"
   RUST_TRIPLET_BM: "xtensa-esp32-espidf"
-  ARTIFACTS_DIR: "../artifacts"
+  RUST_ARTIFACTS_DIR: "../artifacts"
   RUST_BUILD_TOOL:
     sh: echo "${RUST_BUILD_TOOL:-cross}"
 tasks:
@@ -73,7 +73,7 @@ tasks:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
     sources: ['{{joinPath .PROJECT "**/*"}}']
-    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
+    generates: ['{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
       RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
@@ -138,8 +138,8 @@ tasks:
       - exclude: '{{joinPath .PROJECT ".embuild"}}'
       - exclude: '{{joinPath .PROJECT "target"}}'
     generates:
-      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust'
-      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust.elf'
+      - '{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust'
+      - '{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust.elf'
     vars:
       RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
       OUT_DIR: '{{joinPath .PROJECT "target" .RUST_TRIPLET_BM .PROFILE}}'
@@ -175,7 +175,7 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       SUFFIX: '{{.SUFFIX | default ""}}'
-      OUTPUT_FILE: '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust{{.SUFFIX}}'
+      OUTPUT_FILE: '{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust{{.SUFFIX}}'
     sources: ['{{.FILE}}']
     generates: ['{{.OUTPUT_FILE}}']
     deps:
@@ -188,4 +188,4 @@ tasks:
       vars:
         - {name: PROFILE, enum: *profiles}
     internal: true
-    cmd: mkdir -p '{{.ARTIFACTS_DIR}}/{{.PROFILE}}'
+    cmd: mkdir -p '{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}'

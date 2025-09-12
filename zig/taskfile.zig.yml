@@ -31,7 +31,7 @@ vars:
   ZIG_VERSION: "0.13.0"
   ZIG_TRIPLET_OS: "arm-linux-gnueabihf"
   ZIG_CPU_OS: "arm1176jzf_s"
-  ARTIFACTS_DIR: "../artifacts"
+  ZIG_ARTIFACTS_DIR: "../artifacts"
 tasks:
   # os and bm
   clean:
@@ -90,7 +90,7 @@ tasks:
       - '{{joinPath .PROJECT "**/*.zig"}}'
       - exclude: '{{joinPath .PROJECT "zig-out/**/*.zig"}}'
       - exclude: '{{joinPath .PROJECT ".zig-cache/**/*.zig"}}'
-    generates: ['{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig']
+    generates: ['{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig']
     vars:
       PROFILE_FLAG: '{{.PROFILE | get .ZIG_PROFILE_FLAG_MAP}}'
       LOG_LEVEL_FLAG: '{{if .LOG_LEVEL}}-Dlog-level={{.LOG_LEVEL | lower}}{{end}}'
@@ -140,8 +140,8 @@ tasks:
       - exclude: '{{joinPath .PROJECT ".zig-cache/**/*"}}'
       - exclude: '{{joinPath .PROJECT "zig-out/**/*"}}'
     generates:
-      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig'
-      - '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig.elf'
+      - '{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig'
+      - '{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig.elf'
     cmds:
       - task: cmd-bm
         vars:
@@ -202,7 +202,7 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       SUFFIX: '{{.SUFFIX | default ""}}'
-      OUTPUT_FILE: '{{.ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig{{.SUFFIX}}'
+      OUTPUT_FILE: '{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig{{.SUFFIX}}'
     sources: ['{{.FILE}}']
     generates: ['{{.OUTPUT_FILE}}']
     deps:
@@ -215,4 +215,4 @@ tasks:
       vars:
         - {name: PROFILE, enum: *profiles}
     internal: true
-    cmd: mkdir -p '{{.ARTIFACTS_DIR}}/{{.PROFILE}}'
+    cmd: mkdir -p '{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}'

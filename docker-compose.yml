@@ -1,5 +1,5 @@
 services:
-  binaries:
+  scenarios:
       build:
         dockerfile: Dockerfile
         secrets:
