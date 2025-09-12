@@ -10,8 +10,6 @@
 	import type { TuneParameters } from '$lib/components/TuneDials.svelte';
 	import TuneDials from '$lib/components/TuneDials.svelte';
 
-	const start = Date.now();
-
 	const { currentTheme } = getSettings();
 
 	const PLOT_DURATION_MS = 6000;
