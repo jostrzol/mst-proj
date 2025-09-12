@@ -12,24 +12,14 @@ export type Message =
 
 export type ReadMessage = {
 	type: 'read';
-	data: Reading;
+	timestamp: number;
+	data: number[];
 };
 
 export type WriteMessage = {
 	type: 'write';
-	data: {
-		targetFrequency: number;
-		proportionalFactor: number;
-		integrationTime: number;
-		differentiationTime: number;
-	};
+	data: number[];
 };
-
-export interface Reading {
-	frequency: number;
-	controlSignal: number;
-	timestamp: number;
-}
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Message {

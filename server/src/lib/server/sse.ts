@@ -25,9 +25,7 @@ export function removeClient(uid: string) {
 }
 
 export function modbusSend(message: WriteMessage) {
-	const data = message.data;
-	// JSON cannot convey infinity values -- convert them to nulls
-	if (data.integrationTime == null) data.integrationTime = Infinity;
-	const values = Object.values(message.data);
-	client.writeRegistersFloat32(0, values);
+	// JSON cannot convey infinity values -- they are sent as nulls
+	const data = message.data.map(value => value == null ? Infinity : value);
+	client.writeRegistersFloat32(0, data);
 }

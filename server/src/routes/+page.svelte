@@ -54,7 +54,7 @@
 
 	$effect(() => {
 		localJsonStorage.set('pid-parameters', parameters);
-		const message = Message.serialize({ type: 'write', data: writeData });
+		const message = Message.serialize({ type: 'write', data: Object.values(writeData) });
 		fetch('/sse', { method: 'POST', body: message });
 	});
 
@@ -68,11 +68,12 @@
 		eventSource.addEventListener('message', async (event) => {
 			const message = Message.parse(event.data);
 			if (message.type === 'read') {
-				const reading = message.data;
-				dataCurrent.push({ x: reading.timestamp, y: reading.frequency });
-				dataControl.push({ x: reading.timestamp, y: reading.controlSignal });
+				const timestamp = message.timestamp;
+				const [frequency, controlSignal] = message.data;
+				dataCurrent.push({ x: timestamp, y: frequency });
+				dataControl.push({ x: timestamp, y: controlSignal });
 			} else if (message.type === 'connected' || message.type === 'recovered') {
-				const data = Message.serialize({ type: 'write', data: writeData });
+				const data = Message.serialize({ type: 'write', data: Object.values(writeData) });
 				fetch('/sse', { method: 'POST', body: data });
 			} else console.error('Undefined SSE message:', message);
 		});

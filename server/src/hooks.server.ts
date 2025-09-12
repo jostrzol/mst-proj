@@ -21,8 +21,8 @@ export const init: ServerInit = async () => {
 		port: parseInt(CONTROLLER_PORT),
 		unitId: parseInt(CONTROLLER_MODBUS_UNIT_ID),
 		intervalMs: 1000 / parseInt(READ_RATE),
-		onMessage: ({ timestamp, data: [frequency, controlSignal] }) => {
-			sendToAll({ type: 'read', data: { timestamp, frequency, controlSignal } });
+		onMessage: ({ timestamp, data }) => {
+			sendToAll({ type: 'read', timestamp, data });
 		},
 		onConnected: () => sendToAll({ type: 'connected' }),
 		onRecovered: () => sendToAll({ type: 'recovered' }),
