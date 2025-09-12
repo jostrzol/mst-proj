@@ -171,7 +171,7 @@
 		chart.update();
 	});
 
-	const stats = $derived(
+	const statsCurrent = $derived(
 		datasets.map(({ borderColor, data, stats }) => {
 			const endTimestamp = Date.now() - duration;
 			let endIndex = data.findLastIndex((point) => point.x < endTimestamp);
@@ -189,6 +189,10 @@
 			};
 		}),
 	);
+	let stats = $state<typeof statsCurrent>([]);
+	$effect(() => {
+		if (!props.isPaused) stats = statsCurrent;
+	});
 
 	function onclick(e: MouseEvent) {
 		const point = getPoint(e);
