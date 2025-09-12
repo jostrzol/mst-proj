@@ -14,7 +14,6 @@ services:
   server:
       build:
         context: server
-      network_mode: host
       volumes:
         - type: bind 
           source: ./artifacts/docker
