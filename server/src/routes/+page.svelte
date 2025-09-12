@@ -43,7 +43,6 @@
 			},
 		},
 	);
-	$inspect(parameters);
 	const { proportional, integration, differentiation } = $derived(parameters);
 
 	const writeData = $derived({

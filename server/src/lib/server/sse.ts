@@ -14,16 +14,6 @@ export function sendToAll(message: Message) {
 	});
 }
 
-const resetMessage: WriteMessage = {
-	type: 'write',
-	data: {
-		integrationTime: 0.5,
-		differentiationTime: 0.65,
-		proportionalFactor: 0.07,
-		targetFrequency: 0,
-	},
-};
-
 export function addClient(uid: string, controller: ReadableStreamDefaultController) {
 	console.debug('SSE: client connected');
 	clients.set(uid, controller);
@@ -32,11 +22,6 @@ export function addClient(uid: string, controller: ReadableStreamDefaultControll
 export function removeClient(uid: string) {
 	console.debug('SSE: client disconnected');
 	clients.delete(uid);
-
-	if (clients.size === 0) {
-		console.info('SSE: all clients dropped, sending reset message on MODBUS');
-		modbusSend(resetMessage);
-	}
 }
 
 export function modbusSend(message: WriteMessage) {

@@ -8,14 +8,12 @@
 		LineController,
 		LineElement,
 		PointElement,
-		Tooltip,
 	} from 'chart.js';
 
 	import ChartStreaming from 'chartjs-plugin-streaming';
 	import 'chartjs-adapter-date-fns';
 
 	Chart.register(
-		Tooltip,
 		Colors,
 		LineController,
 		LineElement,
@@ -298,8 +296,8 @@
 </div>
 
 {#snippet gauge(name: string, value: number, color: string)}
-	<div class="relative m-1 rounded border" style:color>
+	<div class="relative m-1 w-20 rounded border" style:color>
 		<span class="bg-surface-200 absolute -top-2 mx-1 px-1 text-xs">{name}</span>
-		<div class="p-1 pt-2 text-xl">{format(value)}</div>
+		<div class="p-1 pt-2 text-center text-xl">{format(value)}</div>
 	</div>
 {/snippet}
