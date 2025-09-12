@@ -1,14 +1,16 @@
 import { Message } from '$lib/data/messages';
 import { addClient, removeClient, modbusSend } from '$lib/server/sse';
 import type { RequestHandler } from './$types';
+import * as uuid from 'uuid';
 
 export const GET: RequestHandler = () => {
+	const uid = uuid.v4();
 	const stream = new ReadableStream({
 		start(controller) {
-			addClient(controller);
+			addClient(uid, controller);
 		},
-		cancel(controller) {
-			removeClient(controller);
+		cancel() {
+			removeClient(uid);
 		},
 	});
 

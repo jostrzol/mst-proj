@@ -55,6 +55,7 @@
     "d3-scale": "^4.0.2",
     "d3-scale-chromatic": "^3.1.0",
     "jsmodbus": "^4.0.10",
-    "svelte-ux": "^0.90.1"
+    "svelte-ux": "^0.90.1",
+    "uuid": "^13.0.0"
   }
 }

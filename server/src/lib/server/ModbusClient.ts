@@ -38,7 +38,7 @@ export class ModbusClient {
 	private async client() {
 		if (this.#client) return this.#client;
 
-		console.info('Connecting to modbus server...');
+		console.info('MODBUS: Connecting...');
 		const socket = new net.Socket();
 		this.#client = new modbus.client.TCP(socket, this.#options.unitId);
 		const promise = new Promise((resolve, reject) => {
@@ -48,8 +48,8 @@ export class ModbusClient {
 		});
 		this.#retryNumber = 0;
 		await promise;
-		console.info('Connected to modbus server');
 		this.#options.onConnected?.call(null);
+
 		return this.#client;
 	}
 
@@ -78,15 +78,15 @@ export class ModbusClient {
 				this.clearWasError();
 			} catch (e) {
 				if (isErrnoException(e) && e.code === 'EAI_AGAIN') {
-					console.info('Cannot resolve modbus server name');
+					console.info('MODBUS: Cannot resolve hostname');
 				} else if (e instanceof UserRequestError && e.err === 'Offline') {
-					console.info('Cannot reach modbus server');
+					console.info('MODBUS: Cannot reach');
 				} else if (e instanceof UserRequestError && e.err === 'Timeout') {
-					console.info('Connection to modbus server timed out');
+					console.info('MODBUS: Connection timed out');
 				} else if (e instanceof UserRequestError && e.err === 'OutOfSync') {
-					console.info('Lost connection to modbus server');
+					console.info('MODBUS: Lost connection');
 				} else {
-					console.error('Error while reading modbus:', e);
+					console.error('MODBUS: ERROR reading:', e);
 				}
 
 				if (this.#isError) return;
@@ -112,16 +112,16 @@ export class ModbusClient {
 			await client.writeMultipleRegisters(address, data);
 			this.clearWasError();
 		} catch (e) {
-			console.error('Error while writing modbus:', e);
+			console.error('MODBUS: ERROR writing:', e);
 			this.#wasError = true;
 		}
 	}
 
 	private clearWasError() {
-		if (this.#wasError) {
-			this.#wasError = false;
-			console.error('Restored modbus server connection!');
-		}
+		if (!this.#wasError) return;
+
+		this.#wasError = false;
+		console.error('MODBUS: Connected!');
 	}
 
 	close() {
