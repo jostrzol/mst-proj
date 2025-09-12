@@ -1,15 +1,19 @@
 import modbus, { UserRequestError } from 'jsmodbus';
 import net from 'net';
 
-export type Options = net.SocketConnectOpts & {
-	unitId: number;
+export type MutableOptions = {
+	readCount?: number;
 	intervalMs?: number;
 	retryMs?: number;
 	retries?: number;
-	onMessage?: (reading: { timestamp: number; data: number[] }) => void;
-	onConnected?: () => void;
-	onRecovered?: () => void;
 };
+export type Options = net.SocketConnectOpts &
+	MutableOptions & {
+		unitId: number;
+		onMessage?: (reading: { timestamp: number; data: number[] }) => void;
+		onConnected?: () => void;
+		onRecovered?: () => void;
+	};
 
 export class ModbusClient {
 	#options: Options;
@@ -23,11 +27,16 @@ export class ModbusClient {
 		this.#options = options;
 	}
 
-	private get interval_ms() {
+	setOptions(options: MutableOptions) {
+		console.log('MODBUS: update options:', options);
+		this.#options = Object.assign({}, this.#options, options);
+	}
+
+	private get intervalMs() {
 		return this.#options.intervalMs || 100;
 	}
 
-	private get retry_ms() {
+	private get retryMs() {
 		return this.#options.retryMs || 1000;
 	}
 
@@ -53,7 +62,7 @@ export class ModbusClient {
 		return this.#client;
 	}
 
-	async startReading(address: number = 0, count: number = 2) {
+	async startReading(address: number = 0) {
 		if (this.#intervalHandle) return;
 
 		const loop = async () => {
@@ -62,13 +71,14 @@ export class ModbusClient {
 
 				const client = await this.client();
 
+				const readCount = this.#options.readCount || 2;
 				const result = await client.readInputRegisters(
 					address,
-					count * 2 /* count * sizeof(float) / sizeof(uint16) */,
+					readCount * 2 /* count * sizeof(float) / sizeof(uint16) */,
 				);
 				const receivedAt = result.metrics.receivedAt.valueOf();
 				const buffer = result.response.body.valuesAsBuffer;
-				const floats = [...Array(count)]
+				const floats = [...Array(readCount)]
 					.keys()
 					.map((i) => buffer.readFloatBE(i * 4))
 					.toArray();
@@ -93,12 +103,12 @@ export class ModbusClient {
 				this.#isError = this.#wasError = true;
 				if (this.#retryNumber++ >= this.retries) this.closeClient();
 
-				await new Promise((r) => setTimeout(r, this.retry_ms));
+				await new Promise((r) => setTimeout(r, this.retryMs));
 				this.#isError = false;
 			}
 		};
 
-		this.#intervalHandle = setInterval(loop, this.interval_ms);
+		this.#intervalHandle = setInterval(loop, this.intervalMs);
 	}
 
 	async writeRegistersFloat32(address: number, values: number[]) {

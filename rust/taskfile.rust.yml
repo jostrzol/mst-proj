@@ -6,8 +6,8 @@ includes:
 vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
-  PROJECTS_BM: &projects_bm [1-blinky-bm, 2-motor-bm, 3-pid-bm]
-  PROJECTS: &projects [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
+  PROJECTS_BM: &projects_bm [0-tune-bm, 1-blinky-bm, 2-motor-bm, 3-pid-bm]
+  PROJECTS: &projects [0-tune-bm, 1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
   RUST_PROFILE_MAP:
     map:
       debug: dev

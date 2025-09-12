@@ -70,6 +70,12 @@ tasks:
     cmds:
       - {task: bm-usb-reset}
       - espflash flash --monitor {{.BIN_PATH}}
+  scenarios-tune:
+    vars:
+      BIN_PATH: '{{joinPath .ARTIFACTS_DIR "fast/0-tune-bm-rust.elf"}}'
+    cmds:
+      - {task: bm-usb-reset}
+      - espflash flash --monitor {{.BIN_PATH}}
   # PID controller panel
   docker-server-build:
     cmd:

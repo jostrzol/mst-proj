@@ -137,7 +137,7 @@
 				plugins: {
 					legend: {
 						labels: {
-							filter: (item) => item.text != 'crosshair',
+							filter: (item) => !!item.text && item.text != 'crosshair',
 						},
 					},
 				},
@@ -176,14 +176,19 @@
 			if (endIndex === -1) endIndex = data.length - 1;
 
 			const values = data.slice(endIndex, data.length).map((point) => point.y);
-			const now = values[values.length - 1] ?? 0;
-			let average = values.reduce((acc, value) => acc + value, 0) / values.length;
-			if (!isFinite(average)) average = 0;
+
+			function now() {
+				return values[values.length - 1] ?? 0;
+			}
+			function average() {
+				const value = values.reduce((acc, value) => acc + value, 0) / values.length;
+				return !isFinite(value) ? 0 : value;
+			}
 
 			return {
 				color: borderColor as string,
-				now: stats?.now ? now : undefined,
-				average: stats?.average ? average : undefined,
+				now: stats?.now ? now() : undefined,
+				average: stats?.average ? average() : undefined,
 			};
 		}),
 	);

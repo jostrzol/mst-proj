@@ -2,7 +2,7 @@
 	import '../app.css';
 
 	import { AppBar, AppLayout, ThemeInit, ThemeSwitch } from 'svelte-ux';
-	import Fps from './Fps.svelte';
+	import Fps from '$lib/components/Fps.svelte';
 
 	let { children } = $props();
 </script>

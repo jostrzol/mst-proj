@@ -16,16 +16,8 @@ return {
 			rust_analyzer = {
 				settings = {
 					["rust-analyzer"] = {
-						cargo = {
-							extraArgs = { "--release" },
-							-- targetDir = "target_analyzer",
-							allTargets = false,
-						},
-						server = {
-							extraEnv = {
-								-- RUSTUP_TOOLCHAIN = "esp",
-							},
-						},
+						check = { command = "check", extraArgs = {} },
+						cargo = { allTargets = false },
 					},
 				},
 			},

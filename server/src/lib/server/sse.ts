@@ -1,5 +1,4 @@
 import { Message, type WriteMessage } from '$lib/data/messages';
-import { client } from '../../hooks.server';
 
 const clients = new Map<string, ReadableStreamDefaultController>();
 
@@ -26,6 +25,6 @@ export function removeClient(uid: string) {
 
 export function modbusSend(message: WriteMessage) {
 	// JSON cannot convey infinity values -- they are sent as nulls
-	const data = message.data.map(value => value == null ? Infinity : value);
-	client.writeRegistersFloat32(0, data);
+	const data = message.data.map((value) => (value == null ? Infinity : value));
+	globalThis.client.writeRegistersFloat32(0, data);
 }

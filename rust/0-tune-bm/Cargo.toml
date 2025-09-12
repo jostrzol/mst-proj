@@ -1,0 +1,67 @@
+[workspace]
+
+[package]
+name = "tune"
+version = "0.1.0"
+authors = ["Jakub Ostrzołek <kubaostrzolek@gmail.com>"]
+edition = "2021"
+resolver = "2"
+rust-version = "1.77"
+
+[[bin]]
+name = "0-tune-bm"
+path = "src/main.rs"
+harness = false      # do not use the built in cargo test harness -> resolve rust-analyzer errors
+
+[profile.dev]
+debug = true    # Symbols are nice and they don't increase the size on Flash
+opt-level = "z"
+
+[profile.release]
+strip = true
+
+[profile.fast]
+inherits = "release"
+opt-level = 3
+
+[profile.small]
+inherits = "release"
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[features]
+default = []
+
+experimental = ["esp-idf-svc/experimental"]
+
+[dependencies]
+log = "0.4"
+esp-idf-svc = { version = "0.51", features = [
+  "critical-section",
+  "embassy-time-driver",
+  "embassy-sync",
+] }
+esp-idf-hal = { version = "0.45.2" }
+anyhow = "1.0.97"
+embedded-svc = "0.28.1"
+esp-idf-sys = "0.36.1"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+ouroboros = "0.18.5"
+ringbuffer = "0.15.0"
+
+[build-dependencies]
+embuild = "0.33"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+bindings_header = "clk.h"
+
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "espressif/mdns", version = "1.2" }
+
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "espressif/esp-modbus", version = "1.0" }
+bindings_header = "modbus.h"
+bindings_module = "modbus"

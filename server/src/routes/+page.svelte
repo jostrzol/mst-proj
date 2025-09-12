@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Button, RangeField } from 'svelte-ux';
-	import LiveChart, { type Point } from './LiveChart.svelte';
+	import LiveChart, { type Point } from '$lib/components/LiveChart.svelte';
 	import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
-	import type { PidParameters } from './PidParametersDial.svelte';
-	import PidParametersDial from './PidParametersDial.svelte';
+	import type { PidParameters } from '$lib/components/PidParametersDial.svelte';
+	import PidParametersDial from '$lib/components/PidParametersDial.svelte';
 	import { localJsonStorage } from '$lib/localJsonStorage';
 	import { getSettings } from 'svelte-ux';
 	import * as d3c from 'd3-color';

@@ -11,7 +11,10 @@ import {
 
 import { building } from '$app/environment';
 
-export let client: ModbusClient;
+declare global {
+	// eslint-disable-next-line no-var
+	var client: ModbusClient;
+}
 
 export const init: ServerInit = async () => {
 	if (building) return;
@@ -28,8 +31,8 @@ export const init: ServerInit = async () => {
 		onRecovered: () => sendToAll({ type: 'recovered' }),
 	};
 	console.info('Modbus server options:', options);
-	client = new ModbusClient(options);
-	client.startReading();
+	globalThis.client = new ModbusClient(options);
+	globalThis.client.startReading();
 
 	process.on('sveltekit:shutdown', client.close);
 };

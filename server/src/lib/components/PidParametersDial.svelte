@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Checkbox, NumberStepper, Switch } from 'svelte-ux';
+	import { NumberStepper, Switch } from 'svelte-ux';
 
 	export interface PidParameters {
 		proportional: {
