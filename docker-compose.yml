@@ -8,15 +8,16 @@ services:
       user: "${UID:-1000}:${GID:-1000}"
       volumes:
         - type: bind 
-          source: ./artifacts/docker
+          source: ./artifacts
           target: /artifacts-bind
           read_only: false
   server:
       build:
         context: server
+      user: "${UID:-1000}:${GID:-1000}"
       volumes:
         - type: bind 
-          source: ./artifacts/docker
+          source: ./artifacts
           target: /artifacts-bind
           read_only: false
 secrets:

@@ -8,6 +8,16 @@ vars:
   ARTIFACTS_DIR: ./artifacts
   ARTIFACTS_DOCKER_DIR: '{{joinPath .ARTIFACTS_DIR "docker"}}'
   ANALYZE_OUT_DIR: ./analyze/out
+  BUILD_IN_DOCKER_STR:
+    sh: |
+      if test -n "$BUILD_IN_DOCKER"; then 
+        echo "$BUILD_IN_DOCKER"
+      elif test -n "{{.BUILD_IN_DOCKER}}"; then 
+        echo "{{.BUILD_IN_DOCKER}}"
+      else
+        echo "true"
+      fi
+  DOCKER: {ref: 'fromJson .BUILD_IN_DOCKER_STR'}
 includes:
   c:
     taskfile: ./c/taskfile.c.yml
@@ -39,18 +49,19 @@ includes:
     optional: true
 tasks:
   # Combined build
-  docker-build:
-    deps: [docker-scenarios-build, docker-server-build]
   build:
     deps: [scenarios-build, server-build]
   clean:
     cmd: git clean -dffx .
   # Test scenarios
+  scenarios-build:
+    cmds: 
+      - task: '{{if .DOCKER}}docker-scenarios-build{{else}}native-scenarios-build{{end}}'
   docker-scenarios-build:
     cmd:
       task: docker-compose
       vars: {CLI_ARGS: 'up scenarios --build'}
-  scenarios-build:
+  native-scenarios-build:
     deps:
       - c:build-every-profile
       - rust:build-every-profile
@@ -102,7 +113,10 @@ tasks:
       - espflash flash --monitor {{.BIN_PATH}}
   scenarios-clean:
     deps: [c:clean, rust:clean, zig:clean]
-  # PID controller panel
+  # PID controller panel (server)
+  server-build:
+    cmds: 
+      - task: '{{if .DOCKER}}docker-server-build{{else}}native-server-build{{end}}'
   docker-server-build:
     cmd:
       task: docker-compose
@@ -111,10 +125,10 @@ tasks:
     deps: [build-server-docker]
     vars:
       SERVER_BUILD_DIR: '{{joinPath .ARTIFACTS_DOCKER_DIR "server/build"}}'
-    cmd: ORIGIN=http://localhost:3000 SHUTDOWN_TIMEOUT=0 node {{.SERVER_BUILD_DIR}}
-  server-build:
+    cmd: SHUTDOWN_TIMEOUT=0 node {{.SERVER_BUILD_DIR}}
+  native-server-build:
     deps: [server:build]
-  server-run:
+  native-server-run:
     deps: [server:run]
   # Analysis
   plot:
