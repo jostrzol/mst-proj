@@ -5,6 +5,7 @@ use rppal::pwm::{self, Pwm};
 use std::cell::SyncUnsafeCell;
 use std::sync::Arc;
 use std::time::Duration;
+use std::u8;
 use tokio_stream::StreamExt;
 use tokio_timerfd::Interval;
 
@@ -35,9 +36,9 @@ pub struct ControllerOptions {
     pub reads_per_bin: u32,
     /// When ADC reads below this signal, the state is set to `close` to the motor magnet. If the
     /// state has changed, a new revolution is counted.
-    pub revolution_treshold_close: u8,
+    pub revolution_treshold_close: f32,
     /// When ADC reads above this signal, the state is set to `far` from the motor magnet.
-    pub revolution_treshold_far: u8,
+    pub revolution_treshold_far: f32,
     /// Linux PWM channel to use.
     pub pwm_channel: pwm::Channel,
     /// Frequency of the PWM signal.
@@ -148,12 +149,14 @@ impl Controller {
         Ok(())
     }
 
-    fn read_adc(&mut self) -> anyhow::Result<u8> {
+    fn read_adc(&mut self) -> anyhow::Result<f32> {
         const WRITE_BUFFER: [u8; 1] = [adc_read_command(0)];
         let mut read_buffer = [0];
 
         self.i2c.write_read(&WRITE_BUFFER, &mut read_buffer)?;
-        Ok(read_buffer[0])
+        let value = read_buffer[0];
+        let normalized = value as f32 / u8::MAX as f32;
+        Ok(normalized)
     }
 
     fn control_phase(&mut self) -> anyhow::Result<()> {

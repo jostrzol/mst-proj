@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <math.h>
 #include <modbus.h>
 #include <stdio.h>
@@ -34,7 +35,7 @@ const uint32_t ADS7830_ADDRESS = 0x48;
 const uint8_t DEFAULT_READ_COMMAND = 0b10001100;
 #define MAKE_READ_COMMAND(channel) (DEFAULT_READ_COMMAND & ((channel) << 4))
 
-int read_adc(controller_t *self, uint8_t *value) {
+int read_adc(controller_t *self, float *value) {
   int res;
 
   uint8_t write_value = MAKE_READ_COMMAND(0);
@@ -54,7 +55,7 @@ int read_adc(controller_t *self, uint8_t *value) {
     return -1;
   }
 
-  *value = read_value;
+  *value = (float)read_value / UINT8_MAX;
 
   return 0;
 }
@@ -269,11 +270,10 @@ int controller_init(
               .feedback = {.delta = 0, .integration_component = 0},
               .iteration = 1,
           },
-      .perf =
-          {
-              .read = perf_read,
-              .control = perf_control,
-          },
+      .perf = {
+          .read = perf_read,
+          .control = perf_control,
+      },
   };
 
   return 0;
@@ -303,7 +303,7 @@ void controller_deinit(controller_t *self) {
 int read_phase(controller_t *self) {
   int res;
 
-  uint8_t value;
+  float value;
   res = read_adc(self, &value);
   if (res != 0) {
     fprintf(stderr, "read_adc fail (%d)\n", res);

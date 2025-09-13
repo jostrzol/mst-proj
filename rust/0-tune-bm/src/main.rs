@@ -30,8 +30,8 @@ const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
     control_frequency: 10,
     time_window_bins: 10,
     reads_per_bin: 100,
-    revolution_treshold_close: 0.36,
-    revolution_treshold_far: 0.40,
+    revolution_treshold_close: 0.20,
+    revolution_treshold_far: 0.36,
 };
 
 const STACK_SIZE: usize = 5120;

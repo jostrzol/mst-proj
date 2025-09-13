@@ -31,8 +31,8 @@ const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
     control_frequency: CONTROL_FREQUENCY,
     time_window_bins: 10,
     reads_per_bin: READS_PER_BIN,
-    revolution_treshold_close: 105,
-    revolution_treshold_far: 118,
+    revolution_treshold_close: 0.20,
+    revolution_treshold_far: 0.36,
     pwm_channel: pwm::Channel::Pwm1,
     pwm_frequency: 1000.,
 };
