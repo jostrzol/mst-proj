@@ -5,7 +5,7 @@ vars:
   PROJECTS: &projects [1-blinky, 1-blinky-bm, 2-motor, 2-motor-bm, 3-pid, 3-pid-bm]
   PROFILES: &profiles [fast, small, debug]
   LANG_EXT: {map: {c: c, rust: rs, zig: zig}}
-  ARTIFACTS_DIR: "./artifacts"
+  ARTIFACTS_DIR: ./artifacts
   ARTIFACTS_DOCKER_DIR: '{{joinPath .ARTIFACTS_DIR "docker"}}'
   ANALYZE_OUT_DIR: ./analyze/out
 includes:
@@ -55,8 +55,12 @@ tasks:
       - c:build-every-profile
       - rust:build-every-profile
       - zig:build-every-profile
-  scenarios-clean:
-    deps: [c:clean, rust:clean, zig:clean]
+  scenarios-3-pid-tune:
+    vars:
+      BIN_PATH: '{{joinPath .ARTIFACTS_DIR "fast/0-tune-bm-rust.elf"}}'
+    cmds:
+      - {task: bm-usb-reset}
+      - espflash flash --monitor {{.BIN_PATH}}
   scenarios-run:
     requires:
       vars:
@@ -65,17 +69,39 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       IS_BM: {ref: .PROJECT | hasSuffix "-bm"}
-      BIN_NAME: '{{.PROJECT}}-{{.LANG}}{{if .IS_BM}}.elf{{end}}'
+    cmds:
+      - task: '{{if .IS_BM}}scenarios-run-bm{{else}}scenarios-run-os{{end}}'
+        vars:
+          LANG: '{{.LANG}}'
+          PROJECT: '{{.PROJECT}}'
+          PROFILE: '{{.PROFILE}}'
+  scenarios-run-os:
+    internal: true
+    requires:
+      vars:
+        - {name: LANG, enum: *langs}
+        - {name: PROJECT, enum: *projects}
+        - {name: PROFILE, enum: *profiles}
+    vars:
+      BIN_NAME: '{{.PROJECT}}-{{.LANG}}'
+      BIN_PATH: '{{joinPath .ARTIFACTS_DIR .PROFILE .BIN_NAME}}'
+    cmds:
+      - ./rpi-run.sh {{.BIN_PATH}}
+  scenarios-run-bm:
+    internal: true
+    requires:
+      vars:
+        - {name: LANG, enum: *langs}
+        - {name: PROJECT, enum: *projects}
+        - {name: PROFILE, enum: *profiles}
+    vars:
+      BIN_NAME: '{{.PROJECT}}-{{.LANG}}.elf'
       BIN_PATH: '{{joinPath .ARTIFACTS_DIR .PROFILE .BIN_NAME}}'
     cmds:
       - {task: bm-usb-reset}
       - espflash flash --monitor {{.BIN_PATH}}
-  scenarios-tune:
-    vars:
-      BIN_PATH: '{{joinPath .ARTIFACTS_DIR "fast/0-tune-bm-rust.elf"}}'
-    cmds:
-      - {task: bm-usb-reset}
-      - espflash flash --monitor {{.BIN_PATH}}
+  scenarios-clean:
+    deps: [c:clean, rust:clean, zig:clean]
   # PID controller panel
   docker-server-build:
     cmd:
