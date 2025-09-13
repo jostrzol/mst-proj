@@ -121,14 +121,9 @@ tasks:
     cmd:
       task: docker-compose
       vars: {CLI_ARGS: 'up server --build'}
-  docker-server-run:
-    deps: [build-server-docker]
-    vars:
-      SERVER_BUILD_DIR: '{{joinPath .ARTIFACTS_DOCKER_DIR "server/build"}}'
-    cmd: SHUTDOWN_TIMEOUT=0 node {{.SERVER_BUILD_DIR}}
   native-server-build:
     deps: [server:build]
-  native-server-run:
+  server-run:
     deps: [server:run]
   # Analysis
   plot:

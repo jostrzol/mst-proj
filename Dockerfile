@@ -240,12 +240,16 @@ RUN espup install
 RUN cargo install ldproxy --locked --version 0.3.4
 RUN cargo install espflash --locked --version 3.3.0
 
-RUN mkdir -p 1-blinky-bm/src 2-motor-bm/src 3-pid-bm/src
+RUN mkdir -p 0-tune-bm/src 1-blinky-bm/src 2-motor-bm/src 3-pid-bm/src
 RUN echo "fn main() {}" | tee \
+    0-tune-bm/src/main.rs \
     1-blinky-bm/src/main.rs \
     2-motor-bm/src/main.rs \
     3-pid-bm/src/main.rs
 
+COPY --exclude=src ./rust/0-tune-bm ./0-tune-bm/
+RUN cd 0-tune-bm && cargo build --profile=fast
+RUN cd 0-tune-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
 COPY --exclude=src ./rust/1-blinky-bm ./1-blinky-bm/
 RUN cd 1-blinky-bm && cargo build --profile=fast
 RUN cd 1-blinky-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo build --profile=small
@@ -259,6 +263,7 @@ RUN cd 3-pid-bm && RUSTFLAGS="-Zfmt-debug=none -Zlocation-detail=none" cargo bui
 COPY ./rust/1-blinky-bm ./1-blinky-bm/
 COPY ./rust/2-motor-bm ./2-motor-bm/
 COPY ./rust/3-pid-bm ./3-pid-bm/
+COPY ./rust/0-tune-bm ./0-tune-bm/
 COPY ./rust/taskfile.rust.yml ./
 
 ENV TASK_TEMP_DIR=../.task
