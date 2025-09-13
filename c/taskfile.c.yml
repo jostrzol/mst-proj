@@ -100,6 +100,13 @@ tasks:
     cmd: cmake -Werror=dev --warn-uninitialized -DCMAKE_BUILD_TYPE={{.BUILD_TYPE}} ../..
   toolchain-os:
     dir: '{{.C_BUILD_DIR}}'
+    sources: 
+      - ../CMakeLists.txt
+      - ../toolchain.cmake
+      - ../dependencies/toolchain.cmake
+    generates:
+      - cross-pi-gcc-14.2.0-0/bin/**/*
+      - cross-gcc-14.2.0-pi_0-1.tar.gz
     cmd: cmake .. && make toolchain
     run: once
   # bm
@@ -168,6 +175,11 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_bm}
         - {name: PROFILE, enum: *profiles}
+    sources:
+      - '{{joinPath .PROJECT "main" "idf_component.yml"}}'
+    generates:
+      - '{{joinPath .PROJECT "dependencies.lock"}}'
+      - '{{joinPath .PROJECT "managed_components/**/*"}}'
     cmds:
       - task: cmd-bm
         vars:
