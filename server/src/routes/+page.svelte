@@ -5,7 +5,7 @@
 	$showDrawer = true;
 </script>
 
-<div class="mb-40 p-4 text-left">
+<div class="mb-40 self-center p-4 text-left">
 	<h1 class="mb-4 text-center text-3xl font-bold">
 		This is a control panel for the third scenario.
 	</h1>
@@ -14,7 +14,7 @@
 			<div>
 				If you started a tuning process using:
 				<br />
-				<code class="bg-surface-100 rounded px-2 py-1 font-mono text-sm"
+				<code class="bg-surface-100 ml-4 rounded px-2 py-1 font-mono text-sm"
 					>task scenarios-3-pid-tune</code
 				>
 				<br />
@@ -26,7 +26,7 @@
 			<div>
 				If you started a third scenario program using:
 				<br />
-				<code class="bg-surface-100 rounded px-2 py-1 font-mono text-sm"
+				<code class="bg-surface-100 ml-4 rounded px-2 py-1 font-mono text-sm"
 					>task scenarios-run PROJECT=3-pid[-bm] LANGUAGE=...</code
 				>
 				<br />

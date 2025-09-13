@@ -1,10 +1,23 @@
 # Master thesis project
 
+## Platform
+
+This software was tested on Linux. It should work on other platforms thanks to
+docker, but might require additional setup.
+
 ## Requirements
+
+For native and docker build:
 
 - [`git`](https://git-scm.com/)
 - [`task`](https://github.com/go-task/task)
 - [`uv`](https://github.com/astral-sh/uv)
+- [`docker`](https://www.docker.com/)
+- [`node>=1.18.0`](https://nodejs.org)
+- mDNS name resolution setup (e.g. [`avahi`](https://avahi.org/) on linux)
+
+For native build additionally:
+
 - [`rustup`](https://github.com/rust-lang/rustup)
 - [`zvm`](https://github.com/tristanisham/zvm)
 - [`cmake>=4.0.0`](https://github.com/Kitware/CMake)
@@ -18,11 +31,19 @@ install ldpoxy --locked`)
 
 ## Building
 
+All binary artifacts are placed under the `./artifacts/` directory.
+
+### Docker
+
 ```sh
-task build
+BUILD_IN_DOCKER=true task build
 ```
 
-All binary artifacts are then placed in the `./artifacts/` directory.
+### Native
+
+```sh
+BUILD_IN_DOCKER=false task build
+```
 
 ## Running
 
@@ -43,6 +64,9 @@ Regardless of platform, before running the code you must:
 
 3. Run the selected artifact.
 
+> [!NOTE]  
+> The third scenario `3-pid` requires additional setup. See #Scenario-3-pid-setup
+
 ### ESP
 
 1. Attach the ESP using a cable to the computer.
@@ -59,6 +83,59 @@ Regardless of platform, before running the code you must:
    ```
 
    to run the C implementation of `1-blinky-bm`.
+
+## Scenario `3-pid` setup
+
+The third scenario is unique, since apart from software running on the MPU/MCU,
+it requires a controller dashboard server running on the host machine. The
+server cannot run in docker, as it needs access to mDNS resolution daemon.
+
+### Tuning
+
+Apart from that, the third scenario will most likely require additional tuning
+and will not work out-of-the-box, because of differences in HAL sensor
+sensitivity, magnet strength and distance between them. To tune, do the
+following steps.
+
+1. Start the dashboard server.
+
+   ```sh
+   task server-run
+   ```
+
+2. Flash the ESP32 with runing program.
+
+   ```sh
+   task scenarios-3-pid-tune
+   ```
+
+3. Visit [](http://localhost:3000).
+4. Go to the **Tune** page.
+5. Look at the _ADC reading_ plot. You should see vertical lines drawn here;
+   each line indicates a range of values that came out of the ADC in a certain
+   time window prior to the line (top end -- maximum, bottom end -- minimum of the
+   values in the time window).
+6. Position the magnet in the furthest possible position from the HAL sensor
+   and then in the closest. Manipulate the _Threshold close_ and _Threshold far_
+   controls on the bottom bar of the site to cover a band between these two
+   extremes, like in the picture below.
+
+   ![ADC readings plot](./docs/img/tune-adc-readings.png)
+
+7. Each time there is a reading below _Threshold close_ followed by a reading
+   above _Threshold far_, a new revolution is counted (hysteresis). This is how
+   the frequency is calculated, that you can see in the _Frequency_ plot below.
+8. Finally, you can alternate the control signal on the _Control signal_ dial,
+   or on the bottommost plot. When you increase the control signal value, the
+   frequency should follow like in the picture below. You can use a
+   spectrometer (e.g. in a smartphone app) to verify that the frequency is
+   correct.
+
+   ![Frequency plot](./docs/img/tune-frequency.png)
+
+9. Now enter the _Threshold close_ and _Threshold far_ values into the `.env` configuration file as respectively ``
+
+### Operating the controller
 
 ## Benchmarking
 

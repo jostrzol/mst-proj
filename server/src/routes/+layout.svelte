@@ -19,7 +19,7 @@
 		components: {
 			AppLayout: {
 				classes: {
-					aside: 'border-r',
+					// aside: 'border-r',
 					nav: 'bg-surface-300 py-2',
 				},
 			},
@@ -64,7 +64,7 @@
 		/>
 	</svelte:fragment>
 
-	<main class="flex min-h-screen items-center justify-center">
+	<main class="flex min-h-screen justify-center">
 		{@render children()}
 	</main>
 </AppLayout>

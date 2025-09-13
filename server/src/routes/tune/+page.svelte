@@ -106,24 +106,6 @@
 		<LiveChart
 			datasets={[
 				{
-					data: dataFrequency,
-					color: 'red',
-					borderWidth: 1,
-					stats: { now: true, average: true },
-				},
-			]}
-			domain={FREQ_RANGE}
-			realtime={{
-				duration: PLOT_DURATION_MS,
-				delay: PLOT_DELAY_MS,
-			}}
-			yTitle="Frequency [Hz]"
-			{isPaused}
-		/>
-
-		<LiveChart
-			datasets={[
-				{
 					data: dataValue,
 					color: 'olive',
 					borderWidth: 1.5,
@@ -131,7 +113,6 @@
 					stats: { now: true, average: true },
 					segment: {
 						borderColor: (ctx) => (ctx.p0.parsed.x === ctx.p1.parsed.x ? undefined : 'transparent'),
-						// borderColor: (ctx) => (ctx.p0DataIndex % 2 === 0 ? undefined : 'transparent'),
 					},
 				},
 				{
@@ -156,6 +137,24 @@
 				delay: PLOT_DELAY_MS,
 			}}
 			yTitle="ADC reading"
+			{isPaused}
+		/>
+
+		<LiveChart
+			datasets={[
+				{
+					data: dataFrequency,
+					color: 'red',
+					borderWidth: 1,
+					stats: { now: true, average: true },
+				},
+			]}
+			domain={FREQ_RANGE}
+			realtime={{
+				duration: PLOT_DURATION_MS,
+				delay: PLOT_DELAY_MS,
+			}}
+			yTitle="Frequency [Hz]"
 			{isPaused}
 		/>
 

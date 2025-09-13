@@ -77,9 +77,10 @@ tasks:
       vars:
         - {name: LANG, enum: *langs}
         - {name: PROJECT, enum: *projects}
-        - {name: PROFILE, enum: *profiles}
+        # optional: - {name: PROFILE, enum: *profiles}
     vars:
       IS_BM: {ref: .PROJECT | hasSuffix "-bm"}
+      PROFILE: '{{.PROFILE | default "fast"}}'
     cmds:
       - task: '{{if .IS_BM}}scenarios-run-bm{{else}}scenarios-run-os{{end}}'
         vars:
