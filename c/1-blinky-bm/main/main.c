@@ -8,7 +8,7 @@
 #include "memory.h"
 #include "perf.h"
 
-static const uint32_t BLINK_GPIO = 5;
+static const uint32_t BLINK_GPIO = GPIO_NUM_18;
 
 const int64_t BLINK_FREQUENCY = 10;
 const int64_t UPDATE_FREQUENCY = BLINK_FREQUENCY * 2;

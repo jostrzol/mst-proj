@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
                 peripherals.adc1,
                 peripherals.pins.gpio32,
                 peripherals.ledc.timer0,
-                peripherals.pins.gpio5,
+                peripherals.pins.gpio18,
                 peripherals.ledc.channel0,
                 peripherals.timer00,
                 registers.as_mut(),

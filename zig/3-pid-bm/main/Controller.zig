@@ -42,7 +42,7 @@ const pwm_channel_config = c.fixed.ledc_channel_config_t{
     .channel = pwm_channel,
     .speed_mode = pwm_speed_mode,
     .intr_type = c.LEDC_INTR_DISABLE,
-    .gpio_num = c.GPIO_NUM_5,
+    .gpio_num = c.GPIO_NUM_18,
     .duty = 0,
     .hpoint = 0,
 };

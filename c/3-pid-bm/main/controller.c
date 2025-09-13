@@ -49,7 +49,7 @@ static const ledc_channel_config_t PWM_CHANNEL_CONFIG = {
     .channel = PWM_CHANNEL,
     .speed_mode = PWM_SPEED,
     .intr_type = LEDC_INTR_DISABLE,
-    .gpio_num = GPIO_NUM_5,
+    .gpio_num = GPIO_NUM_18,
     .duty = 0,
     .hpoint = 0,
 };

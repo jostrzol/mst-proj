@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
     log::info!("Controlling an LED from Rust");
 
     let peripherals = Peripherals::take()?;
-    let mut led = PinDriver::output(peripherals.pins.gpio5)?;
+    let mut led = PinDriver::output(peripherals.pins.gpio18)?;
 
     let delay = Delay::default();
 

@@ -51,7 +51,7 @@ fn main() -> anyhow::Result<()> {
     let mut driver = LedcDriver::new(
         peripherals.ledc.channel0,
         timer_driver,
-        peripherals.pins.gpio5,
+        peripherals.pins.gpio18,
     )?;
     let max_duty_cycle = driver.get_max_duty();
 
@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
                 Err(err) => {
                     eprintln!("AdcDriver::read_raw fail: {}", err);
                     continue;
-                },
+                }
             };
             let value_normalized = value as f32 / ADC_MAX_VALUE as f32;
             #[cfg(debug_assertions)]

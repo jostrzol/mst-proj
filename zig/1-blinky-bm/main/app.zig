@@ -17,7 +17,7 @@ fn main() !void {
 
     const allocator = std.heap.raw_c_allocator;
 
-    try idf.gpio.Direction.set(.GPIO_NUM_5, .GPIO_MODE_OUTPUT);
+    try idf.gpio.Direction.set(.GPIO_NUM_18, .GPIO_MODE_OUTPUT);
 
     var perf_main = try perf.Counter.init(allocator, "MAIN", update_frequency * 2);
     defer perf_main.deinit();
@@ -33,7 +33,7 @@ fn main() !void {
 
             log.debug("Turning the LED {s}", .{if (is_on) "ON" else "OFF"});
 
-            idf.gpio.Level.set(.GPIO_NUM_5, @intFromBool(is_on)) catch |err| {
+            idf.gpio.Level.set(.GPIO_NUM_18, @intFromBool(is_on)) catch |err| {
                 std.log.err("gpio.Level.set fail: {}", .{err});
                 continue;
             };
