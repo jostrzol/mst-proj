@@ -1,8 +1,31 @@
 version: "3"
+vars:
+  SERVER_ARTIFACTS_DIR: "../artifacts/server"
 tasks:
   dev:
     cmd: yarn run dev
   build:
-    cmd: yarn run build
+    deps: [server_artifacts_exists]
+    sources:
+      - "src/**/*"
+      - "static/**/*"
+      - ".env"
+      - "package.json"
+      - "svelte.config.js"
+      - "tailwind.config.cjs"
+      - "tsconfig.json"
+      - "vite.config.ts"
+      - "vitest-setup-client.ts"
+      - "yarn.lock"
+    generates:
+      - '{{joinPath .SERVER_ARTIFACTS_DIR "build/**/*"}}'
+      - '{{joinPath .SERVER_ARTIFACTS_DIR "node_modules/**/*"}}'
+      - '{{joinPath .SERVER_ARTIFACTS_DIR "package.json"}}'
+    cmds:
+      - yarn run build
+      - cp -r ./build/ ./node_modules/ ./package.json {{.SERVER_ARTIFACTS_DIR}}
   run:
-    cmd: SHUTDOWN_TIMEOUT=0 node ./build/
+    cmd: SHUTDOWN_TIMEOUT=0 node {{joinPath .SERVER_ARTIFACTS_DIR "build/"}}
+  server_artifacts_exists:
+    internal: true
+    dir: '{{.SERVER_ARTIFACTS_DIR}}'
