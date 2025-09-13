@@ -3,12 +3,12 @@
 	import { Button, RangeField } from 'svelte-ux';
 	import LiveChart, { type Point } from '$lib/components/LiveChart.svelte';
 	import { faPlay, faPause } from '@fortawesome/free-solid-svg-icons';
+	import type { PidParameters } from '$lib/components/PidParametersDial.svelte';
+	import PidParametersDial from '$lib/components/PidParametersDial.svelte';
 	import { localJsonStorage } from '$lib/localJsonStorage';
 	import { getSettings } from 'svelte-ux';
 	import * as d3c from 'd3-color';
 	import { Message } from '$lib/data/messages';
-	import type { TuneParameters } from '$lib/components/TuneDials.svelte';
-	import TuneDials from '$lib/components/TuneDials.svelte';
 	import { slide } from 'svelte/transition';
 
 	const { currentTheme, showDrawer } = getSettings();
@@ -16,7 +16,8 @@
 	const PLOT_DURATION_MS = 6000;
 	const PLOT_DELAY_MS = 200;
 
-	const FREQ_RANGE: [number, number] = [0, 70];
+	const FREQ_RANGE: [number?, number?] = [0, 70];
+	const [FREQ_MIN, FREQ_MAX] = FREQ_RANGE;
 
 	const SAMPLE_REFRESH_RATE = 20;
 	const SAMPLE_INTERVAL_MS = 1000 / SAMPLE_REFRESH_RATE;
@@ -26,31 +27,41 @@
 
 	const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-	let targetControlSignal = $state(0);
-	let parameters: TuneParameters = $state(
-		localJsonStorage.get('tune-parameters') || {
-			tresholdClose: 0.36,
-			tresholdFar: 0.4,
+	let targetFrequency = $state(0);
+	let parameters: PidParameters = $state(
+		localJsonStorage.get('pid-parameters') || {
+			proportional: {
+				enabled: false,
+				factor: 0,
+			},
+			integration: {
+				enabled: false,
+				time: 100,
+			},
+			differentiation: {
+				enabled: false,
+				time: 0,
+			},
 		},
 	);
-	const { tresholdClose, tresholdFar } = $derived(parameters);
+	const { proportional, integration, differentiation } = $derived(parameters);
 
 	const writeData = $derived({
-		targetControlSignal,
-		tresholdClose,
-		tresholdFar,
+		targetFrequency,
+		proportionalFactor: proportional.enabled ? proportional.factor : 0,
+		integrationTime: integration.enabled ? integration.time : Infinity,
+		differentiationTime: differentiation.enabled ? differentiation.time : 0,
 	});
 
 	$effect(() => {
-		localJsonStorage.set('tune-parameters', parameters);
+		localJsonStorage.set('pid-parameters', parameters);
 		const message = Message.serialize({ type: 'write', data: Object.values(writeData) });
 		fetch('/sse', { method: 'POST', body: message });
 	});
 
-	let dataFrequency: Point[] = $state([]);
-	let dataTargetControl: Point[] = $state([]);
-	let dataCurrentControl: Point[] = $state([]);
-	let dataValue: Point[] = $state([]);
+	let dataTarget: Point[] = $state([]);
+	let dataCurrent: Point[] = $state([]);
+	let dataControl: Point[] = $state([]);
 
 	let eventSource: EventSource | undefined;
 	onMount(() => {
@@ -59,12 +70,9 @@
 			const message = Message.parse(event.data);
 			if (message.type === 'read') {
 				const timestamp = message.timestamp;
-				const [frequency, controlSignal, valueMin, valueMax] = message.data;
-				dataFrequency.push({ x: timestamp, y: frequency });
-				dataCurrentControl.push({ x: timestamp, y: controlSignal });
-				dataFrequency.push({ x: timestamp, y: frequency });
-				dataValue.push({ x: timestamp, y: valueMin });
-				dataValue.push({ x: timestamp, y: valueMax });
+				const [frequency, controlSignal] = message.data;
+				dataCurrent.push({ x: timestamp, y: frequency });
+				dataControl.push({ x: timestamp, y: controlSignal });
 			} else if (message.type === 'connected' || message.type === 'recovered') {
 				const data = Message.serialize({ type: 'write', data: Object.values(writeData) });
 				fetch('/sse', { method: 'POST', body: data });
@@ -76,10 +84,9 @@
 	$effect(() => {
 		const interval = setInterval(() => {
 			if (!isPaused) {
-				dataTargetControl = dataTargetControl.slice(-GC_MAX_POINTS);
-				dataCurrentControl = dataCurrentControl.slice(-GC_MAX_POINTS);
-				dataFrequency = dataFrequency.slice(-GC_MAX_POINTS);
-				dataValue = dataValue.slice(-GC_MAX_POINTS);
+				dataTarget = dataTarget.slice(-GC_MAX_POINTS);
+				dataCurrent = dataCurrent.slice(-GC_MAX_POINTS);
+				dataControl = dataControl.slice(-GC_MAX_POINTS);
 			}
 		}, GC_INTERVAL_MS);
 		return () => clearInterval(interval);
@@ -97,16 +104,23 @@
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
 	});
-
-	let controlColor = $derived($currentTheme.resolvedTheme === 'dark' ? 'yellow' : 'blue');
 </script>
 
 <div class="w-full p-4">
 	<div class="flex flex-col gap-4">
 		<LiveChart
+			onclick={({ y }) => (targetFrequency = Math.round(y))}
 			datasets={[
 				{
-					data: dataFrequency,
+					label: 'Target',
+					data: dataTarget,
+					color: 'green',
+					stepped: 'before',
+					stats: { now: true, average: false },
+				},
+				{
+					label: 'Current',
+					data: dataCurrent,
 					color: 'red',
 					borderWidth: 1,
 					stats: { now: true, average: true },
@@ -117,6 +131,10 @@
 				duration: PLOT_DURATION_MS,
 				delay: PLOT_DELAY_MS,
 			}}
+			crosshair={{
+				enabled: true,
+				color: d3c.color('green')?.copy({ opacity: 0.5 }).toString(),
+			}}
 			yTitle="Frequency [Hz]"
 			{isPaused}
 		/>
@@ -124,57 +142,10 @@
 		<LiveChart
 			datasets={[
 				{
-					data: dataValue,
-					color: 'olive',
-					borderWidth: 1.5,
-					stepped: 'before',
+					label: 'Control signal',
+					data: dataControl,
+					color: $currentTheme.resolvedTheme === 'dark' ? 'yellow' : 'blue',
 					stats: { now: true, average: true },
-					segment: {
-						borderColor: (ctx) => (ctx.p0.parsed.x === ctx.p1.parsed.x ? undefined : 'transparent'),
-						// borderColor: (ctx) => (ctx.p0DataIndex % 2 === 0 ? undefined : 'transparent'),
-					},
-				},
-				{
-					data: [
-						{ x: Date.now() - 60 * 60 * 1000, y: tresholdClose },
-						{ x: Date.now() + 60 * 60 * 1000, y: tresholdClose },
-					],
-					color: 'teal',
-					borderWidth: 2,
-				},
-				{
-					data: [
-						{ x: Date.now() - 60 * 60 * 1000, y: tresholdFar },
-						{ x: Date.now() + 60 * 60 * 1000, y: tresholdFar },
-					],
-					color: 'teal',
-					borderWidth: 2,
-				},
-			]}
-			realtime={{
-				duration: PLOT_DURATION_MS,
-				delay: PLOT_DELAY_MS,
-			}}
-			yTitle="ADC reading"
-			{isPaused}
-		/>
-
-		<LiveChart
-			onclick={({ y }) => (targetControlSignal = Math.round(y * 100) / 100)}
-			datasets={[
-				{
-					label: 'Target',
-					data: dataTargetControl,
-					color: 'green',
-					stepped: 'before',
-					stats: { now: true, average: false },
-				},
-				{
-					label: 'Current',
-					data: dataCurrentControl,
-					color: controlColor,
-					borderWidth: 1,
-					stats: { now: true, average: false },
 				},
 			]}
 			domain={[0, 1]}
@@ -182,11 +153,7 @@
 				duration: PLOT_DURATION_MS,
 				delay: PLOT_DELAY_MS,
 			}}
-			crosshair={{
-				enabled: true,
-				color: d3c.color('green')?.copy({ opacity: 0.5 }).toString(),
-			}}
-			yTitle="Control signal"
+			yTitle="Duty cycle"
 			{isPaused}
 		/>
 	</div>
@@ -206,23 +173,20 @@
 			/>
 
 			<RangeField
-				value={targetControlSignal}
+				bind:value={targetFrequency}
 				on:change={({ detail: { value } }) => {
-					const rounded = Math.round(value * 100) / 100;
-					targetControlSignal = rounded;
 					const now = Date.now();
-					const point = { x: now, y: rounded };
-					const cap = { x: now + MS_PER_DAY, y: rounded };
-					dataTargetControl.pop();
-					dataTargetControl.push(point, cap);
+					const point = { x: now, y: value };
+					const cap = { x: now + MS_PER_DAY, y: value };
+					dataTarget.pop();
+					dataTarget.push(point, cap);
 				}}
-				label="Control signal"
-				step={0.01}
-				min={0.0}
-				max={1.0}
+				label="Target frequency [Hz]"
+				min={FREQ_MIN}
+				max={FREQ_MAX}
 			/>
 
-			<TuneDials
+			<PidParametersDial
 				{parameters}
 				onchange={(value) => {
 					parameters = value;
