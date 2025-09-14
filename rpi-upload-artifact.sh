@@ -27,6 +27,11 @@ REMOTE_CHECKSUM=$(
             fi
         " 2>/dev/null
 )
+if test "$?" -ne 0; then
+    echo >&2 "Could not connect to $REMOTE_HOST"
+    exit 1
+fi
+
 
 if test "$LOCAL_CHECKSUM" = "$REMOTE_CHECKSUM" && test -n "$REMOTE_CHECKSUM"; then
     echo >&2 "File already exists with same checksum, skipping upload"
@@ -35,6 +40,10 @@ fi
 
 echo >&2 "> rsync -av \"$FILE_PATH\" \"$REMOTE_HOST:$REMOTE_PATH\""
 rsync -av "$FILE_PATH" "$REMOTE_HOST:$REMOTE_PATH"
+if test "$?" -ne 0; then
+    echo >&2 "Could not connect to $REMOTE_HOST"
+    exit 1
+fi
 
 if test $? -eq 0; then
     echo >&2 "Upload completed successfully"

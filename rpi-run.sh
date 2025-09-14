@@ -10,7 +10,11 @@ SCRIPT_DIR=$(dirname $0)
 FILE_PATH="$1"
 REMOTE_HOST="mst.local"
 
-"$SCRIPT_DIR/rpi-upload-artifact.sh" "$FILE_PATH"
+"$SCRIPT_DIR/rpi-upload-artifact.sh" "$FILE_PATH" || exit 1
 
-echo >&2 "> ssh -t \"$REMOTE_HOST\" \"$FILE_PATH\""
-ssh -t "$REMOTE_HOST" "$FILE_PATH"
+echo >&2 "> ssh -t \"$REMOTE_HOST\" \"sudo $FILE_PATH\""
+ssh -t "$REMOTE_HOST" "sudo $FILE_PATH"
+if test "$?" -ne 0; then
+    echo >&2 "Could not connect to $REMOTE_HOST"
+    exit 1
+fi
