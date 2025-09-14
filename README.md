@@ -71,7 +71,7 @@ BUILD_IN_DOCKER=false task build
 ## Running
 
 1. Build a circuit using one of the provided schematics from
-   [docs/circuits](./docs/circuits) forder.
+   [docs/circuits](./docs/circuits) directory.
 2. Ensure that the software and hardware is correctly configured (see
    [configuration](#configuration)).
 3. Run
