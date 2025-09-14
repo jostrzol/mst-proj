@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use futures::{FutureExt, StreamExt};
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use rppal::i2c::I2c;
 use rppal::pwm::{self, Pwm};
@@ -6,7 +7,6 @@ use std::cell::SyncUnsafeCell;
 use std::sync::Arc;
 use std::time::Duration;
 use std::u8;
-use tokio_stream::StreamExt;
 use tokio_timerfd::Interval;
 
 use crate::memory;
@@ -102,9 +102,13 @@ impl Controller {
         let mut perf_control = perf::Counter::new("CONTROL", perf_control_size)?;
 
         let mut report_number: u64 = 0;
-        while let Some(_) = interval.next().await {
+        loop {
             for _ in 0..self.options.control_frequency {
                 for _ in 0..self.options.reads_per_bin {
+                    _ = interval.next().await;
+                    // Skip queued ticks in case of buildup
+                    while let Some(_) = interval.next().now_or_never() {}
+
                     let _read_measure = perf_read.measure();
 
                     if let Err(err) = self.read_phase() {
@@ -127,7 +131,6 @@ impl Controller {
             perf_control.reset();
             report_number += 1;
         }
-        unreachable!("Interval stream is infinite");
     }
 
     fn read_phase(&mut self) -> anyhow::Result<()> {
