@@ -43,6 +43,11 @@ async fn main() -> anyhow::Result<()> {
     let revolution_threshold_far: f32 = REVOLUTION_THRESHOLD_FAR
         .parse::<f32>()
         .expect("REVOLUTION_THRESHOLD_FAR must be a float");
+    println!(
+        "Revolution thresholds: {:?}",
+        [revolution_threshold_close, revolution_threshold_far]
+    );
+
     let controller_options: ControllerOptions = ControllerOptions {
         control_frequency: CONTROL_FREQUENCY,
         time_window_bins: 10,

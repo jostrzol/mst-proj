@@ -76,6 +76,11 @@ fn main() !void {
 
     log.info("Controlling motor from Zig", .{});
 
+    std.log.info(
+        "Revolution thresholds: [{}, {}]",
+        .{ revolution_threshold_close, revolution_threshold_far },
+    );
+
     while (true) {
         idf.vTaskDelay(10 * 1000 / idf.portTICK_PERIOD_MS);
     }

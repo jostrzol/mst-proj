@@ -103,6 +103,10 @@ fn main() -> anyhow::Result<()> {
         unsafe { xTaskGetHandle(CONTROLLER_TASK_NAME.as_ptr() as *const c_char) };
 
     info!("Controlling motor using PID from Rust");
+    info!(
+        "Revolution thresholds: {:?}",
+        [revolution_threshold_close, revolution_threshold_far]
+    );
 
     let delay = Delay::default();
     loop {

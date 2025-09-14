@@ -79,6 +79,11 @@ int main(int, char **) {
         strerror(errno)
     );
   }
+  printf(
+      "Revolution thresholds: [%f, %f]\n", revolution_threshold_close,
+      revolution_threshold_far
+  );
+
   const controller_options_t controller_options = {
       .control_frequency = CONTROL_FREQUENCY,
       .time_window_bins = 10,

@@ -25,8 +25,6 @@ void app_main(void) {
   esp_err_t err;
   esp_log_level_set(TAG, ESP_LOG_INFO);
 
-  ESP_LOGI(TAG, "Controlling motor using PID from C");
-
   services_t services;
   err = services_init(&services);
   if (err != ESP_OK) {
@@ -108,6 +106,12 @@ void app_main(void) {
     services_deinit(&services);
     abort();
   }
+
+  ESP_LOGI(TAG, "Controlling motor using PID from C");
+  ESP_LOGI(
+      TAG, "Revolution thresholds: [%f, %f]", revolution_threshold_close,
+      revolution_threshold_far
+  );
 
   while (true) {
     vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);

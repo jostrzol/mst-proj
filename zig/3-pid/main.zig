@@ -47,6 +47,11 @@ pub fn interruptHandler(_: c_int) callconv(.C) void {
 pub fn main() !void {
     std.log.info("Controlling motor using PID from Zig", .{});
 
+    std.log.info(
+        "Revolution thresholds: [{}, {}]",
+        .{ config.revolution_threshold_close, config.revolution_threshold_far },
+    );
+
     const signal = @intFromPtr(c.signal(c.SIGINT, &interruptHandler));
     if (signal < 0)
         return std.posix.unexpectedErrno(std.posix.errno(signal));
