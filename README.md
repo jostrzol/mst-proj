@@ -2,7 +2,6 @@
 
 <!--toc:start-->
 
-- [Platform](#platform)
 - [Requirements](#requirements)
 - [Building](#building)
   - [Docker](#docker)
@@ -21,9 +20,6 @@
 <!--toc:end-->
 
 ## Platform
-
-This software was tested on Linux. It should work on other platforms thanks to
-docker, but might require additional setup.
 
 ## Requirements
 
@@ -51,6 +47,10 @@ For native build additionally:
 install ldpoxy --locked`)
   - rest specified [on the espressif
     website](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html#step-1-install-prerequisites).
+
+> [!NOTE]
+> This software was tested on Linux. It should work on other platforms thanks to
+> docker, but might require additional setup.
 
 ## Building
 
