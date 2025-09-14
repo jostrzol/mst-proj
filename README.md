@@ -5,13 +5,13 @@ This is a project for my (Jakub Ostrzołek) master thesis:
 _"Analysis of selected programming languages for embedded systems with regard
 to performance and safety."_
 
-The project contains implementations of 3 test scenarios for embedded systems
+The project contains implementations of 3 test scenarios of embedded systems
 applications: `1-blinky`, `2-motor` and `3-pid`. Each of them is written in 3
-languages: `c`, `rust` and `zig`; and for two plarforms: `Raspberry Pi` and
+languages: `c`, `rust` and `zig`; and for two platforms: `Raspberry Pi` and
 `ESP32`. The project also contains benchmarking and analysis scripts, that
 compare the mentioned implementations across various measurable qualities.
 
-Below are the instructions to reporoduce the results of my thesis findings.
+Below are the instructions to reproduce the results of my thesis' findings.
 
 <!--toc:start-->
 
@@ -44,7 +44,7 @@ For native and docker build:
 - [`espflash^3.3.0`](https://github.com/esp-rs/espflash)
 - [`ssh`](https://www.openssh.com/)
 - [`rsync`](https://linux.die.net/man/1/rsync)
-- mDNS name resolution setup (e.g. [`avahi`](https://avahi.org/) on linux)
+- mDNS name resolution setup (e.g. [`avahi`](https://avahi.org/) on Linux)
 
 For native build additionally:
 
@@ -52,11 +52,11 @@ For native build additionally:
 - [`zvm`](https://github.com/tristanisham/zvm)
 - [`cmake>=4.0.0`](https://github.com/Kitware/CMake)
 - [`npm`](https://www.npmjs.com/)
-- esp-idf requirements:
+- ESP-IDF requirements:
   - [`python3`](https://www.python.org/)
   - [`ldproxy`](https://github.com/esp-rs/embuild/tree/master/ldproxy) (`cargo
 install ldpoxy --locked`)
-  - rest specified [on the espressif
+  - rest specified [on the Espressif
     website](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/linux-macos-setup.html#step-1-install-prerequisites).
 
 > [!NOTE]
@@ -145,8 +145,8 @@ following steps.
 
    ![ADC readings plot](./docs/img/tune-adc-readings.png)
 
-   **NOTE:** The parameter panel is hidden, if the navbar is open. Close the
-   navbar to see the parameter panel.
+   **NOTE:** The parameter panel is hidden if the navigation bar on the left
+   is open. Close the navigation bar to see the parameter panel.
 
 7. Each time there is a reading below _Threshold close_ followed by a reading
    above _Threshold far_, a new revolution is counted (hysteresis). This is how
@@ -193,8 +193,8 @@ following steps.
 
    ![Control parameters](./docs/img/control-parameters.png)
 
-   **NOTE:** The parameter panel is hidden, if the navbar is open. Close tha
-   navbar to see the parameter panel.
+   **NOTE:** The parameter panel is hidden if the navigation bar on the left
+   is open. Close the navigation bar to see the parameter panel.
 
 7. After properly tuning the control parameters, the controller should now
    follow the set target frequency, like in the picture below.
