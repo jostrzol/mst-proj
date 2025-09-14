@@ -175,10 +175,9 @@ server cannot run in docker, as it needs access to mDNS resolution daemon.
 
 ### Tuning
 
-Apart from that, the third scenario will most likely require additional tuning
-and will not work out-of-the-box, because of differences in HAL sensor
-sensitivity, magnet strength and distance between them. To tune, do the
-following steps.
+The third scenario will most likely require additional tuning and will not work
+out-of-the-box, because of differences in HAL sensor sensitivity, magnet
+strength and distance between them. To tune, do the following steps.
 
 1. Start the dashboard server.
 
