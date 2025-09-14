@@ -21,16 +21,6 @@ static const uint64_t READ_FREQUENCY = 1000;
 static const uint64_t CONTROL_FREQUENCY = 10;
 static const uint64_t READS_PER_BIN = (READ_FREQUENCY / CONTROL_FREQUENCY);
 
-static const controller_options_t CONTROLLER_OPTIONS = {
-    .control_frequency = CONTROL_FREQUENCY,
-    .time_window_bins = 10,
-    .reads_per_bin = READS_PER_BIN,
-    .revolution_threshold_close = 0.20,
-    .revolution_threshold_far = 0.36,
-    .pwm_channel = 13,
-    .pwm_frequency = 1000.,
-};
-
 static bool do_continue = true;
 
 void interrupt_handler(int) {
@@ -72,8 +62,35 @@ int main(int, char **) {
     return EXIT_FAILURE;
   }
 
+  errno = 0;
+  const float revolution_threshold_close =
+      strtof(REVOLUTION_THRESHOLD_CLOSE, NULL);
+  if (errno != 0) {
+    fprintf(
+        stderr, "parsing REVOLUTION_THRESHOLD_CLOSE (%d): %s", errno,
+        strerror(errno)
+    );
+  }
+  const float revolution_threshold_far =
+      strtof(REVOLUTION_THRESHOLD_CLOSE, NULL);
+  if (errno != 0) {
+    fprintf(
+        stderr, "parsing REVOLUTION_THRESHOLD_FAR (%d): %s", errno,
+        strerror(errno)
+    );
+  }
+  const controller_options_t controller_options = {
+      .control_frequency = CONTROL_FREQUENCY,
+      .time_window_bins = 10,
+      .reads_per_bin = READS_PER_BIN,
+      .revolution_threshold_close = revolution_threshold_close,
+      .revolution_threshold_far = revolution_threshold_far,
+      .pwm_channel = 13,
+      .pwm_frequency = 1000.,
+  };
+
   static controller_t controller;
-  res = controller_init(&controller, registers, CONTROLLER_OPTIONS);
+  res = controller_init(&controller, registers, controller_options);
   if (res < 0) {
     fprintf(stderr, "controller_init fail (%d)\n", res);
     server_deinit(&server);

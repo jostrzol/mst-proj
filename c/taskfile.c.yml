@@ -78,7 +78,21 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
-    sources: ['{{joinPath .PROJECT "**/*.c"}}']
+    vars:
+      LABEL: 'c:build-os:{{.PROFILE}}:{{.PROJECT}}'
+    deps:
+      - toolchain-os
+      - task: 'var:checksum'
+        vars:
+          LABEL: '{{.LABEL}}'
+          VARS:
+            - '{{.WIFI_SSID}}'
+            - '{{.WIFI_PASS}}'
+            - '{{.REVOLUTION_THRESHOLD_CLOSE}}'
+            - '{{.REVOLUTION_THRESHOLD_FAR}}'
+    sources: 
+      - '{{joinPath .PROJECT "**/*.c"}}'
+      - '{{joinPath .VAR_CHECKSUM_DIR .LABEL}}'
     generates: ['{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c']
     cmds:
       - task: configure-os
@@ -89,8 +103,7 @@ tasks:
           FILE: '{{joinPath .C_BUILD_DIR .PROFILE "bin" .PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           PROJECT: '{{.PROJECT}}'
-    label: 'c:build-os:{{.PROFILE}}:{{.PROJECT}}'
-    deps: [toolchain-os]
+    label: '{{.LABEL}}'
   configure-os:
     dir: '{{.C_BUILD_DIR}}/{{.PROFILE}}'
     internal: true

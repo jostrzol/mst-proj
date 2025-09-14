@@ -27,6 +27,8 @@ use services::Services;
 
 const SSID: &str = env!("WIFI_SSID");
 const PASSWORD: &str = env!("WIFI_PASS");
+const REVOLUTION_THRESHOLD_CLOSE: &str = env!("REVOLUTION_THRESHOLD_CLOSE");
+const REVOLUTION_THRESHOLD_FAR: &str = env!("REVOLUTION_THRESHOLD_FAR");
 
 const STACK_SIZE: usize = 5120;
 const CONTROLLER_TASK_NAME: &[u8] = "CONTROLLER_LOOP\0".as_bytes();
@@ -59,10 +61,10 @@ fn main() -> anyhow::Result<()> {
         .spawn(move || server.run().expect("Server loop failed"))?;
     let _server_task = unsafe { xTaskGetHandle(SERVER_TASK_NAME.as_ptr() as *const c_char) };
 
-    let revolution_threshold_close: f32 = env!("REVOLUTION_THRESHOLD_CLOSE")
+    let revolution_threshold_close: f32 = REVOLUTION_THRESHOLD_CLOSE
         .parse::<f32>()
         .expect("REVOLUTION_THRESHOLD_CLOSE must be a float");
-    let revolution_threshold_far: f32 = env!("REVOLUTION_THRESHOLD_FAR")
+    let revolution_threshold_far: f32 = REVOLUTION_THRESHOLD_FAR
         .parse::<f32>()
         .expect("REVOLUTION_THRESHOLD_FAR must be a float");
     let controller_options: ControllerOptions = ControllerOptions {

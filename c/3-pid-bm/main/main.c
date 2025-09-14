@@ -57,8 +57,6 @@ void app_main(void) {
         strerror(errno)
     );
   }
-
-  errno = 0;
   const float revolution_threshold_far =
       strtof(CONFIG_REVOLUTION_THRESHOLD_CLOSE, NULL);
   if (errno != 0) {
@@ -67,18 +65,16 @@ void app_main(void) {
         strerror(errno)
     );
   }
+  const controller_options_t controller_options = {
+      .control_frequency = 10,
+      .time_window_bins = 10,
+      .reads_per_bin = 100,
+      .revolution_threshold_close = revolution_threshold_close,
+      .revolution_threshold_far = revolution_threshold_far,
+  };
 
   controller_t controller;
-  err = controller_init(
-      &controller, &registers,
-      (controller_options_t){
-          .control_frequency = 10,
-          .time_window_bins = 10,
-          .reads_per_bin = 100,
-          .revolution_threshold_close = revolution_threshold_close,
-          .revolution_threshold_far = revolution_threshold_far,
-      }
-  );
+  err = controller_init(&controller, &registers, controller_options);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "controller_init fail (0x%x)", err);
     server_deinit(&server);

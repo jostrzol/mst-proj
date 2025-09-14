@@ -75,8 +75,6 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
-    sources: ['{{joinPath .PROJECT "**/*"}}']
-    generates: ['{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
       RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
@@ -84,6 +82,19 @@ tasks:
       OUT_DIR: '{{joinPath "target" .RUST_TRIPLET_OS .PROFILE}}'
       RUSTFLAGS: '{{.PROFILE | get .RUST_OPT_FLAGS_MAP}}'
       RUSTFLAGS_CMD: '{{if ne .RUSTFLAGS ""}}RUSTFLAGS="{{.RUSTFLAGS}}"{{end}}'
+      LABEL: 'rust:build-os:{{.PROFILE}}:{{.PROJECT}}'
+    deps:
+      - 'idf:ensure-available'
+      - task: 'var:checksum'
+        vars:
+          LABEL: '{{.LABEL}}'
+          VARS:
+            - '{{.REVOLUTION_THRESHOLD_CLOSE}}'
+            - '{{.REVOLUTION_THRESHOLD_FAR}}'
+    sources: 
+      - '{{joinPath .PROJECT "**/*"}}'
+      - '{{joinPath .VAR_CHECKSUM_DIR .LABEL}}'
+    generates: ['{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust']
     cmds:
       - |
         {{.RUSTFLAGS_CMD}} \
@@ -96,7 +107,7 @@ tasks:
           FILE: '{{joinPath .OUT_DIR .NAME }}'
           PROFILE: '{{.PROFILE}}'
           PROJECT: '{{.PROJECT}}'
-    label: 'rust:build-os:{{.PROFILE}}:{{.PROJECT}}'
+    label: '{{.LABEL}}'
   # bm
   build-every-profile-bm:
     cmds:

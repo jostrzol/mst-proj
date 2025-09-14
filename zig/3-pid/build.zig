@@ -6,6 +6,23 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const log_level = b.option(std.log.Level, "log-level", "Log level");
 
+    const revolution_threshold_close_str = std.process.getEnvVarOwned(
+        b.allocator,
+        "REVOLUTION_THRESHOLD_CLOSE",
+    ) catch "0.2";
+    const revolution_threshold_close = try std.fmt.parseFloat(
+        f32,
+        revolution_threshold_close_str,
+    );
+    const revolution_threshold_far_str = std.process.getEnvVarOwned(
+        b.allocator,
+        "REVOLUTION_THRESHOLD_FAR",
+    ) catch "0.36";
+    const revolution_threshold_far = try std.fmt.parseFloat(
+        f32,
+        revolution_threshold_far_str,
+    );
+
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
 
     const i2c_tools = try makeI2cTools(b, .{ .target = target, .optimize = optimize });
@@ -32,6 +49,8 @@ pub fn build(b: *std.Build) !void {
     };
     const log_level_name = std.enums.tagName(std.log.Level, log_level_coerced) orelse unreachable;
     config.addOption([]const u8, "log_level", log_level_name);
+    config.addOption(f32, "revolution_threshold_close", revolution_threshold_close);
+    config.addOption(f32, "revolution_threshold_far", revolution_threshold_far);
     exe.root_module.addOptions("config", config);
 
     b.installArtifact(exe);

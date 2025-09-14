@@ -89,14 +89,23 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_os}
         - {name: PROFILE, enum: *profiles}
+    vars:
+      PROFILE_FLAG: '{{.PROFILE | get .ZIG_PROFILE_FLAG_MAP}}'
+      LOG_LEVEL_FLAG: '{{if .LOG_LEVEL}}-Dlog-level={{.LOG_LEVEL | lower}}{{end}}'
+      LABEL: 'zig:build-os:{{.PROFILE}}:{{.PROJECT}}'
+    deps:
+      - task: 'var:checksum'
+        vars:
+          LABEL: '{{.LABEL}}'
+          VARS:
+            - '{{.REVOLUTION_THRESHOLD_CLOSE}}'
+            - '{{.REVOLUTION_THRESHOLD_FAR}}'
     sources:
       - '{{joinPath .PROJECT "**/*.zig"}}'
       - exclude: '{{joinPath .PROJECT "zig-out/**/*.zig"}}'
       - exclude: '{{joinPath .PROJECT ".zig-cache/**/*.zig"}}'
+      - '{{joinPath .VAR_CHECKSUM_DIR .LABEL}}'
     generates: ['{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig']
-    vars:
-      PROFILE_FLAG: '{{.PROFILE | get .ZIG_PROFILE_FLAG_MAP}}'
-      LOG_LEVEL_FLAG: '{{if .LOG_LEVEL}}-Dlog-level={{.LOG_LEVEL | lower}}{{end}}'
     cmds:
       - |
         cd {{.PROJECT}} && zvm run {{.ZIG_VERSION}} build \
@@ -110,7 +119,7 @@ tasks:
           FILE: '{{joinPath .PROJECT "zig-out" "bin" .PROJECT}}-zig'
           PROFILE: '{{.PROFILE}}'
           PROJECT: '{{.PROJECT}}'
-    label: 'zig:build-os:{{.PROFILE}}:{{.PROJECT}}'
+    label: '{{.LABEL}}'
   # bm
   build-every-profile-bm:
     cmds:

@@ -14,3 +14,8 @@ target_link_libraries(3-pid i2c-tools)
 target_link_libraries(3-pid libmodbus)
 target_link_libraries(3-pid m)
 add_dependencies(3-pid toolchain)
+
+target_compile_definitions(
+  3-pid PRIVATE REVOLUTION_THRESHOLD_CLOSE="$ENV{REVOLUTION_THRESHOLD_CLOSE}")
+target_compile_definitions(
+  3-pid PRIVATE REVOLUTION_THRESHOLD_FAR="$ENV{REVOLUTION_THRESHOLD_FAR}")
