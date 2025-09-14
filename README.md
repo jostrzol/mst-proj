@@ -134,8 +134,8 @@ following steps.
 
    ![ADC readings plot](./docs/img/tune-adc-readings.png)
 
-   > [!NOTE]
-   > The parameter panel is hidden, if the navbar is open. Close the navbar to see the parameter panel.
+   **NOTE:** The parameter panel is hidden, if the navbar is open. Close the
+   navbar to see the parameter panel.
 
 7. Each time there is a reading below _Threshold close_ followed by a reading
    above _Threshold far_, a new revolution is counted (hysteresis). This is how
@@ -182,9 +182,8 @@ following steps.
 
    ![Control parameters]("./docs/img/control-parameters.png")
 
-   > [!NOTE]
-   > The parameter panel is hidden, if the navbar is open. Close tha navbar to
-   > see the parameter panel.
+   **NOTE:** The parameter panel is hidden, if the navbar is open. Close tha
+   navbar to see the parameter panel.
 
 7. After properly tuning the control parameters, the controller should now
    follow the set target frequency, like in the picture below.
