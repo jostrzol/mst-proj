@@ -72,9 +72,9 @@ pub struct ControllerOptions {
     pub reads_per_bin: u32,
     /// When ADC reads below this signal, the state is set to `close` to the motor magnet. If the
     /// state has changed, a new revolution is counted.
-    pub revolution_treshold_close: f32,
+    pub revolution_threshold_close: f32,
     /// When ADC reads above this signal, the state is set to `far` from the motor magnet.
-    pub revolution_treshold_far: f32,
+    pub revolution_threshold_far: f32,
 }
 
 pub struct Controller<'a, TAdc, TAdcPin>
@@ -226,7 +226,7 @@ where
     pub fn read_phase(&mut self) -> anyhow::Result<()> {
         let value = self.read_adc()?;
 
-        if value < self.options.revolution_treshold_close && !self.is_close {
+        if value < self.options.revolution_threshold_close && !self.is_close {
             // gone close
             self.is_close = true;
             let back = self
@@ -234,7 +234,7 @@ where
                 .back_mut()
                 .ok_or(anyhow!("Revolutions empty"))?;
             *back += 1;
-        } else if value > self.options.revolution_treshold_far && self.is_close {
+        } else if value > self.options.revolution_threshold_far && self.is_close {
             // gone far
             self.is_close = false;
         }

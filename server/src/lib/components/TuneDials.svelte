@@ -2,8 +2,8 @@
 	import { NumberStepper } from 'svelte-ux';
 
 	export interface TuneParameters {
-		tresholdClose: number;
-		tresholdFar: number;
+		thresholdClose: number;
+		thresholdFar: number;
 	}
 	export interface Props {
 		parameters: TuneParameters;
@@ -11,35 +11,35 @@
 	}
 
 	const { onchange, parameters }: Props = $props();
-	const { tresholdClose, tresholdFar } = $derived(parameters);
+	const { thresholdClose, thresholdFar } = $derived(parameters);
 </script>
 
 <NumberStepper
 	class="w-48"
-	value={tresholdClose}
+	value={thresholdClose}
 	min={0}
-	max={tresholdFar}
+	max={thresholdFar}
 	on:change={(e) => {
 		let value = e.detail.value;
-		if (value > tresholdFar) value = tresholdFar;
+		if (value > thresholdFar) value = thresholdFar;
 
-		onchange?.call(null, { ...parameters, tresholdClose: value });
+		onchange?.call(null, { ...parameters, thresholdClose: value });
 	}}
-	label="Treshold close"
+	label="Threshold close"
 	step={0.005}
 />
 
 <NumberStepper
 	class="w-48"
-	value={tresholdFar}
-	min={tresholdClose}
+	value={thresholdFar}
+	min={thresholdClose}
 	max={1.0}
 	on:change={(e) => {
 		let value = e.detail.value;
-		if (value < tresholdClose) value = tresholdClose;
+		if (value < thresholdClose) value = thresholdClose;
 
-		onchange?.call(null, { ...parameters, tresholdFar: value });
+		onchange?.call(null, { ...parameters, thresholdFar: value });
 	}}
-	label="Treshold far"
+	label="Threshold far"
 	step={0.005}
 />

@@ -310,12 +310,12 @@ int read_phase(controller_t *self) {
     return -1;
   }
 
-  if (value < self->options.revolution_treshold_close &&
+  if (value < self->options.revolution_threshold_close &&
       !self->state.is_close) {
     // gone close
     self->state.is_close = true;
     *ringbuffer_back(self->state.revolutions) += 1;
-  } else if (value > self->options.revolution_treshold_far &&
+  } else if (value > self->options.revolution_threshold_far &&
              self->state.is_close) {
     // gone far
     self->state.is_close = false;

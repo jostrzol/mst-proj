@@ -28,14 +28,6 @@ use services::Services;
 const SSID: &str = env!("WIFI_SSID");
 const PASSWORD: &str = env!("WIFI_PASS");
 
-const CONTROLLER_OPTIONS: ControllerOptions = ControllerOptions {
-    control_frequency: 10,
-    time_window_bins: 10,
-    reads_per_bin: 100,
-    revolution_treshold_close: 0.20,
-    revolution_treshold_far: 0.36,
-};
-
 const STACK_SIZE: usize = 5120;
 const CONTROLLER_TASK_NAME: &[u8] = "CONTROLLER_LOOP\0".as_bytes();
 const SERVER_TASK_NAME: &[u8] = "SERVER_LOOP\0".as_bytes();
@@ -67,6 +59,20 @@ fn main() -> anyhow::Result<()> {
         .spawn(move || server.run().expect("Server loop failed"))?;
     let _server_task = unsafe { xTaskGetHandle(SERVER_TASK_NAME.as_ptr() as *const c_char) };
 
+    let revolution_threshold_close: f32 = env!("REVOLUTION_THRESHOLD_CLOSE")
+        .parse::<f32>()
+        .expect("REVOLUTION_THRESHOLD_CLOSE must be a float");
+    let revolution_threshold_far: f32 = env!("REVOLUTION_THRESHOLD_FAR")
+        .parse::<f32>()
+        .expect("REVOLUTION_THRESHOLD_FAR must be a float");
+    let controller_options: ControllerOptions = ControllerOptions {
+        control_frequency: 10,
+        time_window_bins: 10,
+        reads_per_bin: 100,
+        revolution_threshold_close,
+        revolution_threshold_far,
+    };
+
     ThreadSpawnConfiguration {
         name: Some(CONTROLLER_TASK_NAME),
         priority: 24,
@@ -86,7 +92,7 @@ fn main() -> anyhow::Result<()> {
                 peripherals.ledc.channel0,
                 peripherals.timer00,
                 registers.as_mut(),
-                CONTROLLER_OPTIONS,
+                controller_options,
             )
             .expect("Controller setup failed");
             controller.run().expect("Controller loop failed")

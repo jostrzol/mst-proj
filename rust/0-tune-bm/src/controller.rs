@@ -66,9 +66,9 @@ pub struct ControllerOptions {
     pub reads_per_bin: u32,
     /// When ADC reads below this signal, the state is set to `close` to the motor magnet. If the
     /// state has changed, a new revolution is counted.
-    pub revolution_treshold_close: f32,
+    pub revolution_threshold_close: f32,
     /// When ADC reads above this signal, the state is set to `far` from the motor magnet.
-    pub revolution_treshold_far: f32,
+    pub revolution_threshold_far: f32,
 }
 
 pub struct Controller<'a, TAdc, TAdcPin>
@@ -84,8 +84,8 @@ where
     revolutions: AllocRingBuffer<u32>,
     readings: AllocRingBuffer<f32>,
     is_close: bool,
-    treshold_close: f32,
-    treshold_far: f32,
+    threshold_close: f32,
+    threshold_far: f32,
     options: ControllerOptions,
 }
 
@@ -175,8 +175,8 @@ where
             revolutions,
             readings,
             is_close: false,
-            treshold_close: options.revolution_treshold_close,
-            treshold_far: options.revolution_treshold_far,
+            threshold_close: options.revolution_threshold_close,
+            threshold_far: options.revolution_threshold_far,
             options,
         })
     }
@@ -206,7 +206,7 @@ where
     pub fn read_phase(&mut self) -> anyhow::Result<()> {
         let value = self.read_adc()?;
 
-        if value < self.treshold_close && !self.is_close {
+        if value < self.threshold_close && !self.is_close {
             // gone close
             self.is_close = true;
             let back = self
@@ -214,7 +214,7 @@ where
                 .back_mut()
                 .ok_or(anyhow!("Revolutions empty"))?;
             *back += 1;
-        } else if value > self.treshold_far && self.is_close {
+        } else if value > self.threshold_far && self.is_close {
             // gone far
             self.is_close = false;
         }
@@ -235,8 +235,8 @@ where
 
         let registers = self.registers.as_ref();
         let control_signal = registers.read_holding(HoldingRegister::ControlSignal);
-        self.treshold_close = registers.read_holding(HoldingRegister::TresholdClose);
-        self.treshold_far = registers.read_holding(HoldingRegister::TresholdFar);
+        self.threshold_close = registers.read_holding(HoldingRegister::ThresholdClose);
+        self.threshold_far = registers.read_holding(HoldingRegister::ThresholdFar);
 
         let control_signal_limited = limit(control_signal, PWM_MIN, PWM_MAX);
 

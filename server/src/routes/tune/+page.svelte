@@ -29,16 +29,16 @@
 	let targetControlSignal = $state(0);
 	let parameters: TuneParameters = $state(
 		localJsonStorage.get('tune-parameters') || {
-			tresholdClose: 0.36,
-			tresholdFar: 0.4,
+			thresholdClose: 0.36,
+			thresholdFar: 0.4,
 		},
 	);
-	const { tresholdClose, tresholdFar } = $derived(parameters);
+	const { thresholdClose, thresholdFar } = $derived(parameters);
 
 	const writeData = $derived({
 		targetControlSignal,
-		tresholdClose,
-		tresholdFar,
+		thresholdClose,
+		thresholdFar,
 	});
 
 	$effect(() => {
@@ -117,16 +117,16 @@
 				},
 				{
 					data: [
-						{ x: Date.now() - 60 * 60 * 1000, y: tresholdClose },
-						{ x: Date.now() + 60 * 60 * 1000, y: tresholdClose },
+						{ x: Date.now() - 60 * 60 * 1000, y: thresholdClose },
+						{ x: Date.now() + 60 * 60 * 1000, y: thresholdClose },
 					],
 					color: 'teal',
 					borderWidth: 2,
 				},
 				{
 					data: [
-						{ x: Date.now() - 60 * 60 * 1000, y: tresholdFar },
-						{ x: Date.now() + 60 * 60 * 1000, y: tresholdFar },
+						{ x: Date.now() - 60 * 60 * 1000, y: thresholdFar },
+						{ x: Date.now() + 60 * 60 * 1000, y: thresholdFar },
 					],
 					color: 'teal',
 					borderWidth: 2,

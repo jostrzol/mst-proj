@@ -4,6 +4,9 @@ includes:
     taskfile: "../taskfile.idf.yml"
     internal: true
     dir: '{{.ROOT_DIR}}'
+  var:
+    taskfile: "../taskfile.var.yml"
+    internal: true
 vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
@@ -133,20 +136,32 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
-    sources: ['{{joinPath .PROJECT "main" "**/*.c"}}']
-    generates:
-      - '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
-      - '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c.elf'
+      LABEL: 'c:build-bm:{{.PROFILE}}:{{.PROJECT}}'
     deps:
       - task: deps-bm
         vars:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
+      - task: 'var:checksum'
+        vars:
+          LABEL: '{{.LABEL}}'
+          VARS:
+            - '{{.WIFI_SSID}}'
+            - '{{.WIFI_PASS}}'
+            - '{{.REVOLUTION_THRESHOLD_CLOSE}}'
+            - '{{.REVOLUTION_THRESHOLD_FAR}}'
+    sources: 
+      - '{{joinPath .PROJECT "main" "**/*.c"}}'
+      - '{{joinPath .VAR_CHECKSUM_DIR .LABEL}}'
+    generates:
+      - '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c'
+      - '{{.C_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-c.elf'
     cmds:
       - task: cmd-bm
         vars:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
+          CLEAR_SDKCONFIG: true
           CMD: 'build'
       - task: copy-artifact
         vars:
@@ -159,7 +174,7 @@ tasks:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
-    label: 'c:build-bm:{{.PROFILE}}:{{.PROJECT}}'
+    label: '{{.LABEL}}'
   run-bm:
     requires:
       vars:
@@ -177,9 +192,6 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     sources:
       - '{{joinPath .PROJECT "main" "idf_component.yml"}}'
-    generates:
-      - '{{joinPath .PROJECT "dependencies.lock"}}'
-      - '{{joinPath .PROJECT "managed_components/**/*"}}'
     cmds:
       - task: cmd-bm
         vars:
@@ -194,18 +206,21 @@ tasks:
       vars:
         - {name: PROJECT, enum: *projects_bm}
         - {name: PROFILE, enum: *profiles}
+    # optional: CLEAR_SDKCONFIG
     vars:
       PROJECT_DIR: '{{joinPath .PROJECT}}'
       SDKCONFIG: '{{.PROFILE | get .C_SDKCONFIG_MAP | default "sdkconfig"}}'
     deps: ['idf:ensure-available']
-    cmd: |
-      sh -c '
-        {{.EXPORT_IDF_CMD}}
-        cd {{.PROJECT_DIR}} && idf.py \
-          --build-dir=build/{{.PROFILE}} \
-          -DSDKCONFIG={{.SDKCONFIG}} \
-          {{.CMD}}
-      '
+    cmds: 
+      - '{{if .CLEAR_SDKCONFIG}}rm {{joinPath .PROJECT .SDKCONFIG}}{{end}}'
+      - |
+        sh -c '
+          {{.EXPORT_IDF_CMD}}
+          cd {{.PROJECT_DIR}} && idf.py \
+            --build-dir=build/{{.PROFILE}} \
+            -DSDKCONFIG={{.SDKCONFIG}} \
+            {{.CMD}}
+        '
     env:
       SDKCONFIG_DEFAULTS: '{{.PROFILE | get .C_SDKCONFIG_DEFAULTS_MAP | default "sdkconfig.defaults"}}'
   # utils

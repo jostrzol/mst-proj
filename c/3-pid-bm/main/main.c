@@ -1,4 +1,6 @@
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "FreeRTOSConfig.h"
 #include "esp_err.h"
@@ -11,6 +13,7 @@
 
 #include "controller.h"
 #include "registers.h"
+#include "sdkconfig.h"
 #include "server.h"
 #include "services.h"
 
@@ -45,6 +48,26 @@ void app_main(void) {
     abort();
   }
 
+  errno = 0;
+  const float revolution_threshold_close =
+      strtof(CONFIG_REVOLUTION_THRESHOLD_CLOSE, NULL);
+  if (errno != 0) {
+    ESP_LOGE(
+        TAG, "parsing REVOLUTION_THRESHOLD_CLOSE (0x%x): %s", errno,
+        strerror(errno)
+    );
+  }
+
+  errno = 0;
+  const float revolution_threshold_far =
+      strtof(CONFIG_REVOLUTION_THRESHOLD_CLOSE, NULL);
+  if (errno != 0) {
+    ESP_LOGE(
+        TAG, "parsing REVOLUTION_THRESHOLD_FAR (0x%x): %s", errno,
+        strerror(errno)
+    );
+  }
+
   controller_t controller;
   err = controller_init(
       &controller, &registers,
@@ -52,8 +75,8 @@ void app_main(void) {
           .control_frequency = 10,
           .time_window_bins = 10,
           .reads_per_bin = 100,
-          .revolution_treshold_close = 0.20,
-          .revolution_treshold_far = 0.36,
+          .revolution_threshold_close = revolution_threshold_close,
+          .revolution_threshold_far = revolution_threshold_far,
       }
   );
   if (err != ESP_OK) {

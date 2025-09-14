@@ -28,10 +28,10 @@ typedef struct {
   uint32_t reads_per_bin;
   /// When ADC reads below this signal, the state is set to `close` to the
   /// motor magnet. If the state has changed, a new revolution is counted.
-  float revolution_treshold_close;
+  float revolution_threshold_close;
   /// When ADC reads above this signal, the state is set to `far` from the
   /// motor magnet.
-  float revolution_treshold_far;
+  float revolution_threshold_far;
 } controller_options_t;
 
 typedef struct {

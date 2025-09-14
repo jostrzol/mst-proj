@@ -11,6 +11,20 @@ menu "WIFI"
         help
             WiFi password (WPA or WPA2) for the example to use.
 
+    config REVOLUTION_THRESHOLD_CLOSE
+        string "Revolution treshold close"
+        default "$(REVOLUTION_THRESHOLD_CLOSE)"
+        help
+            ADC reading threshold, below which the magnet is considered to be
+            close. Used for calculating the frequency.
+
+    config REVOLUTION_THRESHOLD_FAR
+        string "Revolution treshold far"
+        default "$(REVOLUTION_THRESHOLD_FAR)"
+        help
+            ADC reading threshold, above which the magnet is considered to be
+            far. Used for calculating the frequency.
+
     config ESP_MAXIMUM_RETRY
         int "Maximum retry"
         default 5

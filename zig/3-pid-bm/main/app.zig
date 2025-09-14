@@ -11,6 +11,13 @@ const Server = @import("Server.zig");
 const Registers = @import("Registers.zig");
 const Controller = @import("Controller.zig");
 
+const revolution_threshold_close = std.fmt.parseFloat(f32, c.CONFIG_REVOLUTION_THRESHOLD_CLOSE) catch {
+    @compileError("REVOLUTION_THRESHOLD_CLOSE must be a float");
+};
+const revolution_threshold_far = std.fmt.parseFloat(f32, c.CONFIG_REVOLUTION_THRESHOLD_FAR) catch {
+    @compileError("REVOLUTION_THRESHOLD_FAR must be a float");
+};
+
 const stack_size = 4096;
 
 fn main() !void {
@@ -37,8 +44,8 @@ fn main() !void {
             .control_frequency = 10,
             .time_window_bins = 10,
             .reads_per_bin = 100,
-            .revolution_treshold_close = 0.20,
-            .revolution_treshold_far = 0.36,
+            .revolution_threshold_close = revolution_threshold_close,
+            .revolution_threshold_far = revolution_threshold_far,
         },
     );
     defer controller.deinit();

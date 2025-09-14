@@ -14,8 +14,8 @@ pub enum InputRegister {
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Copy, ToPrimitive)]
 pub enum HoldingRegister {
     ControlSignal,
-    TresholdClose,
-    TresholdFar,
+    ThresholdClose,
+    ThresholdFar,
 }
 
 #[repr(C)]

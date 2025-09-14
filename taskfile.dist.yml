@@ -34,6 +34,9 @@ includes:
   idf:
     taskfile: ./taskfile.idf.yml
     optional: true
+  var:
+    taskfile: ./taskfile.var.yml
+    optional: true
   lizard:
     taskfile: ./analyze/taskfile.lizard.yml
     optional: true

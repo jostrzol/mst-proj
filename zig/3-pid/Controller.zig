@@ -59,10 +59,10 @@ pub const Options = struct {
     reads_per_bin: u32,
     /// When ADC reads below this signal, the state is set to `close` to the
     /// motor magnet. If the state has changed, a new revolution is counted.
-    revolution_treshold_close: f32,
+    revolution_threshold_close: f32,
     /// When ADC reads above this signal, the state is set to `far` from the
     /// motor magnet.
-    revolution_treshold_far: f32,
+    revolution_threshold_far: f32,
     /// Path to I2C adapter that the ADC device is connected to.
     i2c_adapter_path: []const u8,
     /// Address on the I2C bus of the ADC device.
@@ -193,11 +193,11 @@ pub fn handle(self: *Self, fd: posix.fd_t) !HandleResult {
 fn readPhase(self: *Self) !void {
     const value = try self.readAdc();
 
-    if (!self.state.is_close and value < self.options.revolution_treshold_close) {
+    if (!self.state.is_close and value < self.options.revolution_threshold_close) {
         // gone close
         self.state.is_close = true;
         self.state.revolutions.back().* += 1;
-    } else if (self.state.is_close and value > self.options.revolution_treshold_far) {
+    } else if (self.state.is_close and value > self.options.revolution_threshold_far) {
         // gone far
         self.state.is_close = false;
     }

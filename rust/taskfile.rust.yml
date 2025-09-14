@@ -3,6 +3,9 @@ includes:
   idf:
     taskfile: "../taskfile.idf.yml"
     internal: true
+  var:
+    taskfile: "../taskfile.var.yml"
+    internal: true
 vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
@@ -126,25 +129,36 @@ tasks:
         {{.IDF_PATH_CMD}} {{.RUSTFLAGS_CMD}} 
         sh -c 'cd {{.PROJECT}} && cargo run --profile={{.RUST_PROFILE}}'
   build-bm:
-    deps: ['idf:ensure-available']
     requires:
       vars:
         - {name: PROJECT, enum: *projects_bm}
         - {name: PROFILE, enum: *profiles}
+    vars:
+      RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
+      OUT_DIR: '{{joinPath .PROJECT "target" .RUST_TRIPLET_BM .PROFILE}}'
+      RUSTFLAGS: '{{.PROFILE | get .RUST_OPT_FLAGS_MAP}}'
+      RUSTFLAGS_CMD: '{{if .RUSTFLAGS}}RUSTFLAGS="{{.RUSTFLAGS}}"{{end}}'
+      LABEL: 'rust:build-bm:{{.PROFILE}}:{{.PROJECT}}'
+    deps:
+      - 'idf:ensure-available'
+      - task: 'var:checksum'
+        vars:
+          LABEL: '{{.LABEL}}'
+          VARS:
+            - '{{.WIFI_SSID}}'
+            - '{{.WIFI_PASS}}'
+            - '{{.REVOLUTION_THRESHOLD_CLOSE}}'
+            - '{{.REVOLUTION_THRESHOLD_FAR}}'
     sources:
       - '{{joinPath .PROJECT "src/**/*.rs"}}'
       - '{{joinPath .PROJECT "*"}}'
       - exclude: '{{joinPath .PROJECT ".cargo"}}'
       - exclude: '{{joinPath .PROJECT ".embuild"}}'
       - exclude: '{{joinPath .PROJECT "target"}}'
+      - '{{joinPath .VAR_CHECKSUM_DIR .LABEL}}'
     generates:
       - '{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust'
       - '{{.RUST_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-rust.elf'
-    vars:
-      RUST_PROFILE: '{{.PROFILE | get .RUST_PROFILE_MAP}}'
-      OUT_DIR: '{{joinPath .PROJECT "target" .RUST_TRIPLET_BM .PROFILE}}'
-      RUSTFLAGS: '{{.PROFILE | get .RUST_OPT_FLAGS_MAP}}'
-      RUSTFLAGS_CMD: '{{if .RUSTFLAGS}}RUSTFLAGS="{{.RUSTFLAGS}}"{{end}}'
     cmds:
       - >
         {{.IDF_PATH_CMD}} {{.RUSTFLAGS_CMD}}
@@ -164,7 +178,7 @@ tasks:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
-    label: 'rust:build-bm:{{.PROFILE}}:{{.PROJECT}}'
+    label: '{{.LABEL}}'
   # utils
   copy-artifact:
     internal: true

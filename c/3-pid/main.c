@@ -25,8 +25,8 @@ static const controller_options_t CONTROLLER_OPTIONS = {
     .control_frequency = CONTROL_FREQUENCY,
     .time_window_bins = 10,
     .reads_per_bin = READS_PER_BIN,
-    .revolution_treshold_close = 0.20,
-    .revolution_treshold_far = 0.36,
+    .revolution_threshold_close = 0.20,
+    .revolution_threshold_far = 0.36,
     .pwm_channel = 13,
     .pwm_frequency = 1000.,
 };

@@ -3,6 +3,9 @@ includes:
   idf:
     taskfile: "../taskfile.idf.yml"
     internal: true
+  var:
+    taskfile: "../taskfile.var.yml"
+    internal: true
 vars:
   PROFILES: &profiles [debug, fast, small]
   PROJECTS_OS: &projects_os [1-blinky, 2-motor, 3-pid]
@@ -133,21 +136,37 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       NAME: '{{index (splitList "-" .PROJECT) 1}}'
+      LABEL: 'zig:build-bm:{{.PROFILE}}:{{.PROJECT}}'
+    deps:
+      - 'idf:ensure-available'
+      - task: 'var:checksum'
+        vars:
+          LABEL: '{{.LABEL}}'
+          VARS:
+            - '{{.WIFI_SSID}}'
+            - '{{.WIFI_PASS}}'
+            - '{{.REVOLUTION_THRESHOLD_CLOSE}}'
+            - '{{.REVOLUTION_THRESHOLD_FAR}}'
     sources:
-      - '{{joinPath .PROJECT "**/*.zig"}}'
-      - '{{joinPath .PROJECT "*"}}'
-      - exclude: '{{joinPath .PROJECT "build/**/*"}}'
-      - exclude: '{{joinPath .PROJECT ".zig-cache/**/*"}}'
-      - exclude: '{{joinPath .PROJECT "zig-out/**/*"}}'
+      - '{{joinPath .PROJECT "cmake/**/*"}}'
+      - '{{joinPath .PROJECT "imports/**/*"}}'
+      - '{{joinPath .PROJECT "main/**/*"}}'
+      - '{{joinPath .PROJECT "build.zig"}}'
+      - '{{joinPath .PROJECT "build.zig.zon"}}'
+      - '{{joinPath .PROJECT "dependencies.lock"}}'
+      - '{{joinPath .PROJECT "sdkconfig.defaults*"}}'
+      - '{{joinPath .VAR_CHECKSUM_DIR .LABEL}}'
     generates:
       - '{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig'
       - '{{.ZIG_ARTIFACTS_DIR}}/{{.PROFILE}}/{{.PROJECT}}-zig.elf'
     cmds:
+      - echo {{joinPath .VAR_CHECKSUM_DIR .LABEL}} 
       - task: cmd-bm
         vars:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           REPEAT: true
+          CLEAR_SDKCONFIG: true
           CMD: 'build'
       - task: copy-artifact
         vars:
@@ -160,7 +179,7 @@ tasks:
           PROJECT: '{{.PROJECT}}'
           PROFILE: '{{.PROFILE}}'
           SUFFIX: '.elf'
-    label: 'zig:build-bm:{{.PROFILE}}:{{.PROJECT}}'
+    label: '{{.LABEL}}'
   run-bm:
     requires:
       vars:
@@ -177,19 +196,22 @@ tasks:
         - {name: PROJECT, enum: *projects_bm}
     # optional: PROFILE
     # optional: REPEAT
+    # optional: CLEAR_SDKCONFIG
     vars:
       CMAKE_BUILD_TYPE: '{{.PROFILE | get .ZIG_CMAKE_BUILD_TYPE_MAP}}'
       SDKCONFIG: '{{.PROFILE | get .ZIG_SDKCONFIG_MAP | default "sdkconfig"}}'
     deps: ['idf:ensure-available']
-    cmd: |
-      sh -c '
-        {{.EXPORT_IDF_CMD}}
-        cd {{.PROJECT}} && ../idf-repeat.sh \
-          -DCMAKE_BUILD_TYPE={{.CMAKE_BUILD_TYPE}} \
-          -DSDKCONFIG={{.SDKCONFIG}} \
-          {{if .REPEAT}}--repeat{{end}} \
-          {{.CMD}}
-      '
+    cmds: 
+      - '{{if .CLEAR_SDKCONFIG}}rm {{joinPath .PROJECT .SDKCONFIG}}{{end}}'
+      - |
+        sh -c '
+          {{.EXPORT_IDF_CMD}}
+          cd {{.PROJECT}} && ../idf-repeat.sh \
+            -DCMAKE_BUILD_TYPE={{.CMAKE_BUILD_TYPE}} \
+            -DSDKCONFIG={{.SDKCONFIG}} \
+            {{if .REPEAT}}--repeat{{end}} \
+            {{.CMD}}
+        '
     env:
       SDKCONFIG_DEFAULTS: '{{.PROFILE | get .ZIG_SDKCONFIG_DEFAULTS_MAP | default "sdkconfig.defaults"}}'
   # utils

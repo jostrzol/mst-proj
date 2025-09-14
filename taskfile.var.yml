@@ -1,0 +1,15 @@
+version: 3
+vars:
+  VAR_CHECKSUM_DIR: "{{.ROOT_DIR}}/.task/var-checksum"
+tasks:
+  checksum:
+    silent: true
+    requires:
+      vars: [VARS, LABEL]
+    vars:
+      FILE: '{{joinPath .VAR_CHECKSUM_DIR .LABEL}}'
+    cmds:
+      - mkdir -p {{.VAR_CHECKSUM_DIR}}
+      - printf "" >{{.FILE}}
+      - for: {var: VARS}
+        cmd: echo {{.ITEM}} | md5sum >>{{.FILE}}
