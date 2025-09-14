@@ -25,7 +25,7 @@
 </script>
 
 <NumberStepper
-	class="w-48"
+	class="w-48 min-w-35"
 	value={proportional.factor}
 	disabled={!proportional.enabled}
 	on:change={(e) => {
@@ -49,7 +49,7 @@
 />
 
 <NumberStepper
-	class="w-48"
+	class="w-48 min-w-33"
 	value={integration.time}
 	disabled={!integration.enabled}
 	on:change={(e) => {
@@ -70,7 +70,7 @@
 />
 
 <NumberStepper
-	class="w-48"
+	class="w-48 min-w-38"
 	value={differentiation.time}
 	disabled={!differentiation.enabled}
 	on:change={(e) => {

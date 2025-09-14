@@ -163,16 +163,18 @@
 	{#if !$showDrawer}
 		<div
 			transition:slide
-			class="bg-surface-100/90 fixed right-0 bottom-0 left-0 flex items-center justify-center gap-6 p-4"
+			class="bg-surface-100/90 fixed right-0 bottom-0 left-0 flex items-center gap-6 overflow-x-auto p-4"
 		>
+			<div class="flex items-center gap-6 mx-auto min-w-max">
 			<Button
-				class="aspect-square w-10 cursor-pointer"
+				class="aspect-square w-10 flex-shrink-0 cursor-pointer"
 				variant="outline"
 				icon={isPaused ? faPlay : faPause}
 				onclick={togglePause}
 			/>
 
 			<RangeField
+				class="min-w-46"
 				bind:value={targetFrequency}
 				on:change={({ detail: { value } }) => {
 					const now = Date.now();
@@ -192,6 +194,7 @@
 					parameters = value;
 				}}
 			/>
+			</div>
 		</div>
 	{/if}
 </div>
