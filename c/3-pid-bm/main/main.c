@@ -56,7 +56,7 @@ void app_main(void) {
     );
   }
   const float revolution_threshold_far =
-      strtof(CONFIG_REVOLUTION_THRESHOLD_CLOSE, NULL);
+      strtof(CONFIG_REVOLUTION_THRESHOLD_FAR, NULL);
   if (errno != 0) {
     ESP_LOGE(
         TAG, "parsing REVOLUTION_THRESHOLD_FAR (0x%x): %s", errno,

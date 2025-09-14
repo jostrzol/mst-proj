@@ -71,8 +71,7 @@ int main(int, char **) {
         strerror(errno)
     );
   }
-  const float revolution_threshold_far =
-      strtof(REVOLUTION_THRESHOLD_CLOSE, NULL);
+  const float revolution_threshold_far = strtof(REVOLUTION_THRESHOLD_FAR, NULL);
   if (errno != 0) {
     fprintf(
         stderr, "parsing REVOLUTION_THRESHOLD_FAR (%d): %s", errno,
