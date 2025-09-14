@@ -213,11 +213,11 @@ strength and distance between them. To tune, do the following steps.
 7. Each time there is a reading below _Threshold close_ followed by a reading
    above _Threshold far_, a new revolution is counted (hysteresis). This is how
    the frequency is calculated, that you can see in the _Frequency_ plot below.
-8. Finally, you can alternate the control signal on the _Control signal_ dial,
-   or on the bottommost plot. When you increase the control signal value, the
-   frequency should follow like in the picture below. You can use a
-   spectrometer (e.g. in a smartphone app) to verify that the frequency is
-   correct.
+8. Finally, you can alternate the control signal on the _Control signal_ dial
+   in the parameters bar or on the bottommost plot labeled _Control signal_. When
+   you increase the control signal value, the frequency should follow like in the
+   picture below. You can use a spectrometer (e.g. in a smartphone app) to verify
+   that the frequency is correct.
 
    ![Frequency plot](./docs/img/tune-frequency.png)
 
