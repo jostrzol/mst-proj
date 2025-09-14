@@ -94,6 +94,11 @@ install ldpoxy --locked`)
 > The third scenario `3-pid` requires additional setup. See
 > [scenario `3-pid` setup](#scenario-3-pid-setup).
 
+> [!NOTE]
+> Running on the ESP32 requires elevated privileges to flash the program onto
+> the board. Also, it may sometimes fail -- in such case just restart the
+> operation until successful.
+
 ## Configuration
 
 Configuration is done through a `.env` file in the root of the repository. It
@@ -261,8 +266,8 @@ following steps.
 
 ## Benchmarking
 
-1. Build a circuit using one of the provided schematics from
-   [](./docs/circuits).
+1. Build a circuit using one of the provided schematics from the
+   [docs/circuits](./docs/circuits) directory.
 2. Ensure that the hardware is correctly configured (see
    [configuration](#configuration)).
 3. Make sure the connection to the device works:
@@ -282,6 +287,10 @@ following steps.
    ```
 
 The results are then written to the `./analyze/out/perf/` directory.
+
+> [!NOTE]
+> Benchmarking on the ESP32 requires elevated privileges to flash the program onto
+> the board.
 
 ## Analysis
 
