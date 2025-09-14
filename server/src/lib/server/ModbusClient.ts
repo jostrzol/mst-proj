@@ -89,7 +89,10 @@ export class ModbusClient {
 			} catch (e) {
 				if (isErrnoException(e) && ['EAI_AGAIN', 'ENOTFOUND'].includes(e.code || '')) {
 					console.info('MODBUS: Cannot resolve hostname');
-				} else if (e instanceof UserRequestError && e.err === 'Offline') {
+				} else if (
+					(e instanceof UserRequestError && e.err === 'Offline') ||
+					(isErrnoException(e) && e.code == 'EHOSTUNREACH')
+				) {
 					console.info('MODBUS: Cannot reach');
 				} else if (e instanceof UserRequestError && e.err === 'Timeout') {
 					console.info('MODBUS: Connection timed out');
