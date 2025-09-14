@@ -31,6 +31,11 @@ vars:
       debug: sdkconfig.defaults
       fast: sdkconfig.defaults;sdkconfig.defaults-fast
       small: sdkconfig.defaults;sdkconfig.defaults-small
+  ZIG_LOG_LEVEL_MAP:
+    map:
+      debug: debug
+      fast: info
+      small: info
   ZIG_VERSION: "0.13.0"
   ZIG_TRIPLET_OS: "arm-linux-gnueabihf"
   ZIG_CPU_OS: "arm1176jzf_s"
@@ -91,7 +96,7 @@ tasks:
         - {name: PROFILE, enum: *profiles}
     vars:
       PROFILE_FLAG: '{{.PROFILE | get .ZIG_PROFILE_FLAG_MAP}}'
-      LOG_LEVEL_FLAG: '{{if .LOG_LEVEL}}-Dlog-level={{.LOG_LEVEL | lower}}{{end}}'
+      LOG_LEVEL_FLAG: '-Dlog-level={{.PROFILE | get .ZIG_LOG_LEVEL_MAP}}'
       LABEL: 'zig:build-os:{{.PROFILE}}:{{.PROJECT}}'
     deps:
       - task: 'var:checksum'
