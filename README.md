@@ -7,8 +7,8 @@ to performance and safety."_
 
 The project contains implementations of 3 test scenarios of embedded systems
 applications: `1-blinky`, `2-motor` and `3-pid`. Each of them is written in 3
-languages: `c`, `rust` and `zig`; and for two platforms: `Raspberry Pi` and
-`ESP32`. The project also contains benchmarking and analysis scripts, that
+languages: `c`, `rust` and `zig`; and for two platforms: _Raspberry Pi_ and
+_ESP32_. The project also contains benchmarking and analysis scripts, that
 compare the mentioned implementations across various measurable qualities.
 
 Below are the instructions to reproduce the results of my thesis' findings.
@@ -43,7 +43,7 @@ For native and docker build:
 - [`git`](https://git-scm.com/)
 - [`task`](https://github.com/go-task/task)
 - [`uv`](https://github.com/astral-sh/uv)
-- [`docker`](https://www.docker.com/)
+- [`docker` and `docker-compose`](https://www.docker.com/)
 - [`node>=1.18.0`](https://nodejs.org)
 - [`espflash^3.3.0`](https://github.com/esp-rs/espflash)
 - [`ssh`](https://www.openssh.com/)
@@ -228,7 +228,7 @@ strength and distance between them. To tune, do the following steps.
 
 9. Now enter the _Threshold close_ and _Threshold far_ values into the `.env`
    configuration file as respectively `REVOLUTION_THRESHOLD_CLOSE` and
-   `REVOLUTION_THRESHOLD_FAR`.
+   `REVOLUTION_THRESHOLD_FAR`. Rebuild the project.
 
 ### Operating the controller
 
