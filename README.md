@@ -89,7 +89,7 @@ BUILD_IN_DOCKER=false task build
    Suffix `-os` indicates that the program is for Raspberry Pi while suffix
    `-bm` -- for ESP32.
 
-> [!NOTE]  
+> [!NOTE]
 > The third scenario `3-pid` requires additional setup. See
 > [scenario `3-pid` setup](#scenario-3-pid-setup).
 
@@ -134,9 +134,8 @@ following steps.
 
    ![ADC readings plot](./docs/img/tune-adc-readings.png)
 
-   > [!NOTE]  
-   > The parameter panel is hidden, if the navbar is open. Close tha navbar to
-   > see the parameter panel.
+   > [!NOTE]
+   > The parameter panel is hidden, if the navbar is open. Close the navbar to see the parameter panel.
 
 7. Each time there is a reading below _Threshold close_ followed by a reading
    above _Threshold far_, a new revolution is counted (hysteresis). This is how
@@ -183,7 +182,7 @@ following steps.
 
    ![Control parameters]("./docs/img/control-parameters.png")
 
-   > [!NOTE]  
+   > [!NOTE]
    > The parameter panel is hidden, if the navbar is open. Close tha navbar to
    > see the parameter panel.
 
