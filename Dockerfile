@@ -209,9 +209,11 @@ FROM rust-toolchain AS rust-build-os
 
 RUN rustup target add arm-unknown-linux-gnueabihf
 
-RUN apt-get update && apt-get install -y \
-    gcc-arm-linux-gnueabihf \
-    && rm -rf /var/lib/apt/lists/*
+RUN wget -q https://sourceforge.net/projects/raspberry-pi-cross-compilers/files/Raspberry%20Pi%20GCC%20Cross-Compiler%20Toolchains/Bookworm/GCC%2014.2.0/Raspberry%20Pi%201%2C%20Zero/cross-gcc-14.2.0-pi_0-1.tar.gz/download -O rpi-toolchain.tar.gz && \
+    tar -xzf rpi-toolchain.tar.gz -C /opt && \
+    rm rpi-toolchain.tar.gz
+ENV PATH="/opt/cross-pi-gcc-14.2.0-0/bin:${PATH}"
+
 RUN mkdir -p ~/.cargo && echo '[target.arm-unknown-linux-gnueabihf]\nlinker = "arm-linux-gnueabihf-gcc"' > ~/.cargo/config.toml
 
 RUN mkdir -p 1-blinky/src 2-motor/src 3-pid/src
