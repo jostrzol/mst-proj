@@ -13,8 +13,11 @@ compare the mentioned implementations across various measurable qualities.
 
 Below are the instructions to reproduce the results of my thesis' findings.
 
+## Table of contents
+
 <!--toc:start-->
 
+- [Table of contents](#table-of-contents)
 - [Requirements](#requirements)
 - [Building](#building)
   - [Docker](#docker)
