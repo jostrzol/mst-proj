@@ -1,5 +1,18 @@
 # Master thesis project
 
+This is a project for my (Jakub Ostrzołek) master thesis:
+
+_"Analysis of selected programming languages for embedded systems with regard
+to performance and safety."_
+
+The project contains implementations of 3 test scenarios for embedded systems
+applications: `1-blinky`, `2-motor` and `3-pid`. Each of them is written in 3
+languages: `c`, `rust` and `zig`; and for two plarforms: `Raspberry Pi` and
+`ESP32`. The project also contains benchmarking and analysis scripts, that
+compare the mentioned implementations across various measurable qualities.
+
+Below are the instructions to reporoduce the results of my thesis findings.
+
 <!--toc:start-->
 
 - [Requirements](#requirements)
@@ -18,8 +31,6 @@
   - [Raspberry Pi hardware configuration](#raspberry-pi-hardware-configuration)
 
 <!--toc:end-->
-
-## Platform
 
 ## Requirements
 
