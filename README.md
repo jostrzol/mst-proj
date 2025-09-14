@@ -99,6 +99,10 @@ install ldpoxy --locked`)
 > the board. Also, it may sometimes fail -- in such case just restart the
 > operation until successful.
 
+> [!NOTE]
+> Error _file not found_ most likely indicates invalid sys-fs PWM
+> configuration. See [Raspberry Pi hardware configuration](#raspberry-pi-hardware-configuration)
+
 ## Configuration
 
 Configuration is done through a `.env` file in the root of the repository. It
@@ -145,7 +149,8 @@ Raspberry Pi peripherals and modules are correctly configured:
 
 - GPIO,
 - I2C,
-- Hardware PWM,
+- Hardware PWM sys-fs interface (`dtoverlay=pwm,pin=13`),
+- `libmodbus` library (`apt install libmodbus-dev`),
 - mDNS server with address: 'mst.local',
 - WiFi.
 
