@@ -9,11 +9,9 @@ const c = @import("c.zig");
 
 const Self = @This();
 
-allocator: Allocator,
 ctx: *c.modbus_t,
 registers: *Registers,
 socket: File,
-connections_buf: []u8,
 connections: ArrayList(File),
 
 const InitError = error{
@@ -27,7 +25,7 @@ pub fn init(
     args: struct {
         address: [*:0]const u8 = "0.0.0.0",
         port: u31 = 5502,
-        n_connections_max: u31,
+        n_connections_max: u32,
     },
 ) InitError!Self {
     const ctx = c.modbus_new_tcp(args.address, args.port) orelse {
@@ -35,29 +33,20 @@ pub fn init(
     };
     errdefer c.modbus_free(ctx);
 
-    const socket_fd = c.modbus_tcp_listen(ctx, args.n_connections_max);
+    const socket_fd = c.modbus_tcp_listen(ctx, 5);
     if (socket_fd == -1)
         return InitError.ModbusSocketListen;
     const socket = File{ .handle = socket_fd };
     errdefer socket.close();
 
-    const buf_size = args.n_connections_max * @sizeOf(@TypeOf(File));
-    const connections_buf = try allocator.alloc(u8, buf_size);
-    errdefer allocator.free(connections_buf);
-
-    var capped_allocator = std.heap.FixedBufferAllocator.init(connections_buf);
-    const connections_allocator = capped_allocator.allocator();
-
     const connections = try ArrayList(File)
-        .initCapacity(connections_allocator, args.n_connections_max);
+        .initCapacity(allocator, args.n_connections_max);
     errdefer connections.deinit(allocator);
 
     return .{
-        .allocator = allocator,
         .ctx = ctx,
         .registers = registers,
         .socket = socket,
-        .connections_buf = connections_buf,
         .connections = connections,
     };
 }
@@ -67,7 +56,6 @@ pub fn deinit(self: *Self) void {
         connection.close();
     }
     self.connections.deinit();
-    self.allocator.free(self.connections_buf);
     self.socket.close();
     c.modbus_free(self.ctx);
 }
