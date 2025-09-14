@@ -153,6 +153,18 @@ RUN cd ./3-pid-bm && zvm run 0.14.0 build --fetch
 # Zig build os
 FROM zig-dependencies AS zig-build-os
 
+# Works with newer versions as well
+RUN ln -f /usr/bin/aclocal /usr/bin/aclocal-1.17
+RUN ln -f /usr/bin/automake /usr/bin/automake-1.17
+
+RUN apt-get update && apt-get install -y \
+    gcc-arm-linux-gnueabihf \
+    && rm -rf /var/lib/apt/lists/*
+ENV CC=arm-linux-gnueabihf-gcc      \
+    CXX=arm-linux-gnueabihf-g++     \
+    AR=arm-linux-gnueabihf-ar       \
+    STRIP=arm-linux-gnueabihf-strip
+
 COPY ./zig/1-blinky ./1-blinky/
 COPY ./zig/2-motor ./2-motor/
 COPY ./zig/3-pid ./3-pid/
