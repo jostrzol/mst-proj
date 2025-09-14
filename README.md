@@ -73,7 +73,7 @@ BUILD_IN_DOCKER=false task build
 1. Build a circuit using one of the provided schematics from
    [](./docs/circuits).
 2. Ensure that the software and hardware is correctly configured (see
-   #Configuration).
+   [configuration](#configuration)).
 3. Run
 
    ```sh
@@ -90,7 +90,8 @@ BUILD_IN_DOCKER=false task build
    `-bm` -- for ESP32.
 
 > [!NOTE]  
-> The third scenario `3-pid` requires additional setup. See #Scenario-3-pid-setup.
+> The third scenario `3-pid` requires additional setup. See
+> [Scenario `3-pid` setup](#scenario-3-pid-setup).
 
 ## Scenario `3-pid` setup
 
@@ -161,7 +162,7 @@ following steps.
    ```
 
 2. Flash the ESP32 with the chosen implementation of the program like in
-   #Running, e.g.:
+   [running](#running), e.g.:
 
    ```sh
    task scenarios-run PROJECT=3-pid LANG=c
@@ -195,7 +196,8 @@ following steps.
 
 1. Build a circuit using one of the provided schematics from
    [](./docs/circuits).
-2. Ensure that the hardware is correctly configured (see #Configuration).
+2. Ensure that the hardware is correctly configured (see
+   [configuration](#configuration)).
 3. Make sure the connection to the device works:
    - (Raspberry Pi) Ensure that Raspberry Pi is reachable at `mst.local`.
    - (ESP) Ensure that ESP is plugged into an USB port of the computer and the
@@ -224,10 +226,10 @@ can be created using the defaults: `cp .default.env .env`.
 - `REVOLUTION_THRESHOLD_CLOSE` -- For the third scenario. ADC reading
   threshold, below which the magnet is considered to be close. Used for
   calculating the frequency. Obtained through tuning procedure, described in
-  #Tuning.
+  [tuning](#tuning).
 - `REVOLUTION_THRESHOLD_FAR` -- For the third scenario. ADC reading threshold,
   above which the magnet is considered to be far. Used for calculating the
-  frequency. Obtained through tuning procedure, described in #Tuning.
+  frequency. Obtained through tuning procedure, described in [tuning](#tuning).
 - `WIFI_SSID` -- For the third scenario on ESP32. SSID of WiFi network to
   connect to.
 - `WIFI_PASS` -- For the third scenario on ESP32. Password of WiFi network to
@@ -251,7 +253,7 @@ can be created using the defaults: `cp .default.env .env`.
 ### ESP32 hardware configuration
 
 ESP32 does not require additional configuration, besides the build
-configuration described in #Build-configuration.
+configuration described in [build configuration](#build-configuration).
 
 ### Raspberry Pi hardware configuration
 
