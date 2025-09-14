@@ -19,19 +19,20 @@ Below are the instructions to reproduce the results of my thesis' findings.
 
 - [Table of contents](#table-of-contents)
 - [Requirements](#requirements)
-- [Building](#building)
-  - [Docker](#docker)
-  - [Native](#native)
-- [Running](#running)
-- [Scenario `3-pid` setup](#scenario-3-pid-setup)
-  - [Tuning](#tuning)
-  - [Operating the controller](#operating-the-controller)
-- [Benchmarking](#benchmarking)
+- [Running the scenarios](#running-the-scenarios)
 - [Configuration](#configuration)
   - [Build configuration](#build-configuration)
   - [Runtime configuration](#runtime-configuration)
   - [ESP32 hardware configuration](#esp32-hardware-configuration)
   - [Raspberry Pi hardware configuration](#raspberry-pi-hardware-configuration)
+- [Building](#building)
+  - [Docker](#docker)
+  - [Native](#native)
+- [Scenario `3-pid` setup](#scenario-3-pid-setup)
+  - [Tuning](#tuning)
+  - [Operating the controller](#operating-the-controller)
+- [Benchmarking](#benchmarking)
+- [Analysis](#analysis)
 
 <!--toc:end-->
 
@@ -66,29 +67,15 @@ install ldpoxy --locked`)
 > This software was tested on Linux. It should work on other platforms thanks to
 > docker, but might require additional setup.
 
-## Building
-
-All binary artifacts are placed under the `./artifacts/` directory.
-
-### Docker
-
-```sh
-BUILD_IN_DOCKER=true task build
-```
-
-### Native
-
-```sh
-BUILD_IN_DOCKER=false task build
-```
-
-## Running
+## Running the scenarios
 
 1. Build a circuit using one of the provided schematics from
    [docs/circuits](./docs/circuits) directory.
 2. Ensure that the software and hardware is correctly configured (see
    [configuration](#configuration)).
-3. Run
+3. Build the scenarios (see
+   [building](#building)).
+4. Run
 
    ```sh
    task scenarios-run PROJECT=<project> LANG=<lang> [PROFILE=<profile>]
@@ -106,6 +93,74 @@ BUILD_IN_DOCKER=false task build
 > [!NOTE]
 > The third scenario `3-pid` requires additional setup. See
 > [scenario `3-pid` setup](#scenario-3-pid-setup).
+
+## Configuration
+
+Configuration is done through a `.env` file in the root of the repository. It
+can be created using the defaults: `cp .default.env .env`.
+
+### Build configuration
+
+- `REVOLUTION_THRESHOLD_CLOSE` -- For the third scenario. ADC reading
+  threshold, below which the magnet is considered to be close. Used for
+  calculating the frequency. Obtained through tuning procedure, described in
+  [tuning](#tuning).
+- `REVOLUTION_THRESHOLD_FAR` -- For the third scenario. ADC reading threshold,
+  above which the magnet is considered to be far. Used for calculating the
+  frequency. Obtained through tuning procedure, described in [tuning](#tuning).
+- `WIFI_SSID` -- For the third scenario on ESP32. SSID of WiFi network to
+  connect to.
+- `WIFI_PASS` -- For the third scenario on ESP32. Password of WiFi network to
+  connect to.
+
+### Runtime configuration
+
+- `ESPFLASH_PORT` -- USB device used to flash ESP programs. If left empty,
+  `espflash` will find it automatically (slower).
+- `ESPFLASH_BAUD=115200` -- baud rate for flashing ESP programs. If left empty,
+  `espflash` will pick the safest (slowest) possible option.
+- `USB_VENDOR` -- ESP USB port vendor identifier, on how
+  to get this. Required for benchmarking on ESP. See [esp-rs
+  documentation](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
+  information on how to set this value.
+- `USB_PRODUCT` -- ESP USB port product identifier. Required for benchmarking
+  on ESP. See [esp-rs
+  documentation](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
+  information on how to set this value.
+
+### ESP32 hardware configuration
+
+ESP32 does not require additional configuration, besides the build
+configuration described in [build configuration](#build-configuration).
+
+### Raspberry Pi hardware configuration
+
+Raspberry Pi must configured directly in its operating system. Ensure the
+Raspberry Pi peripherals and modules are correctly configured:
+
+- GPIO,
+- I2C,
+- Hardware PWM,
+- mDNS server with address: 'mst.local',
+- WiFi.
+
+For help, refer to [Raspberry Pi documentation](https://www.raspberrypi.com/documentation/).
+
+## Building
+
+All binary artifacts are placed under the `./artifacts/` directory.
+
+### Docker
+
+```sh
+BUILD_IN_DOCKER=true task build
+```
+
+### Native
+
+```sh
+BUILD_IN_DOCKER=false task build
+```
 
 ## Scenario `3-pid` setup
 
@@ -175,7 +230,7 @@ following steps.
    ```
 
 2. Flash the ESP32 with the chosen implementation of the program like in
-   [running](#running), e.g.:
+   [running](#running-the-scenarios), e.g.:
 
    ```sh
    task scenarios-run PROJECT=3-pid LANG=c
@@ -228,54 +283,12 @@ following steps.
 
 The results are then written to the `./analyze/out/perf/` directory.
 
-## Configuration
+## Analysis
 
-Configuration is done through a `.env` file in the root of the repository. It
-can be created using the defaults: `cp .default.env .env`.
+To create the plots used in my thesis, run:
 
-### Build configuration
+```sh
+task plot
+```
 
-- `REVOLUTION_THRESHOLD_CLOSE` -- For the third scenario. ADC reading
-  threshold, below which the magnet is considered to be close. Used for
-  calculating the frequency. Obtained through tuning procedure, described in
-  [tuning](#tuning).
-- `REVOLUTION_THRESHOLD_FAR` -- For the third scenario. ADC reading threshold,
-  above which the magnet is considered to be far. Used for calculating the
-  frequency. Obtained through tuning procedure, described in [tuning](#tuning).
-- `WIFI_SSID` -- For the third scenario on ESP32. SSID of WiFi network to
-  connect to.
-- `WIFI_PASS` -- For the third scenario on ESP32. Password of WiFi network to
-  connect to.
-
-### Runtime configuration
-
-- `ESPFLASH_PORT` -- USB device used to flash ESP programs. If left empty,
-  `espflash` will find it automatically (slower).
-- `ESPFLASH_BAUD=115200` -- baud rate for flashing ESP programs. If left empty,
-  `espflash` will pick the safest (slowest) possible option.
-- `USB_VENDOR` -- ESP USB port vendor identifier, on how
-  to get this. Required for benchmarking on ESP. See [esp-rs
-  documentation](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
-  information on how to set this value.
-- `USB_PRODUCT` -- ESP USB port product identifier. Required for benchmarking
-  on ESP. See [esp-rs
-  documentation](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
-  information on how to set this value.
-
-### ESP32 hardware configuration
-
-ESP32 does not require additional configuration, besides the build
-configuration described in [build configuration](#build-configuration).
-
-### Raspberry Pi hardware configuration
-
-Raspberry Pi must configured directly in its operating system. Ensure the
-Raspberry Pi peripherals and modules are correctly configured:
-
-- GPIO,
-- I2C,
-- Hardware PWM,
-- mDNS server with address: 'mst.local',
-- WiFi.
-
-For help, refer to [Raspberry Pi documentation](https://www.raspberrypi.com/documentation/).
+The results are then written to the `./analyze/out/` directory.
