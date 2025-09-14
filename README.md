@@ -91,7 +91,7 @@ BUILD_IN_DOCKER=false task build
 
 > [!NOTE]  
 > The third scenario `3-pid` requires additional setup. See
-> [Scenario `3-pid` setup](#scenario-3-pid-setup).
+> [scenario `3-pid` setup](#scenario-3-pid-setup).
 
 ## Scenario `3-pid` setup
 
@@ -118,7 +118,7 @@ following steps.
    task scenarios-3-pid-tune
    ```
 
-3. Visit [](http://localhost:3000).
+3. Visit [http://localhost:3000](http://localhost:3000).
 4. Navigate to the **Tune** page.
 5. Look at the _ADC reading_ plot. You should see vertical lines drawn here;
    each line indicates a range of values that came out of the ADC in a certain
@@ -168,7 +168,7 @@ following steps.
    task scenarios-run PROJECT=3-pid LANG=c
    ```
 
-3. Visit [](http://localhost:3000).
+3. Visit [http://localhost:3000](http://localhost:3000).
 4. Navigate to the **Control** page.
 5. Look at the _Frequency_ plot. Here you can set the target frequency that the
    motor controller is to maintain (green line).
