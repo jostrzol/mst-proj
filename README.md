@@ -124,12 +124,12 @@ can be created using the defaults: `cp .default.env .env`.
   `espflash` will find it automatically (slower).
 - `ESPFLASH_BAUD=115200` -- baud rate for flashing ESP programs. If left empty,
   `espflash` will pick the safest (slowest) possible option.
-- `USB_VENDOR` -- ESP USB port vendor identifier, on how
-  to get this. Required for benchmarking on ESP. See [esp-rs
+- `USB_VENDOR` -- ESP USB port vendor identifier. Required for benchmarking and
+  flashing on ESP. See [esp-rs
   documentation](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
   information on how to set this value.
 - `USB_PRODUCT` -- ESP USB port product identifier. Required for benchmarking
-  on ESP. See [esp-rs
+  and flashing on ESP. See [esp-rs
   documentation](https://docs.esp-rs.org/std-training/02_1_hardware.html) for
   information on how to set this value.
 
