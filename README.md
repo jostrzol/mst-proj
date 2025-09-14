@@ -180,7 +180,7 @@ following steps.
    initially set to zero. To enable and set the parameters, use the panel on
    the bottom of the page (see the picture below).
 
-   ![Control parameters]("./docs/img/control-parameters.png")
+   ![Control parameters](./docs/img/control-parameters.png)
 
    **NOTE:** The parameter panel is hidden, if the navbar is open. Close tha
    navbar to see the parameter panel.
@@ -188,7 +188,7 @@ following steps.
 7. After properly tuning the control parameters, the controller should now
    follow the set target frequency, like in the picture below.
 
-   ![Frequency plot after tuning]("./docs/img/control-frequency-2.png")
+   ![Frequency plot after tuning](./docs/img/control-frequency-2.png)
 
 ## Benchmarking
 
