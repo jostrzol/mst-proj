@@ -2,22 +2,21 @@
 
 <!--toc:start-->
 
-- [Master thesis project](#master-thesis-project)
-  - [Platform](#platform)
-  - [Requirements](#requirements)
-  - [Building](#building)
-    - [Docker](#docker)
-    - [Native](#native)
-  - [Running](#running)
-  - [Scenario `3-pid` setup](#scenario-3-pid-setup)
-    - [Tuning](#tuning)
-    - [Operating the controller](#operating-the-controller)
-  - [Benchmarking](#benchmarking)
-  - [Configuration](#configuration)
-    - [Build configuration](#build-configuration)
-    - [Runtime configuration](#runtime-configuration)
-    - [ESP32 hardware configuration](#esp32-hardware-configuration)
-    - [Raspberry Pi hardware configuration](#raspberry-pi-hardware-configuration)
+- [Platform](#platform)
+- [Requirements](#requirements)
+- [Building](#building)
+  - [Docker](#docker)
+  - [Native](#native)
+- [Running](#running)
+- [Scenario `3-pid` setup](#scenario-3-pid-setup)
+  - [Tuning](#tuning)
+  - [Operating the controller](#operating-the-controller)
+- [Benchmarking](#benchmarking)
+- [Configuration](#configuration)
+  - [Build configuration](#build-configuration)
+  - [Runtime configuration](#runtime-configuration)
+  - [ESP32 hardware configuration](#esp32-hardware-configuration)
+  - [Raspberry Pi hardware configuration](#raspberry-pi-hardware-configuration)
 
 <!--toc:end-->
 
