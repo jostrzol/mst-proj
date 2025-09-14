@@ -77,7 +77,7 @@ fn main() !void {
     log.info("Controlling motor from Zig", .{});
 
     std.log.info(
-        "Revolution thresholds: [{}, {}]",
+        "Revolution thresholds: [{d:.2}, {d:.2}]",
         .{ revolution_threshold_close, revolution_threshold_far },
     );
 

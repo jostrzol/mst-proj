@@ -93,8 +93,11 @@ COPY ./c/1-blinky ./1-blinky/
 COPY ./c/2-motor ./2-motor/
 COPY ./c/3-pid ./3-pid/
 COPY ./c/targets.cmake ./c/taskfile.c.yml ./
+COPY ./taskfile.var.yml ./..
 
 ENV TASK_TEMP_DIR=../.task
+ARG REVOLUTION_THRESHOLD_CLOSE
+ARG REVOLUTION_THRESHOLD_FAR
 RUN task --taskfile ./taskfile.c.yml --dir . build-every-profile-os
 
 # C build bm
@@ -104,8 +107,11 @@ COPY ./c/1-blinky-bm ./1-blinky-bm/
 COPY ./c/2-motor-bm ./2-motor-bm/
 COPY ./c/3-pid-bm ./3-pid-bm/
 COPY ./c/taskfile.c.yml ./
+COPY ./taskfile.var.yml ./..
 
 ENV TASK_TEMP_DIR=../.task
+ARG REVOLUTION_THRESHOLD_CLOSE
+ARG REVOLUTION_THRESHOLD_FAR
 RUN --mount=type=secret,id=WIFI_SSID,env=WIFI_SSID \
     --mount=type=secret,id=WIFI_PASS,env=WIFI_PASS \
     task --taskfile ./taskfile.c.yml --dir . build-every-profile-bm
@@ -151,8 +157,11 @@ COPY ./zig/1-blinky ./1-blinky/
 COPY ./zig/2-motor ./2-motor/
 COPY ./zig/3-pid ./3-pid/
 COPY ./zig/taskfile.zig.yml ./
+COPY ./taskfile.var.yml ./..
 
 ENV TASK_TEMP_DIR=../.task
+ARG REVOLUTION_THRESHOLD_CLOSE
+ARG REVOLUTION_THRESHOLD_FAR
 RUN task --taskfile ./taskfile.zig.yml --dir . build-every-profile-os
 
 # Zig build bm
@@ -164,8 +173,11 @@ COPY ./zig/1-blinky-bm ./1-blinky-bm/
 COPY ./zig/2-motor-bm ./2-motor-bm/
 COPY ./zig/3-pid-bm ./3-pid-bm/
 COPY ./zig/taskfile.zig.yml ./
+COPY ./taskfile.var.yml ./..
 
 ENV TASK_TEMP_DIR=../.task
+ARG REVOLUTION_THRESHOLD_CLOSE
+ARG REVOLUTION_THRESHOLD_FAR
 RUN --mount=type=secret,id=WIFI_SSID,env=WIFI_SSID \
     --mount=type=secret,id=WIFI_PASS,env=WIFI_PASS \
     task --taskfile ./taskfile.zig.yml --dir . build-every-profile-bm
@@ -222,9 +234,12 @@ COPY ./rust/1-blinky ./1-blinky/
 COPY ./rust/2-motor ./2-motor/
 COPY ./rust/3-pid ./3-pid/
 COPY ./rust/taskfile.rust.yml ./
+COPY ./taskfile.var.yml ./..
 
 ENV TASK_TEMP_DIR=../.task
 ENV RUST_BUILD_TOOL=cargo
+ARG REVOLUTION_THRESHOLD_CLOSE
+ARG REVOLUTION_THRESHOLD_FAR
 RUN task --taskfile ./taskfile.rust.yml --dir . build-every-profile-os
 
 # Rust build bm
@@ -265,8 +280,11 @@ COPY ./rust/2-motor-bm ./2-motor-bm/
 COPY ./rust/3-pid-bm ./3-pid-bm/
 COPY ./rust/0-tune-bm ./0-tune-bm/
 COPY ./rust/taskfile.rust.yml ./
+COPY ./taskfile.var.yml ./..
 
 ENV TASK_TEMP_DIR=../.task
+ARG REVOLUTION_THRESHOLD_CLOSE
+ARG REVOLUTION_THRESHOLD_FAR
 RUN --mount=type=secret,id=WIFI_SSID,env=WIFI_SSID \
     --mount=type=secret,id=WIFI_PASS,env=WIFI_PASS \
     task --taskfile ./taskfile.rust.yml --dir . build-every-profile-bm

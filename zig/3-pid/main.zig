@@ -48,7 +48,7 @@ pub fn main() !void {
     std.log.info("Controlling motor using PID from Zig", .{});
 
     std.log.info(
-        "Revolution thresholds: [{}, {}]",
+        "Revolution thresholds: [{d:.2}, {d:.2}]",
         .{ config.revolution_threshold_close, config.revolution_threshold_far },
     );
 

@@ -6,22 +6,8 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const log_level = b.option(std.log.Level, "log-level", "Log level");
 
-    const revolution_threshold_close_str = std.process.getEnvVarOwned(
-        b.allocator,
-        "REVOLUTION_THRESHOLD_CLOSE",
-    ) catch "0.2";
-    const revolution_threshold_close = try std.fmt.parseFloat(
-        f32,
-        revolution_threshold_close_str,
-    );
-    const revolution_threshold_far_str = std.process.getEnvVarOwned(
-        b.allocator,
-        "REVOLUTION_THRESHOLD_FAR",
-    ) catch "0.36";
-    const revolution_threshold_far = try std.fmt.parseFloat(
-        f32,
-        revolution_threshold_far_str,
-    );
+    const revolution_threshold_close = try getEnvF32(b, "REVOLUTION_THRESHOLD_CLOSE", 0.2);
+    const revolution_threshold_far = try getEnvF32(b, "REVOLUTION_THRESHOLD_FAR", 0.36);
 
     const zig_pwm = b.dependency("zig-pwm", .{ .target = target, .optimize = optimize });
 
@@ -57,6 +43,18 @@ pub fn build(b: *std.Build) !void {
 
     const check_step = b.step("check", "Check the application");
     check_step.dependOn(&exe.step);
+}
+
+fn getEnvF32(b: *std.Build, name: []const u8, default: f32) !f32 {
+    const str = std.process.getEnvVarOwned(
+        b.allocator,
+        name,
+    ) catch return default;
+    return std.fmt.parseFloat(f32, str) catch {
+        std.log.err("{s} must be float, got '{s}'", .{ name, str });
+        b.invalid_user_input = true;
+        return error.EnvVarNotFloat;
+    };
 }
 
 const MakeOptions = struct {

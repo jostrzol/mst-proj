@@ -5,6 +5,9 @@ services:
         secrets:
           - WIFI_SSID
           - WIFI_PASS
+        args:
+          REVOLUTION_THRESHOLD_CLOSE:  ${REVOLUTION_THRESHOLD_CLOSE}
+          REVOLUTION_THRESHOLD_FAR:  ${REVOLUTION_THRESHOLD_FAR}
       user: "${UID:-1000}:${GID:-1000}"
       volumes:
         - type: bind 

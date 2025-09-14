@@ -140,9 +140,9 @@ tasks:
     cmd: sudo usb_modeswitch -v {{.USB_VENDOR}} -p {{.USB_PRODUCT}} --reset-usb
   docker-compose:
     internal: true
-    deps: [artifacts-docker-exists]
+    deps: [artifacts-exists]
     cmd: docker-compose {{.CLI_ARGS}}
     env: {UID: '{{.UID}}', GID: '{{.GID}}'}
-  artifacts-docker-exists:
+  artifacts-exists:
     internal: true
-    dir: "./artifacts/docker"
+    dir: "./artifacts"

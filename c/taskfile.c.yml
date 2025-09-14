@@ -225,7 +225,12 @@ tasks:
       SDKCONFIG: '{{.PROFILE | get .C_SDKCONFIG_MAP | default "sdkconfig"}}'
     deps: ['idf:ensure-available']
     cmds: 
-      - '{{if .CLEAR_SDKCONFIG}}rm {{joinPath .PROJECT .SDKCONFIG}}{{end}}'
+      - |
+        {{if .CLEAR_SDKCONFIG}}
+          if test -e {{joinPath .PROJECT .SDKCONFIG}}; then
+            rm {{joinPath .PROJECT .SDKCONFIG}}
+          fi
+        {{end}}
       - |
         sh -c '
           {{.EXPORT_IDF_CMD}}

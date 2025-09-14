@@ -87,7 +87,7 @@ export class ModbusClient {
 				this.#options.onMessage?.call(null, reading);
 				this.clearWasError();
 			} catch (e) {
-				if (isErrnoException(e) && e.code === 'EAI_AGAIN') {
+				if (isErrnoException(e) && ['EAI_AGAIN', 'ENOTFOUND'].includes(e.code || '')) {
 					console.info('MODBUS: Cannot resolve hostname');
 				} else if (e instanceof UserRequestError && e.err === 'Offline') {
 					console.info('MODBUS: Cannot reach');
