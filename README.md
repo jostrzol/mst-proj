@@ -38,6 +38,8 @@ Below are the instructions to reproduce the results of my thesis' findings.
 
 ## Requirements
 
+### Software
+
 For native and docker build:
 
 - [`git`](https://git-scm.com/)
@@ -66,6 +68,25 @@ install ldpoxy --locked`)
 > [!NOTE]
 > This software was tested on Linux. It should work on other platforms thanks to
 > docker, but might require additional setup.
+
+### Hardware
+
+- Raspberry Pi Zero W,
+- ESP32 DEVKITV1,
+- DC motor MT65 5V,
+- HAL sensor IDUINO 5V,
+- ADS7830 converter,
+- neodymium magnet N N35/Ni 10x1mm x2,
+- 10 kΩ potentiometer,
+- NPN PN2222 transistor,
+- 1N4007 rectifier diode,
+- LED diode,
+- 1000 Ω resistor x2,
+- 100 Ω resistor,
+- cables,
+- breadboard (optional).
+
+All components but first two can be exchanged for a suitable replacement.
 
 ## Running the scenarios
 
