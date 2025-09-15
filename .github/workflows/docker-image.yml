@@ -1,0 +1,22 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: docker-compose build scenarios
+      env:
+          WIFI_SSID: WIFI_SSID
+          WIFI_PASS: WIFI_PASS
+          REVOLUTION_THRESHOLD_CLOSE: 0.20
+          REVOLUTION_THRESHOLD_FAR: 0.36
+
+
