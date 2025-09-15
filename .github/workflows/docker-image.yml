@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Install Docker Compose
+      run: sudo apt-get update && sudo apt-get install -y docker-compose
     - name: Build the Docker image
       run: docker-compose build scenarios
       env:
