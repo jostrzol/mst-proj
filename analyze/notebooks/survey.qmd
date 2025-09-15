@@ -44,7 +44,7 @@ from analyze.lib.plot import (
     savefig,
     use_plot_style,
 )
-from analyze.lib.constants import PLOT_DIR
+from analyze.lib.constants import ANALYZE_OUT_DIR, PLOT_DIR
 
 pd.options.mode.copy_on_write = True
 
@@ -62,6 +62,7 @@ def find_root_dir():
 ROOT_DIR = find_root_dir()
 SURVEY_PATH = ROOT_DIR / "analyze/data/survey.csv"
 OUT_DIR = PLOT_DIR / "survey"
+OUT_SURVEY_PATH = ANALYZE_OUT_DIR / "survey-cleaned.csv"
 
 os.chdir(ROOT_DIR)
 OUT_DIR.mkdir(exist_ok=True)
@@ -1055,4 +1056,10 @@ to_plot = values
 pd_plot_hist_horiz(to_plot)
 pd_savefig(to_plot, OUT_DIR)
 plt.show()
+```
+
+
+```{python}
+# Save df_out
+df_out.to_csv(OUT_SURVEY_PATH)
 ```
